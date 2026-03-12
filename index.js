@@ -22,11 +22,32 @@ app.get('/', (req, res) => {
     res.render('client/index'); // This looks for 'views/index.ejs'
 });
 
+const bookingSchema = new mongoose.Schema({
+    customerName: String,
+    plateNumber: String,
+    service: String
+});
+
+const Booking = mongoose.model('Booking', bookingSchema);
+
 // This handles the form submission
-app.post('/book', (req, res) => {
-    const data = req.body;
-    console.log("New Booking Received:", data);
-    res.send(`Successfully received booking for ${data.customerName}! Check your terminal.`);
+app.post('/book', async (req, res) => {
+    try {
+        const newBooking = new Booking({
+            customerName: req.body.customerName,
+            plateNumber: req.body.plateNumber,
+            service: req.body.service
+        });
+
+        // This is the line that actually puts it in Atlas!
+        await newBooking.save();
+
+        console.log("✅ Saved to MongoDB:", newBooking);
+        res.send(`Successfully saved booking for ${req.body.customerName} to the database!`);
+    } catch (err) {
+        console.error("❌ Error saving to DB:", err);
+        res.status(500).send("Error saving booking.");
+    }
 });
 
 app.listen(port, () => {
