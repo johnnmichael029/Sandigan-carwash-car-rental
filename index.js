@@ -1,14 +1,19 @@
 ﻿const express = require('express');
 const app = express();
-const port = 3000;
+const port = 8080;
 const mongoose = require('mongoose');
 
 
 
-// Connect to MongoDB (SandiganDB will be created automatically)
-mongoose.connect('mongodb://localhost:27017/SandiganDB')
-    .then(() => console.log('✅ Success: Connected to MongoDB!'))
-    .catch(err => console.error('❌ Database connection error:', err));
+const dbURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/SandiganDB';
+
+mongoose.connect(dbURI)
+    .then(() => console.log('✅ Connected to MongoDB Atlas!'))
+    .catch(err => {
+        console.error('❌ Database connection error:', err);
+        process.exit(1); // This stops the "infinite loading" if the database fails
+    });
+
 
 app.set('view engine', 'ejs'); // Tell Express to use EJS
 app.use(express.urlencoded({ extended: true })); // This helps read form data
