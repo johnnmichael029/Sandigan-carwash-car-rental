@@ -3,6 +3,8 @@ const app = express();
 const port = 3000;
 const mongoose = require('mongoose');
 
+
+
 // Connect to MongoDB (SandiganDB will be created automatically)
 mongoose.connect('mongodb://localhost:27017/SandiganDB')
     .then(() => console.log('✅ Success: Connected to MongoDB!'))
