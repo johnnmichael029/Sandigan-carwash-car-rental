@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="ExpressProject1/Carwash-Web-App.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+</Solution>
