@@ -18,7 +18,7 @@ mongoose.connect(dbURI)
 app.set('view engine', 'ejs'); // Tell Express to use EJS
 app.use(express.urlencoded({ extended: true })); // This helps read form data
 
-app.use(express.static('public'));
+app.use(express.static('public/css/style.css'));
 app.get('/', (req, res) => {
     res.render('client/index'); // This looks for 'views/index.ejs'
 });
