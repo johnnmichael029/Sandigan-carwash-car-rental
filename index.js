@@ -21,22 +21,23 @@ app.use(express.urlencoded({ extended: true })); // This helps read form data
 app.use(express.static('public'));
 app.get('/', (req, res) => {
 
-    const Pricelist = [
-        { VehicleType = "Hatchback", Wash = 140, Wax = 400, Engine = 450 },
-        { VehicleType = "Sedan", Wash = 150, Wax = 450, Engine = 500 },
-        { VehicleType = "Compact / Changan", Wash = 180, Wax = 500, Engine = 550 },
-        { VehicleType = "SUV", Wash = 250, Wax = 550, Engine = 600 },
-        { VehicleType = "Pick Up / Travis", Wash = 280, Wax = 600, Engine = 650 },
-        { VehicleType = "Van / L300", Wash = 280, Wax = 700, Engine = 750 },
-        { VehicleType = "Jeep", Wash = 300, Wax = 750, Engine = 800 },
-        { VehicleType = "Big Bike", Wash = 160, Wax = 250, Engine = 0 },
-        { VehicleType = "Motorcycle (150cc)", Wash = 140, Wax = 200, Engine = 0 },
-        { VehicleType = "Motorcycle (125cc)", Wash = 130, Wax = 150, Engine = 0 },
-        { VehicleType = "Motorcycle (110cc)", Wash = 120, Wax = 100, Engine = 0 },
-        { VehicleType = "Tricycle", Wash = 150, Wax = 0, Engine = 0 }
-    ];
+const PriceList = [
+    { VehicleType: "Hatchback", Wash: 140, Wax: 400, Engine: 450 },
+    { VehicleType: "Sedan", Wash: 150, Wax: 450, Engine: 500 },
+    { VehicleType: "Compact / Changan", Wash: 180, Wax: 500, Engine: 550 },
+    { VehicleType: "SUV", Wash: 250, Wax: 550, Engine: 600 },
+    { VehicleType: "Pick Up / Travis", Wash: 280, Wax: 600, Engine: 650 },
+    { VehicleType: "Van / L300", Wash: 280, Wax: 700, Engine: 750 },
+    { VehicleType: "Jeep", Wash: 300, Wax: 750, Engine: 800 },
+    { VehicleType: "Big Bike", Wash: 160, Wax: 250, Engine: 0 },
+    { VehicleType: "Motorcycle (150cc)", Wash: 140, Wax: 200, Engine: 0 },
+    { VehicleType: "Motorcycle (125cc)", Wash: 130, Wax: 150, Engine: 0 },
+    { VehicleType: "Motorcycle (110cc)", Wash: 120, Wax: 100, Engine: 0 },
+    { VehicleType: "Tricycle", Wash: 150, Wax: 0, Engine: 0 }
+];
 
-    res.render('client/index'); // This looks for 'views/index.ejs'
+// Don't forget to pass it to the render function!
+res.render('client/index', { PriceList });
 });
 
 const bookingSchema = new mongoose.Schema({
