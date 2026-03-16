@@ -3,8 +3,6 @@ const app = express();
 const port = 8080;
 const mongoose = require('mongoose');
 
-
-
 const dbURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/SandiganDB';
 
 mongoose.connect(dbURI)
@@ -13,7 +11,9 @@ mongoose.connect(dbURI)
         console.error('❌ Database connection error:', err);
         process.exit(1); // This stops the "infinite loading" if the database fails
     });
-
+app.get('/book', (req, res) => {
+    res.render('public/book'); // This tells Express to render views/client/book.ejs
+});
 
 app.set('view engine', 'ejs'); // Tell Express to use EJS
 app.use(express.urlencoded({ extended: true })); // This helps read form data
@@ -37,7 +37,7 @@ const PriceList = [
 ];
 
 // Don't forget to pass it to the render function!
-res.render('client/index', { PriceList });
+res.render('public/index', { PriceList: PriceList });
 });
 
 const bookingSchema = new mongoose.Schema({

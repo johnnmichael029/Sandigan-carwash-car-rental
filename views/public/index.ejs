@@ -5,7 +5,6 @@
 <%- include('partials/head') %>
 <%- include('partials/nav') %>
 	
-<nav/>
 <main class="landing-wrapper">
     <section id="home-section" class="home-section py-5">
         <div class="container py-5">
@@ -19,7 +18,7 @@
                         Experience the best carwash in town with Sandigan Carwash.
                     </p>
                     <div class="mt-4">
-                        <a href="#" class="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center text-dark"
+                        <a href="/book" class="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center text-dark"
                            style="width: 13rem; height: 3.5rem; border-radius: 12px; background-color: #00e8e9; border: none;">
                             Book Now
                         </a>
@@ -107,15 +106,22 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var item in PriceList)
-                            {
-                                <tr>
-                                    <td class="fw-bold ps-4 text-dark" data-label="Vehicle">@item.VehicleType</td>                                   
-                                    <td class="text-center text-muted" data-label="Body Wash">₱@item.Wash</td>
-                                    <td class="text-center text-muted" data-label="Wax Wash">₱@item.Wax</td>
-                                    <td class="text-center text-muted" data-label="Engine Wash">₱@item.Engine</td>
-                                </tr>
-                            }
+							<% PriceList.forEach(function(item) { %>
+							<tr>
+								<td class="fw-bold ps-4 text-dark" data-label="Vehicle">
+									<%= item.VehicleType %>
+								</td>
+								<td class="text-center text-muted" data-label="Body Wash">
+									₱<%= item.Wash %>
+								</td>
+								<td class="text-center text-muted" data-label="Wax Wash">
+									₱<%= item.Wax %>
+								</td>
+								<td class="text-center text-muted" data-label="Engine Wash">
+									₱<%= item.Engine %>
+								</td>
+							</tr>
+							<% }); %>
                         </tbody>
                     </table>
                 </div>               
