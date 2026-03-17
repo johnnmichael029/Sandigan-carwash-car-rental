@@ -39,7 +39,11 @@ const Book = () => {
             serviceType
         };
         try {
-            const response = await fetch('http://localhost:4000/api/booking', {
+            const API_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:4000/api/bookings' 
+            : 'https://your-backend-azure-app.azurewebsites.net/api/bookings'
+
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 body: JSON.stringify(bookingData),
                 headers: {

@@ -17,7 +17,11 @@ const path = require('path');
 
 // Middleware
 const cors = require('cors'); // 1. Import it
-app.use(cors()); // 2. Use it as middleware
+app.use(cors({
+    origin: ['http://localhost:5173', 'https://your-frontend-azure-app.azurewebsites.net'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    credentials: true
+})); // 2. Use it as middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // This is for parsing JSON bodies in POST requests
 
