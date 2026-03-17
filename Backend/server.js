@@ -18,7 +18,7 @@ const path = require('path');
 // Middleware
 const cors = require('cors'); // 1. Import it
 app.use(cors({
-    origin: ['http://localhost:5173', 'https://your-frontend-azure-app.azurewebsites.net'],
+    origin: ['http://localhost:5173', 'https://sandigan-carwash-carrental-akd8a6cde6hpg4cc.japaneast-01.azurewebsites.net/book'],
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     credentials: true
 })); // 2. Use it as middleware
