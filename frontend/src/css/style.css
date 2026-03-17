@@ -60,8 +60,6 @@ html {
     box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
 }
 
-
-
 /* Ensure all images in the service cards have the same height and look sharp */
 .service-img-wrapper {
     width: 100%;
@@ -225,3 +223,8 @@ h6, h2, label {
     color: #D1D1D1;
 }
 
+
+/* Booking Section */
+.book-section {
+    background: #0A0A0A;
+}

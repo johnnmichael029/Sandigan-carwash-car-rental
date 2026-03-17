@@ -7,10 +7,10 @@ const Book = () => {
   return (
     <>
         <Navbar />
-        <section id="book-section" className="home-section">
+        <section id="book-section" className="book-section">
         <div className="container">
-            <div className="d-flex justify-content-center">
-            <div className="col-md-7 bg-dark shadow-lg rounded py-5">
+            <div className="d-flex justify-content-center py-5">
+                <div className="col-md-7 bg-dark shadow-lg rounded py-5">
                 <form className="p-5 g-5">
                     <div className="form-floating mb-3">
                         <input 
