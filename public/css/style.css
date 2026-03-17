@@ -225,29 +225,3 @@ h6, h2, label {
     color: #D1D1D1;
 }
 
-/* Footer */
-.footer-custom {
-    border-top: 2px solid #1a1a1a;
-    background: linear-gradient(135deg, #1a1a1a 0%, #0a0e14 100%);
-}
-
-.footer-links a:hover {
-    color: #00e8e9 !important; /* Cyan hover effect */
-    padding-left: 5px;
-    transition: all 0.3s ease;
-}
-
-.footer-custom .border-primary {
-    border-color: #00e8e9 !important; /* Cyan bottom border for headers */
-}
-
-.social-links a:hover {
-    color: #00e8e9 !important;
-    transform: translateY(-3px);
-    display: inline-block;
-}
-
-/* Specific styling for the icons if using Bootstrap Icons */
-.bi-heart-fill {
-    font-size: 0.8rem;
-}
