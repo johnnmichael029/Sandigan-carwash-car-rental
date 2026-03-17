@@ -62,5 +62,5 @@ jobs:
         with:
           app-name: 'sandigan-backend-api'
           slot-name: 'Production'
-          package: .
+          package: backend
           
