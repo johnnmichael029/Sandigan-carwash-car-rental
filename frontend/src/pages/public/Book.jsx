@@ -29,8 +29,7 @@ const Book = () => {
                         placeholder="Password" 
                         />
                         <label htmlFor="floatingPassword">Password</label>
-                    </div>
-                    
+                    </div>                    
                 {/* Added a submit button so the form is functional */}
                 <button type="submit" className="btn btn-primary mt-3 w-100">
                     Book Now
