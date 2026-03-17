@@ -15,6 +15,9 @@ const path = require('path');
 // app.set('view engine', 'ejs'); // Tell Express to use EJS
 // app.use(express.static(path.join(__dirname, '../public')));
 
+// Middleware
+const cors = require('cors'); // 1. Import it
+app.use(cors()); // 2. Use it as middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // This is for parsing JSON bodies in POST requests
 

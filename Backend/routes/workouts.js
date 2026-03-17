@@ -9,16 +9,16 @@ const {
 const PriceList = require('../controllers/priceListController');
 const router = express.Router();
 
-// --- PAGE VIEWS (These render EJS) ---
-// Home Page
-router.get('/', (req, res) => {
-    // This is the route for the price list 
-    res.render('public/index', { PriceList: PriceList });
-});
-// Booking Form Page
-router.get('/book', (req, res) => {
-    res.render('public/book'); 
-});
+// // --- PAGE VIEWS (These render EJS) ---
+// // Home Page
+// router.get('/', (req, res) => {
+//     // This is the route for the price list 
+//     res.render('public/index', { PriceList: PriceList });
+// });
+// // Booking Form Page
+// router.get('/book', (req, res) => {
+//     res.render('public/book'); 
+// });
 
 // --- API DATA ROUTES (These return JSON) ---
 

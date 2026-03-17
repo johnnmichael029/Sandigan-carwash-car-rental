@@ -32,9 +32,9 @@ const getBooking = async (req, res) => {
 
 // Create a new booking
 const createBooking = async (req, res) => {
-    const { customerName, plateNumber, service } = req.body;
+    const { firstName, lastName, emailAddress, vehicleType, serviceType } = req.body;
     try {
-    const booking = await Booking.create({ customerName, plateNumber, service });
+    const booking = await Booking.create({ firstName, lastName, emailAddress, vehicleType, serviceType });
     console.log("✅ Booking created:", booking);
     res.status(200).json(booking);
     }
@@ -63,7 +63,7 @@ const deleteBooking = async (req, res) => {
 // Update a booking
 const updateBooking = async (req, res) => {
     const { id } = req.params;
-    const { customerName, plateNumber, service } = req.body;
+    const { firstName, lastName, emailAddress, vehicleType, serviceType } = req.body;
     try {
         const booking = await Booking.findByIdAndUpdate(id, { ...req.body }, { new: true });
         if (!booking) {

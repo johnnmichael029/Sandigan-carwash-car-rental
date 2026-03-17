@@ -3,15 +3,23 @@ const { time } = require('node:console');
 const Schema = mongoose.Schema;
 
 const bookingSchema = new Schema({
-    customerName: {
+    firstName: {
         type: String,
         required: true
     },
-    plateNumber: {
+    lastName: {
         type: String,
         required: true
     },
-    service: {
+    emailAddress: {
+        type: String,
+        required: true
+    },
+    vehicleType: {
+        type: String,
+        required: true
+    },
+    serviceType: {
         type: String,
         required: true
     }
