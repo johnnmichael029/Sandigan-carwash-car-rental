@@ -10,53 +10,52 @@ const Book = () => {
         <section id="book-section" className="book-section">
         <div className="container">
             <div className="py-5">
-                <div className="row align-items-center rounded py-5 px-4">
+                <div className="row align-items-center">
                     <div className="col-md-6 text-white">
                         <h6 className="text-uppercase"><i> BOOK NOW </i></h6>
                         <h1 className="fw-bold">Ready for</h1>
                         <h1 className="fw-bold" style={{ color: '#1CB2E7' }}>Cleaner / Ride?</h1>
                         <p className="fs-6 hero-description">Experience the best car wash service and car rental in the business.</p>
                     </div>
-                    <form className="form col-md-6 p-5 g-5">
+                    <form className="form col-md-6 p-5 ">
                         <div className="d-flex gap-3">
-                            <div className="flex-fill form-floating mb-3">
+                            <div className="form-label flex-fill mb-3">
+                                <label for="formInput" class="form-label">First name</label>
+                                <input 
+                                type="text" 
+                                className="form-control" 
+                                id="formInput" 
+                                placeholder="e.g., John Michael" 
+                                />                           
+                            </div>
+                            <div className="form-label flex-fill mb-3">
+                                <label class="form-label">Last name</label>
                                 <input 
                                 type="text" 
                                 className="form-control" 
                                 id="floatingInput" 
-                                placeholder="John Michael" 
-                                />
-                                <label htmlFor="floatingInput">First name</label>
+                                placeholder="e.g., Doe" 
+                                />                              
                             </div>
-                            <div className="flex-fill form-floating mb-3">
-                                <input 
-                                type="text" 
-                                className="form-control" 
-                                id="floatingInput" 
-                                placeholder="John Michael" 
-                                />
-                                <label htmlFor="floatingInput">Last name</label>
-                            </div>
-                        </div>
-                         
-                        <div className="form-floating mb-3">
+                        </div>                        
+                        <div className="form-label mb-3">
+                            <label class="form-label">Email address</label>
                             <input 
                             type="email" 
                             className="form-control" 
                             id="floatingInput" 
                             placeholder="name@example.com" 
-                            />
-                            <label htmlFor="floatingInput">Email address</label>
+                            />                         
                         </div>
-                        <div className="form-floating mb-3">
+                        <div className="form-label mb-3">
+                            <label class="form-label">Vehicle type</label>
                             <input 
                             type="text" 
                             className="form-control" 
                             id="floatingVehicle" 
                             list="vehicleOptions" 
-                            placeholder="Vehicle type" 
-                            />
-                            <label htmlFor="floatingVehicle">Vehicle type</label>
+                            placeholder="e.g., Sedan" 
+                            />                          
                              <datalist id="vehicleOptions">
                                 <option value="Sedan" />
                                 <option value="SUV" />
@@ -64,21 +63,20 @@ const Book = () => {
                                 <option value="Coupe" />
                             </datalist>
                         </div>   
-                        <div className="form-floating">
+                        <div className="form-label">
+                             <label class="form-label">Service type</label>
                            <input 
                                 type="text" 
                                 className="form-control" 
                                 id="floatingService" 
                                 list="serviceOptions" 
-                                placeholder="Service type" 
-                            />
-                            <label htmlFor="floatingService">Service type</label>
-
+                                placeholder="e.g., Wash" 
+                            />                                                    
                             <datalist id="serviceOptions">
-                                <option value="Car Wash" />
-                                <option value="Car Rental" />
-                                <option value="Detailing" />
-                                <option value="Oil Change" />
+                                <option value="Wash" />
+                                <option value="Armor Wash" />
+                                <option value="Wax Wash" />
+                                <option value="Engine Wash" />
                             </datalist>
                         </div>
                         <div className="form-check d-flex align-items-start gap-3 my-3">
