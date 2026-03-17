@@ -226,5 +226,5 @@ h6, h2, label {
 
 /* Booking Section */
 .book-section {
-    background: #0A0A0A;
+    background: linear-gradient(135deg, #1a1a1a 0%, #0a0e14 100%);
 }
