@@ -22,13 +22,17 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '24.x'
-
+          
+      - name: List files for debugging
+        run: ls -R
+        
       - name: npm install, build, and test
         run: |
+          cd ./backend || cd ./Backend || cd ./*/backend
           npm install
           npm run build --if-present
           npm run test --if-present
-        working-directory: backend
+        
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
