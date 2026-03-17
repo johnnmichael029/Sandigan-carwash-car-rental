@@ -10,10 +10,10 @@ const workoutsRoutes = require('./routes/workouts');
 
 const path = require('path');
 
-// Tell Express that the 'views' folder is one level up (..)
-app.set('views', path.join(__dirname, '../views'));
-app.set('view engine', 'ejs'); // Tell Express to use EJS
-app.use(express.static(path.join(__dirname, '../public')));
+// // Tell Express that the 'views' folder is one level up (..)
+// app.set('views', path.join(__dirname, '../views'));
+// app.set('view engine', 'ejs'); // Tell Express to use EJS
+// app.use(express.static(path.join(__dirname, '../public')));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // This is for parsing JSON bodies in POST requests
