@@ -41,7 +41,7 @@ const Book = () => {
         try {
             const API_URL = window.location.hostname === 'localhost' 
             ? 'http://localhost:4000/api/booking' 
-            : 'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net/'
+            : 'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net/api/booking';
 
             const response = await fetch(API_URL, {
                 method: 'POST',
