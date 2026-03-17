@@ -8,7 +8,7 @@ html {
 /* Main */
 /* Define height of each section */
 .home-section,
-.service-section, serice-price-section, about-section, .contact-section {
+.service-section, .service-price-section, .about-section, .contact-section {
     /* Use min-height instead of height to prevent content cutting on small screens */
     min-height: 100vh;
     display: flex;
