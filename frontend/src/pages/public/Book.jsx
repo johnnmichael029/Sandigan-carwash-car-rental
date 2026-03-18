@@ -80,7 +80,7 @@ const Book = () => {
         <section id="book-section" className="book-section">
             <div className="container">
                 <div className="py-5">
-                    <div className="row align-items-center">
+                    <div className="row align-items-center my-5">
                         <div className="col-md-6 text-white">
                             <h6 className="text-uppercase"><i> BOOK NOW </i></h6>
                             <h1 className="fw-bold">Ready for</h1>

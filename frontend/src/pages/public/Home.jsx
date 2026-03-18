@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { Link } from 'react-router-dom';
@@ -7,7 +7,13 @@ import img1 from '../../assets/img/carwash-img1.jpg'; // Ensure this image exist
 import img2 from '../../assets/img/carwash-img2.jpg'; // Ensure this image exists in the specified path
 import img4 from '../../assets/img/carwash-img4.jpg';
 import img5 from '../../assets/img/carwash-img5.jpg';
-
+import bgimg from '../../assets/img/hero-bg-img.png';
+import carbubble from '../../assets/img/car-bubble.png';
+import bubble from '../../assets/img/bubble.png';
+import bubble1 from '../../assets/img/bubble-container.png';
+import bubble2 from '../../assets/img/bubble-container1.png';
+import ellipse from '../../assets/img/ellipse.png';
+import fluentbubble from '../../assets/img/fluent-bubble.png';
 
 const Home = () => {
     // Note: In a real app, you'll fetch this from your backend (port 8080)
@@ -22,30 +28,51 @@ const Home = () => {
             <Navbar />
             <main className="landing-wrapper">
                 {/* Hero Section */}
-                <section id="home-section" className="home-section py-5">
-                    <div className="container py-5">
-                        <div className="row align-items-center py-5">
-                            <div className="col-md-6">
-                                <h1 className="display-3 fw-bold hero-title">
-                                    Sandigan Carwash <br />
-                                    <span className="brand-accent">Quality Service.</span>
-                                </h1>
-                                <p className="lead hero-description mt-3">
-                                    Experience the best carwash in town with Sandigan Carwash.
-                                </p>
-                                <div className="mt-4">
-                                    <Link
-                                        to="/book"
-                                        className="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center text-dark"
-                                        style={{ width: '13rem', height: '3.5rem', borderRadius: '12px', backgroundColor: '#00e8e9', border: 'none' }}
-                                    >
-                                        Book Now
-                                    </Link>
+                <section id="home-section" className="home-section">
+                    <div className='hero-bg-image-container position-relative'>
+                        <div className='bubble-container d-flex align-items-center justify-content-between position-absolute w-100 h-100'>
+                            <img src={bubble1} className="bubble bubble1  " alt="Bubble" />
+                            {/* <img src={bubble}  className="bubble align-self-center" alt="Bubble" /> */}
+                            <img src={bubble2} className="bubble bubble2 " alt="Bubble" />
+                            <img src={ellipse} className="ellipse position-absolute top-0 end-0" alt="Ellipse" />
+                        </div>                   
+                        <img src={bgimg} className='hero-bg-image position-absolute' alt='Hero Background' />
+                        <div className="container py-5 ">                       
+                            <div className="row align-items-center py-5">
+                                <div className="col-md-6">
+                                    <div className='brand-container d-flex align-items-center gap-1'>
+                                        <img src={fluentbubble} alt="Fluent Bubble" />
+                                        <h6 className="brand-italic text-uppercase brand-accent mb-0 "><i> Drive with confidence </i></h6>
+                                    </div>                                 
+                                    <h1 className="display-3 fw-bold hero-title text-uppercase">
+                                       We make <br /> cars <br />
+                                        <span className="brand-accent roller-container">
+                                            <span className="roller-list">
+                                                <span>SPOTLESS.</span>
+                                                <span>SHINY.</span>
+                                                <span>CLEAN.</span>
+                                                <span>ROAD-READY.</span>                                               
+                                                <span>SPOTLESS.</span>
+                                            </span>
+                                        </span>
+                                    </h1>
+                                    <p className="lead hero-description">
+                                        Professional car wash services that keep your vehicle clean, polished, and road-ready every day.
+                                    </p>
+                                    <div className="mt-5">
+                                        <Link
+                                            to="/book"
+                                            className="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center text-white"
+                                            style={{ width: '13rem', height: '3.5rem', borderRadius: '24px', backgroundColor: '#23A0CE', border: 'none' }}
+                                        >
+                                            Book Now
+                                        </Link>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="col-md-6 text-center mt-5 mt-md-0">
-                                <div className="hero-image-container shadow-lg">
-                                    <img src={img1} className="img-fluid" alt="Carwash Service" />
+                                <div className="col-md-6 text-center mt-5 mt-md-0">
+                                    <div className="hero-image-container">
+                                        <img src={carbubble} className="img-fluid" alt="Carwash Service" />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -142,6 +169,7 @@ const Home = () => {
                         </div>
                     </div>
                 </section>
+
                 {/* Contact Section */}
                 <section id="contact-section" className="contact-section py-5 bg-dark">
                     <div className="container py-5">

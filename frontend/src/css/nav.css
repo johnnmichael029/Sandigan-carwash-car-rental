@@ -1,6 +1,9 @@
 ﻿/* --- Navbar --- */
-.navbar-custom {
-    background: linear-gradient(135deg, #1a1a1a 0%, #0a0e14 100%);
+.navbar-container {
+    background: hsla(180, 4%, 5%, 0.5) !important;
+    z-index: 1;
+    border-radius: 36px;
+    height: 4rem;
 }
 
 /* 1. Base State for All Links (Desktop & Mobile) */

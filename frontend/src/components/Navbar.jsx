@@ -1,12 +1,14 @@
 ﻿import React from 'react';
 import logo from '../assets/logo/logo.png'; 
 import '../css/nav.css';
+import { Link } from 'react-router-dom';
+import brandlogo from '../assets/logo/brand-logo.png';
 
 const Navbar = () => {
   return (
-    <header className="sticky-top shadow-sm">
-      <nav className="navbar navbar-custom navbar-expand-lg navbar-dark bg-dark py-2 sticky-top">
-        <div className="container">
+    <header className="fixed-top">
+      <nav className="navbar navbar-custom navbar-expand-lg py-2 ">
+        <div className="container navbar-container">
           {/* Mobile Toggler */}
           <button 
             className="navbar-toggler" 
@@ -17,9 +19,16 @@ const Navbar = () => {
             <span className="navbar-toggler-icon"></span>
           </button>
 
+          {/* Brand and Logo */}
+          <div className="brand-container d-flex flex-column">
+            <div className="text-end me-2">
+            </div>
+            <img src={brandlogo} alt="Sandigan Carwash Logo" style={{ height: '40px' }} />
+          </div>
+
           {/* Desktop Menu */}
-          <div className="collapse navbar-collapse d-none d-lg-block">
-            <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+          <div className="collapse navbar-collapse d-flex justify-content-center">
+            <ul className="navbar-nav mb-lg-0">
               <li className="nav-item"><a className="nav-link custom-link" href="/#home-section">Home</a></li>
               <li className="nav-item"><a className="nav-link custom-link" href="/#services-section">Services</a></li>
               <li className="nav-item"><a className="nav-link custom-link" href="/#service-price-section">Price List</a></li>
@@ -28,21 +37,16 @@ const Navbar = () => {
             </ul>
           </div>
 
-          {/* Brand and Logo */}
-          <div className="brand-container d-flex align-items-center">
-            <div className="text-end me-2">
-              <span className="small text-light d-block" style={{ fontSize: '.8rem' }}>
-                Welcome to
-              </span>
-              <strong 
-                className="brand-name" 
-                style={{ color: '#00e8e9', letterSpacing: '2px', lineHeight: '1' }}
-              >
-                SANDIGAN
-              </strong>
-            </div>
-            <img src={logo} alt="Sandigan Carwash Logo" style={{ height: '40px' }} />
-          </div>
+          <div className="">
+            <Link
+                to="/book"
+                className="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center text-white"
+                style={{ width: '9rem', height: '3rem', borderRadius: '24px', backgroundColor: '#23A0CE', border: 'none', fontSize: '1rem' }}
+            >
+                Book Now
+            </Link>
+        </div>
+
         </div>
       </nav>
     </header>
