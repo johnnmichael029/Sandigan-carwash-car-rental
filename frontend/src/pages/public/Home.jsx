@@ -12,7 +12,10 @@ import carbubble from '../../assets/img/car-bubble.png';
 import bubble1 from '../../assets/img/bubble-container.png';
 import bubble2 from '../../assets/img/bubble-container1.png';
 import ellipse from '../../assets/img/ellipse.png';
-import fluentbubble from '../../assets/img/fluent-bubble.png';
+import ellipse2 from '../../assets/img/ellipse-left.png';
+import fluentbubble from '../../assets/icon/fluent-bubble.png';
+import fluentbubblewhite from '../../assets/icon/fluent-bubble-white.png';
+import check from '../../assets/icon/check.png';
 
 // --- SECTION 1: HERO ---
 const HeroSection = () => (
@@ -29,7 +32,7 @@ const HeroSection = () => (
                     <div className="col-md-6">
                         <div className='brand-container d-flex align-items-center gap-1'>
                             <img src={fluentbubble} alt="Fluent Bubble" />
-                            <h6 className="brand-italic text-uppercase brand-accent mb-0"><i> Drive with confidence </i></h6>
+                            <h6 className="brand-italic text-uppercase brand-accent mb-0 fst-italic">Drive with confidence</h6>
                         </div>                                 
                         <h1 className="display-3 fw-bold hero-title text-uppercase">
                             We make <br /> cars <br />
@@ -43,7 +46,7 @@ const HeroSection = () => (
                                 </span>
                             </span>
                         </h1>
-                        <p className="lead hero-description">
+                        <p className="lead hero-description fs-5">
                             Professional car wash services that keep your vehicle clean, polished, and road-ready every day.
                         </p>
                         <div className="mt-5">
@@ -56,6 +59,74 @@ const HeroSection = () => (
                     <div className="col-md-6 text-center mt-5 mt-md-0">
                         <div className="hero-image-container">
                             <img src={carbubble} className="img-fluid" alt="Carwash Service" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+);
+
+// --- SECTION 2: ABOUT ---
+const AboutSection = () => (
+    <section id="about" className="about-section py-5 position-relative overflow-hidden">
+        <div className='bubble-container position-relative'>
+            <img src={ellipse2} className="ellipse position-absolute translate-middle" 
+            style={{
+                width: '100%',
+            }} 
+            alt="Ellipse" />
+        </div> 
+        <div className='container about-container'>        
+            <div className="header-container d-flex flex-column py-5">               
+                <div className='section-badge d-flex justify-content-center gap-2'>
+                    <img src={fluentbubblewhite} alt="Fluent Bubble" />
+                    <h6 className="text-uppercase fst-italic fw-light tracking-wider mb-1">About Us</h6>
+                </div>
+                <div className='about-header d-flex justify-content-center mb-2'>
+                    <h1 className='fw-bold hero-title'>Why Choose <span className="brand-accent">SANDIGAN</span>?</h1>
+                </div>
+                <div className='about-description d-flex justify-content-center'>
+                    <p className="lead hero-description text-center fs-5" style={{ maxWidth: '700px', fontSize: '1.125rem' }}>
+                        We don't just wash cars we protect your investment using the latest Engine wash and a team that cares about every detail.
+                    </p>
+                </div>
+                <div className='about-features mt-3'>                   
+                    <div className='about-cta d-flex justify-content-center mb-5'>
+                        <Link to="/learn-more" className="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center text-white"
+                            style={{ width: '10rem', height: '3rem', borderRadius: '24px', backgroundColor: '#23A0CE', border: 'none', fontSize: '1rem' }}>
+                            Learn More
+                        </Link>
+                    </div>
+                    <div className='d-flex flex-column flex-lg-row justify-content-between align-items-center mb-5'>
+
+                        <div className='feature-card left-card d-flex align-items-center gap-3 p-5 mb-5 mb-lg-0'>
+                            <div className='check-container'>
+                                <img src={check} alt="Check Icon" />
+                            </div>
+                            <div className='text-container'>
+                                <span className='feature-text'>Fast and reliable car wash services for a spotless vehicle.</span>
+                            </div>                     
+                        </div>
+
+                        <div className='feature-card right-card d-flex align-items-center justify-content-center gap-3 p-5'>
+                            <div className='check-container'>
+                                <img src={check} alt="Check Icon" />
+                            </div>
+                            <div className='text-container'>
+                                <span className='feature-text'>Professional team committed to quality service.</span>
+                            </div>                     
+                        </div>
+
+                    </div>
+                    <div className='d-flex justify-content-center mb-5'>
+                        <div className='feature-card center-card d-flex align-items-center gap-3 p-5 '>
+                            <div className='check-container'>
+                                <img src={check} alt="Check Icon" />
+                            </div>
+                            <div className='text-container'>
+                                <span className='feature-text'>Affordable and flexible car rental options for any trip.</span>
+                            </div>                     
                         </div>
                     </div>
                 </div>
@@ -150,6 +221,7 @@ const Home = () => {
         // Map the URL path to the section ID
         const scrollMap = {
             '/home': 'home',
+            '/about': 'about',
             '/services': 'services',
             '/contact': 'contact',
         };
@@ -171,6 +243,7 @@ const Home = () => {
             <Navbar />
             <main className="landing-wrapper">
                 <HeroSection />
+                <AboutSection />
                 <ServiceSection />
                 <ContactSection />
             </main>

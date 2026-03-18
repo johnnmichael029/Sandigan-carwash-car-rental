@@ -9,6 +9,7 @@ function App() {
         {/* Landing Page */}
         <Route path="/" element={<Home />} />
         <Route path="/home" element={<Home />} />
+        <Route path="/about" element={<Home />} />
         <Route path="/services" element={<Home />} />
         <Route path="/contact" element={<Home />} />
         

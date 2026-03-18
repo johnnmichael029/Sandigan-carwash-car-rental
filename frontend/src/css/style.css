@@ -10,15 +10,17 @@ html {
 /* Main */
 /* Define height of each section */
 .home-section,
-.service-section, .service-price-section, .about-section, .contact-section {
+.service-section, 
+.service-price-section, 
+.about-section, 
+.contact-section {
     /* Use min-height instead of height to prevent content cutting on small screens */
     min-height: 100vh;
-    display: flex;
-    align-items: center;
+    background: #0a0a0a;
 }
 
 .landing-wrapper {
-    background: #000000;
+    background: #0a0a0a;
     width: 100%;
 }
 
@@ -77,6 +79,7 @@ html {
 
 .hero-description {
     color: #D1D1D1;
+    
 }
 
 .hero-image-container {
@@ -119,11 +122,35 @@ html {
 }
 
 
-/* Section Background Color */
-.service-section, .service-price-section, .about-section {
-    background-color: #FAFAFA;
+/* --- About Section --- */
+.left-card {
+    border-radius: 50px 0px 100px 50px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    width: 25rem;
+    height: 5rem;
+    background-color: #ffffff;
+    border: none;
+    font-size: 1rem;
+}
+.center-card {
+    border-radius: 100px 50px 50px 0px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    width: 25rem;
+    height: 5rem;
+    background-color: #ffffff;
+}
+.right-card {
+    border-radius: 50px 100px 0px 50px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    width: 25rem;
+    height: 5rem;
+    background-color: #ffffff;
+    border: none;
+    font-size: 1rem;
 }
 
+
+/* Section Background Color */
 .service-card:hover {
     transform: translateY(-10px);
     box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
@@ -243,6 +270,14 @@ html {
                 color: #1a1a1a;
                 text-align: left;
             }
+    .feature-card {
+        width: auto;    /* Let desktop use original spacing */
+        max-width: 320px;
+    }
+    
+    .feature-text {
+        font-size: 1rem;
+    }        
 }
 
 /* About Section */

@@ -9,7 +9,7 @@ const Navbar = () => {
   const location = useLocation();
   
     useEffect(() => {
-      if (location.pathname !== '/' && location.pathname !== '/home') {
+      if (location.pathname !== '/' && location.pathname !== '/home' && location.pathname !== '/about' && location.pathname !== '/services' && location.pathname !== '/contact') {
         setActiveSection(null); // Clear any active underline
         return; 
       }
@@ -74,13 +74,6 @@ const Navbar = () => {
                     to="/home">
                       Home
                   </Link>
-                </li>
-              <li className="nav-item">
-                <Link 
-                  className={`nav-link custom-link ${isActive('services')}`}
-                  to="/services">
-                    Services
-                </Link>
               </li>
               <li className="nav-item">
                 <Link 
@@ -88,7 +81,14 @@ const Navbar = () => {
                   to="/about">
                     About
                   </Link>
-                </li>
+              </li>
+              <li className="nav-item">
+                <Link 
+                  className={`nav-link custom-link ${isActive('services')}`}
+                  to="/services">
+                    Services
+                </Link>
+              </li>
               <li className="nav-item">
                 <Link 
                   className={`nav-link custom-link ${isActive('contact')}`}
