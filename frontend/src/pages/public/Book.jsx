@@ -77,7 +77,7 @@ const Book = () => {
   return (
     <>
         <Navbar />
-        <section id="book-section" className="book-section">
+        <section id="book" className="book-section">
             <div className="container">
                 <div className="py-5">
                     <div className="row align-items-center my-5">

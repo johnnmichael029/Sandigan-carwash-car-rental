@@ -1,10 +1,49 @@
-﻿import React from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import logo from '../assets/logo/logo.png'; 
 import '../css/nav.css';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import brandlogo from '../assets/logo/brand-logo.png';
 
 const Navbar = () => {
+  const [activeSection, setActiveSection] = useState('home');
+  const location = useLocation();
+  
+    useEffect(() => {
+      if (location.pathname !== '/' && location.pathname !== '/home') {
+        setActiveSection(null); // Clear any active underline
+        return; 
+      }
+        // 1. Define the sections we want to watch
+        const sectionIds = ['home', 'services', 'contact', 'about'];
+        
+        const observerOptions = {
+            root: null, // use the viewport
+            rootMargin: '-40% 0px -40% 0px', // trigger when section is in the middle of the screen
+            threshold: 0
+        };
+
+        const observerCallback = (entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    setActiveSection(entry.target.id);
+                }
+            });
+        };
+
+        const observer = new IntersectionObserver(observerCallback, observerOptions);
+
+        // 2. Start watching each section
+        sectionIds.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) observer.observe(el);
+        });
+
+        return () => observer.disconnect();
+    }, []);
+
+  // Helper function to check if the link is active
+  const isActive = (id) => activeSection === id ? 'active' : '';
+
   return (
     <header className="fixed-top">
       <nav className="navbar navbar-custom navbar-expand-lg py-2 ">
@@ -29,11 +68,34 @@ const Navbar = () => {
           {/* Desktop Menu */}
           <div className="collapse navbar-collapse d-flex justify-content-center">
             <ul className="navbar-nav mb-lg-0">
-              <li className="nav-item"><a className="nav-link custom-link" href="/#home-section">Home</a></li>
-              <li className="nav-item"><a className="nav-link custom-link" href="/#services-section">Services</a></li>
-              <li className="nav-item"><a className="nav-link custom-link" href="/#service-price-section">Price List</a></li>
-              <li className="nav-item"><a className="nav-link custom-link" href="/#about-section">About</a></li>
-              <li className="nav-item"><a className="nav-link custom-link" href="/#contact-section">Contact</a></li>
+              <li className="nav-item">
+                  <Link 
+                    className={`nav-link custom-link ${isActive('home')}`}
+                    to="/home">
+                      Home
+                  </Link>
+                </li>
+              <li className="nav-item">
+                <Link 
+                  className={`nav-link custom-link ${isActive('services')}`}
+                  to="/services">
+                    Services
+                </Link>
+              </li>
+              <li className="nav-item">
+                <Link 
+                  className={`nav-link custom-link ${isActive('about')}`}
+                  to="/about">
+                    About
+                  </Link>
+                </li>
+              <li className="nav-item">
+                <Link 
+                  className={`nav-link custom-link ${isActive('contact')}`}
+                  to="/contact">
+                    Contact
+                  </Link>
+                </li>
             </ul>
           </div>
 

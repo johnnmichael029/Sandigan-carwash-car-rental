@@ -20,7 +20,7 @@
 }
 
     /* 2. Active & Hover Text Color */
-     custom-link.active,
+    .custom-link.active,
     .custom-link:hover,
     .nav-drawer .nav-link.active,
     .nav-drawer .nav-link:hover {

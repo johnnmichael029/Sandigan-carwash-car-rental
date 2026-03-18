@@ -8,6 +8,11 @@ function App() {
       <Routes>
         {/* Landing Page */}
         <Route path="/" element={<Home />} />
+        <Route path="/home" element={<Home />} />
+        <Route path="/services" element={<Home />} />
+        <Route path="/contact" element={<Home />} />
+        
+        {/* Booking Page */}
         <Route path="/book" element={<Book />} />
 
         {/* Admin Section */}
