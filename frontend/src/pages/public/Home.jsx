@@ -12,7 +12,7 @@ import carbubble from '../../assets/img/car-bubble.png';
 import bubble1 from '../../assets/img/bubble-container.png';
 import bubble2 from '../../assets/img/bubble-container1.png';
 import ellipse from '../../assets/img/ellipse.png';
-import ellipseleft from '../../assets/img/ellipse-left.png';
+import ellipseleft from '../../assets/img/ellipse2.png';
 import fluentbubble from '../../assets/icon/fluent-bubble.png';
 import fluentbubblewhite from '../../assets/icon/fluent-bubble-white.png';
 import check from '../../assets/icon/check.png';
