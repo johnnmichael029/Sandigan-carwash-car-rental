@@ -12,7 +12,7 @@ import carbubble from '../../assets/img/car-bubble.png';
 import bubble1 from '../../assets/img/bubble-container.png';
 import bubble2 from '../../assets/img/bubble-container1.png';
 import ellipse from '../../assets/img/ellipse.png';
-import ellipse2 from '../../assets/img/ellipse-left.png';
+import ellipseleft from '../../assets/img/ellipse-left.png';
 import fluentbubble from '../../assets/icon/fluent-bubble.png';
 import fluentbubblewhite from '../../assets/icon/fluent-bubble-white.png';
 import check from '../../assets/icon/check.png';
@@ -71,7 +71,7 @@ const HeroSection = () => (
 const AboutSection = () => (
     <section id="about" className="about-section py-5 position-relative overflow-hidden">
         <div className='bubble-container position-relative'>
-            <img src={ellipse2} className="ellipse position-absolute translate-middle" 
+            <img src={ellipseleft} className="ellipse position-absolute translate-middle" 
             style={{
                 width: '100%',
             }} 
