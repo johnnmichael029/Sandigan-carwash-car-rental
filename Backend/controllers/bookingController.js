@@ -34,7 +34,7 @@ const getBooking = async (req, res) => {
 
 // Create a new booking
 const createBooking = async (req, res) => {
-    const { captchaToken, firstName, lastName, emailAddress, vehicleType, serviceType, bookingTime } = req.body;
+    const { captchaToken, firstName, lastName, phoneNumber, emailAddress, vehicleType, serviceType, bookingTime } = req.body;
     try {
         const verificationUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
         const response = await axios.post(verificationUrl);
@@ -46,11 +46,14 @@ const createBooking = async (req, res) => {
                 details: response.data['error-codes'] // This helps you debug!
             });
         }
+
+        const formattedPhoneNumber = `0${phoneNumber}`; // Prepend 0 if phone number exists, else set to null
         // Generate the Batch ID before saving
         const generatedBatchID = await generateBatchID(bookingTime);
         const booking = await Booking.create({ 
             firstName, 
             lastName, 
+            phoneNumber: formattedPhoneNumber,
             emailAddress, 
             vehicleType, 
             serviceType,
@@ -91,7 +94,7 @@ const deleteBooking = async (req, res) => {
 // Update a booking
 const updateBooking = async (req, res) => {
     const { id } = req.params;
-    const { firstName, lastName, emailAddress, vehicleType, serviceType } = req.body;
+    const { firstName, lastName, emailAddress, vehicleType, serviceType, phoneNumber } = req.body;
     try {
         const booking = await Booking.findByIdAndUpdate(id, { ...req.body }, { new: true });
         if (!booking) {

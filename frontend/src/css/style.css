@@ -338,21 +338,21 @@ h6, h2, label {
 .book-section {
     background: linear-gradient(135deg, #1a1a1a 0%, #0a0e14 100%);
 }
-form {
+.form-container {
     background-color: hsl(0, 0%, 100%, .08); 
     box-shadow: 0 0 1px 1px rgba(229, 229, 229, 0.4);
     border-radius: 24px;
 }
-form .form-label {
+.form-container .form-label {
     font-weight: 300;
 }
-form .form-label input {
+.form-container input {
     background-color: transparent;
     border: 1px solid rgba(255, 255, 255, 0.2);
     transition: border-color 0.3s ease;
     color: #FAFAFA;
 }
-    form .form-label input::placeholder {
+    .form-container input::placeholder {
         color: rgba(255, 255, 255, 0.5); /* Semi-transparent white */
         font-weight: 300;
         font-size: 14px;
@@ -360,4 +360,19 @@ form .form-label input {
     }
 .container .row {
     margin-right: 0;
+}
+
+.time-picker {
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #FAFAFA;
+}
+.time-picker option {
+    background-color: #0a0a0ab2;
+    color: #FAFAFA;
+}
+.input-group-text {
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #FAFAFA;
 }

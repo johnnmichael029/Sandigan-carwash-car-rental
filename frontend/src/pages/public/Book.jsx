@@ -21,6 +21,7 @@ const formatTo12Hour = (hourStr) => {
 const Book = () => {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
+    const [phoneNumber, setPhoneNumber] = useState("");
     const [email, setEmail] = useState('');
     const [vehicleType, setVehicleType] = useState('');
     const [serviceType, setServiceType] = useState('');
@@ -29,7 +30,7 @@ const Book = () => {
     const [success, setSuccess] = useState(false);
     const [availability, setAvailability] = useState({});
     const [selectedHour, setSelectedHour] = useState('');
-    const [captchaToken, setCaptchaToken] = useState(null);
+    const [captchaToken, setCaptchaToken] = useState(null);  
     const navigate = useNavigate();
 
     // Define the URL
@@ -102,6 +103,7 @@ const Book = () => {
         const bookingData = {
             firstName,
             lastName,
+            phoneNumber,
             emailAddress: email,   
             vehicleType,
             serviceType,
@@ -122,6 +124,7 @@ const Book = () => {
                 setFirstName('');
                 setLastName('');
                 setEmail('');
+                setPhoneNumber('');
                 setVehicleType('');
                 setServiceType('');
                 setPrivacyChecked(false);
@@ -154,6 +157,16 @@ const Book = () => {
             setError("Server connection failed.");
         }   
     };
+    const handlePhoneChange = (e) => {
+        const value = e.target.value;
+        // This regex says: Replace anything that is NOT a digit (0-9) with an empty string
+        const onlyNums = value.replace(/[^0-9]/g, "");
+        
+        // Optional: Limit to 10 digits since you already have +63
+        if (onlyNums.length <= 10) {
+            setPhoneNumber(onlyNums);
+        }
+};
   return (
     <>
         <Navbar />
@@ -169,22 +182,22 @@ const Book = () => {
                             <h1 className="fw-bold hero-title display-1">Ready for <span style={{ color: '#1CB2E7' }}><br /> Cleaner / Ride? </span></h1>
                             <p className="fs-5 lead hero-description">Experience the best car wash service and car rental in the business.</p>
                         </div>
-                        <form className="form col-md-6 p-5" onSubmit={handleSubmit}>
-                            <div className="d-flex gap-3">
+                        <form className="form-container d-flex flex-column col-md-6 p-5" onSubmit={handleSubmit}>
+                            <div className="input-container d-flex gap-3">
                                 <div className="form-label flex-fill mb-3">
                                     <label for="formInput" className="form-label">First name</label>
                                     <input 
-                                    type="text" 
-                                    className="form-control" 
-                                    onChange={(e) => setFirstName(e.target.value)}
-                                    value={firstName}
-                                    id="formInput" 
-                                    placeholder="e.g., John Michael" 
-                                    required
+                                        type="text" 
+                                        className="form-control" 
+                                        onChange={(e) => setFirstName(e.target.value)}
+                                        value={firstName}
+                                        id="formInput" 
+                                        placeholder="e.g., John Michael" 
+                                        required
                                     />                           
                                 </div>
                                 <div className="form-label flex-fill mb-3">
-                                    <label class="form-label">Last name</label>
+                                    <label className="form-label">Last name</label>
                                     <input 
                                     type="text" 
                                     className="form-control" 
@@ -195,9 +208,28 @@ const Book = () => {
                                     required
                                     />                              
                                 </div>
-                            </div>                        
-                            <div className="form-label mb-3">
-                                <label class="form-label">Email address</label>
+                            </div>       
+                            <div className="input-container">     
+                                 <label for="formInput" className="form-label">Phone number</label>                         
+                                <div className="input-group mb-3">
+                                    <span className="input-group-text" id="basic-addon1">+63</span>
+                                    <input 
+                                        type="text" 
+                                        className="form-control" 
+                                        placeholder="e.g., 9123456789" 
+                                        aria-label="Phone number" 
+                                        aria-describedby="basic-addon1"
+                                        inputMode="numeric"
+                                        maxLength="10"
+                                        onChange={handlePhoneChange}
+                                        value={phoneNumber}
+                                        required
+                                    >
+                                    </input>
+                                </div> 
+                            </div>               
+                            <div className="input-container mb-3">
+                                <label className="form-label">Email address</label>
                                 <input 
                                 type="email" 
                                 className="form-control" 
@@ -208,8 +240,8 @@ const Book = () => {
                                 required
                                 />                         
                             </div>
-                            <div className="form-label mb-3">
-                                <label class="form-label">Vehicle type</label>
+                            <div className="input-container mb-3">
+                                <label className="form-label">Vehicle type</label>
                                 <input 
                                 type="text" 
                                 className="form-control" 
@@ -227,30 +259,25 @@ const Book = () => {
                                     <option value="Coupe" />
                                 </datalist>
                             </div>   
-                            <div className="form-label">
-                                <label class="form-label">Service type</label>
-                                    <input 
-                                        type="text" 
-                                        className="form-control" 
-                                        id="floatingService" 
+                            <div className="input-container mb-3">
+                                <label className="form-label">Service type</label>
+                                    <select 
+                                        className="form-select time-picker" 
                                         onChange={(e) => setServiceType(e.target.value)}
                                         value={serviceType}
-                                        list="serviceOptions" 
-                                        placeholder="e.g., Wash" 
                                         required    
-                                    />                                                    
-                                <datalist id="serviceOptions">
-                                    <option value="Wash" />
-                                    <option value="Armor Wash" />
-                                    <option value="Wax Wash" />
-                                    <option value="Engine Wash" />
-                                </datalist>
+                                    >       
+                                        <option className='default-option' value="">-- Select a Service --</option>                                             
+                                        <option value="Wash">Wash</option>
+                                        <option value="Armor Wash">Armor Wash</option>
+                                        <option value="Wax Wash">Wax Wash</option>
+                                        <option value="Engine Wash">Engine Wash</option>
+                                </select>
                             </div>
-
-                            <div className='form-label'>
-                                <label class="form-label">Select time</label>
+                            <div className='input-container mb-3'>
+                                <label className="form-label">Select time</label>
                               <select 
-                                    className="form-select"
+                                    className="form-select time-picker"
                                     value={selectedHour} 
                                     onChange={(e) => setSelectedHour(e.target.value)}
                                     required
@@ -259,7 +286,7 @@ const Book = () => {
                                         <option value="">No more slots for today</option>
                                     ) : (
                                         <>
-                                            <option value="">-- Select a Time --</option>
+                                            <option className='default-option' value="">-- Select a Time --</option>
                                             {availableFutureHours.map((hourObj) => (
                                                 <option key={hourObj.raw} value={hourObj.raw}>
                                                     {hourObj.label}
@@ -268,9 +295,8 @@ const Book = () => {
                                         </>
                                     )}
                                 </select>
-                            </div>
-                           
-                            <div className="form-check d-flex align-items-start gap-3 my-3">
+                            </div>                          
+                            <div className="form-check d-flex align-items-start gap-3 mb-3">
                                 <input 
                                     className="form-check-input flex-shrink-0" 
                                     type="checkbox" 
@@ -281,7 +307,49 @@ const Book = () => {
                                     style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
                                 />
                                 <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
-                                    By clicking this box, I agree that the company may use my personal information in accordance with the terms of its <a href="#" className="text-decoration-none" style={{ color: '#00e8e9' }}>Privacy Policy</a>.
+                                    By clicking this box, I agree that the company may use my personal information in accordance with the <a href="#" className="text-decoration-none" style={{ color: '#00e8e9' }}>Terms &</a> <a href="#" className="text-decoration-none" style={{ color: '#00e8e9' }}>Privacy Policy</a>.
+                                </label>
+                            </div>
+                            <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                <input 
+                                    className="form-check-input flex-shrink-0" 
+                                    type="checkbox" 
+                                    checked={privacyChecked}
+                                    onChange={(e) => setPrivacyChecked(e.target.checked)}
+                                    id="privacyPolicy" 
+                                    required 
+                                    style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                />
+                                <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                    I agree to arrive on time for my scheduled booking. Late arrivals may result in rescheduling or cancellation of the booking.
+                                </label>
+                            </div>
+                            <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                <input 
+                                    className="form-check-input flex-shrink-0" 
+                                    type="checkbox" 
+                                    checked={privacyChecked}
+                                    onChange={(e) => setPrivacyChecked(e.target.checked)}
+                                    id="privacyPolicy" 
+                                    required 
+                                    style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                />
+                                <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                    I understand that punctuality is essential to ensure a smooth and efficient service experience for all customers.
+                                </label>
+                            </div>
+                            <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                <input 
+                                    className="form-check-input flex-shrink-0" 
+                                    type="checkbox" 
+                                    checked={privacyChecked}
+                                    onChange={(e) => setPrivacyChecked(e.target.checked)}
+                                    id="privacyPolicy" 
+                                    required 
+                                    style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                />
+                                <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                   I acknowledge that if I am unable to arrive on time, I will contact the company as soon as possible to discuss alternative arrangements.
                                 </label>
                             </div>
                             <div className="mb-3">
@@ -291,13 +359,10 @@ const Book = () => {
                                     theme="dark"
                                 /> 
                             </div>
-                                           
-                            {/* Added a submit button so the form is functional */}
-                            <button type="submit" className="btn btn-primary w-100 btn-lg d-flex align-items-center justify-content-center text-white" >
+                            <button type="submit" className="btn btn-primary w-100 btn-lg d-flex align-items-center justify-content-center text-white mb-3">
                                 Book
-                            </button>                                                 
-                           
-                            <div className="mt-3">
+                            </button>                                                                           
+                            <div className="">
                                 {error && (
                                     <div class="toast show align-items-center text-bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
                                         <div class="d-flex">
