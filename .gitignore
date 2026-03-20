@@ -362,3 +362,12 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Environment variables (Sensitive Data)
+.env
+*.env
+.env.accounts
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

@@ -39,20 +39,20 @@ const Book = () => {
       
     // 1. Calculate future hours using useMemo so it doesn't recalculate every millisecond
     const availableFutureHours = useMemo(() => {
-    const currentHour = new Date().getHours(); 
-    
-    // 1. Filter by time AND by availability
-    return allHours.filter(hour => {
-        const hourInt = parseInt(hour);
-        const hourKey = hour.toString().padStart(2, '0');
-        const count = availability[hourKey] || 0;
+        const currentHour = new Date().getHours(); 
         
-        // ONLY keep the hour if it's in the future AND not full
-        return hourInt > currentHour && count < 3;
-        }).map(hour => ({
-            raw: hour, // Sent to backend
-            label: formatTo12Hour(hour) // Shown in UI
-        }));
+        // 1. Filter by time AND by availability
+        return allHours.filter(hour => {
+            const hourInt = parseInt(hour);
+            const hourKey = hour.toString().padStart(2, '0');
+            const count = availability[hourKey] || 0;
+            
+            // ONLY keep the hour if it's in the future AND not full
+            return hourInt > currentHour && count < 3;
+            }).map(hour => ({
+                raw: hour, // Sent to backend
+                label: formatTo12Hour(hour) // Shown in UI
+            }));
     }, [availability, allHours]);
 
     // 2. Fetch Availability AND Set Initial Hour
