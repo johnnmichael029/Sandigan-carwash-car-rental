@@ -4,9 +4,9 @@ const {
     getBooking,
     createBooking,
     deleteBooking,
-    updateBooking
+    updateBooking,
+    getAvailableTimeSlots
 } = require('../controllers/bookingController');
-const PriceList = require('../controllers/priceListController');
 const router = express.Router();
 
 // // --- PAGE VIEWS (These render EJS) ---
@@ -23,10 +23,21 @@ const router = express.Router();
 // --- API DATA ROUTES (These return JSON) ---
 
 // Get all bookings
-router.get('/api/booking', getBookings);
-router.get('/api/booking/:id', getBooking);
-router.post('/api/booking', createBooking);
-router.delete('/api/booking/:id', deleteBooking);
-router.patch('/api/booking/:id', updateBooking);
+router.get('/availability', getAvailableTimeSlots);
+
+// 2. Get all bookings
+// The actual URL will be: /api/booking/
+router.get('/', getBookings);
+
+// 3. Get a single booking (The :id must come AFTER availability)
+// The actual URL will be: /api/booking/:id
+router.get('/:id', getBooking);
+
+// 4. Create a booking
+router.post('/', createBooking);
+
+// 5. Delete and Update
+router.delete('/:id', deleteBooking);
+router.patch('/:id', updateBooking);
 
 module.exports = router;

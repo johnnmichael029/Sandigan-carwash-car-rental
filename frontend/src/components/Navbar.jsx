@@ -102,12 +102,12 @@ const Navbar = () => {
           <div className="">
             <Link
                 to="/book"
-                className="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center text-white"
-                style={{ width: '9rem', height: '3rem', borderRadius: '24px', backgroundColor: '#23A0CE', border: 'none', fontSize: '1rem' }}
+                className="btn btn-primary btn-lg d-flex align-items-center justify-content-center text-white"
+                style={{ width: '9rem', height: '3rem', borderRadius: '24px', border: 'none', fontSize: '1rem' }}
             >
-                Book Now
+                Book
             </Link>
-        </div>
+          </div>
 
         </div>
       </nav>

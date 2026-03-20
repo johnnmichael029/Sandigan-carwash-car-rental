@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { time } = require('node:console');
+const { type } = require('node:os');
 const Schema = mongoose.Schema;
 
 const bookingSchema = new Schema({
@@ -22,6 +23,15 @@ const bookingSchema = new Schema({
     serviceType: {
         type: String,
         required: true
+    },
+    bookingTime: {
+        type: String,
+        required: true
+    },
+    batchID: {
+        type: String,
+        required: true,
+        unique: true
     }
 }, { timestamps: true });
 const Booking = mongoose.model('booking', bookingSchema);

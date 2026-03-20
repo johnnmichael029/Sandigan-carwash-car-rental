@@ -30,13 +30,14 @@ html {
 
 .btn-primary {
     background-color: #23A0CE !important;
-    box-shadow: 0 0 15px rgba(0, 232, 233, 0.3);
+    background-color: transparent;
+    box-shadow: 0 0 1px 1px rgba(0, 232, 233, 0.3);
     transition: all 0.2s ease-in-out;
+    border: none;
 }
 
     .btn-primary:hover {
         background-color: hsla(180, 100%, 50%, 0.8) !important;
-        box-shadow: 0 8px 15px #f3f3f3;
     }
 
 .brand-accent {
@@ -116,6 +117,12 @@ html {
     align-items: center; /* Centers content vertically */
 }
 
+.bubble-container {
+    top: 0;
+    left: 0;
+    pointer-events: none; /* Allows clicks to pass through */
+}
+
 .bubble {
     width: 9vw; /* On a 1000px screen, this is 120px. On a 400px mobile, it's 48px */
     min-width: 40px;
@@ -149,47 +156,46 @@ html {
     font-size: 1rem;
 }
 
+/* --- Services Section --- */
+
+.service-card {
+    width: 384px;
+    height: 482px;
+    background-color: hsl(0, 0%, 100%, .08); 
+    box-shadow: 0 0 1px 1px rgba(229, 229, 229, 0.4);
+    border-radius: 30px;
+    transition: transform 0.5s ease;
+    border-radius: 30px; /* Rounded corners for the "Premium" look */
+}
 
 /* Section Background Color */
 .service-card:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
+    transform: translateY(-5px);
+    box-shadow: -1px -1px 2px 1px rgba(0, 232, 232, 0.4);   
 }
 
 /* Ensure all images in the service cards have the same height and look sharp */
 .service-img-wrapper {
     width: 100%;
-    height: 200px;
+    height: 156px;
     overflow: hidden;
 }
-
-    .service-img-wrapper img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: transform 0.5s ease;
-    }
-
+.icon-container {
+    width: 44px;
+    height: 44px ;
+    background-Color: #262626;
+    border-Radius: 50%;
+    box-Shadow: 0 0 1px 1px rgba(229, 229, 229, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+    
 .img-fluid {
-    border-radius: 20px;
+    border-radius: 24px;
 }
 
 /* Add a subtle zoom effect when hovering over the card */
-.service-card:hover .service-img-wrapper img {
-    transform: scale(1.1);
-}
-
-.service-card {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    border-radius: 15px; /* Rounded corners for the "Premium" look */
-    border-color: #1a1a1a !important; /* Dark border for contrast */
-}
-
-    .service-card:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 10px 30px rgba(0, 232, 233, 0.2) !important;
-    }
-
 
 /* Price List Section */
 .table thead {

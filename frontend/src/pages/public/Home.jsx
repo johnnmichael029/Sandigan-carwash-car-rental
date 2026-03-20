@@ -7,6 +7,8 @@ import '../../css/style.css';
 
 // Asset Imports
 import img1 from '../../assets/img/carwash-img1.jpg';
+import img2 from '../../assets/img/carwash-img2.jpg';
+import img4 from '../../assets/img/carwash-img4.jpg';
 import bgimg from '../../assets/img/hero-bg-img.png';
 import carbubble from '../../assets/img/car-bubble.png';
 import bubble1 from '../../assets/img/bubble-container.png';
@@ -16,11 +18,15 @@ import ellipseleft from '../../assets/img/ellipse2.png';
 import fluentbubble from '../../assets/icon/fluent-bubble.png';
 import fluentbubblewhite from '../../assets/icon/fluent-bubble-white.png';
 import check from '../../assets/icon/check.png';
+import serviceicon from '../../assets/icon/car-wash-light.png';
+import serviceicon1 from '../../assets/icon/car-wash-light1.png';
+import serviceicon2 from '../../assets/icon/car-wash-light2.png';
+
 
 // --- SECTION 1: HERO ---
 const HeroSection = () => (
     <section id="home" className="home-section">
-        <div className='hero-bg-image-container position-relative'>
+        <div className='hero-bg-image-container position-relative overflow-hidden'>
             <div className='bubble-container d-flex align-items-center justify-content-between position-absolute w-100 h-100'>
                 <img src={bubble1} className="bubble bubble1" alt="Bubble" />
                 <img src={bubble2} className="bubble bubble2" alt="Bubble" />
@@ -50,8 +56,8 @@ const HeroSection = () => (
                             Professional car wash services that keep your vehicle clean, polished, and road-ready every day.
                         </p>
                         <div className="mt-5">
-                            <Link to="/book" className="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center text-white"
-                                style={{ width: '13rem', height: '3.5rem', borderRadius: '24px', backgroundColor: '#23A0CE', border: 'none' }}>
+                            <Link to="/book" className="btn btn-primary btn-lg d-flex align-items-center justify-content-center text-white"
+                                style={{ width: '13rem', height: '3.5rem', borderRadius: '24px', border: 'none' }}>
                                 Book Now
                             </Link>
                         </div>
@@ -78,13 +84,13 @@ const AboutSection = () => (
             alt="Ellipse" />
         </div> 
         <div className='container about-container'>        
-            <div className="header-container d-flex flex-column py-5">               
+            <div className="header-container d-flex flex-column text-center py-5">               
                 <div className='section-badge d-flex justify-content-center gap-2'>
                     <img src={fluentbubblewhite} alt="Fluent Bubble" />
                     <h6 className="text-uppercase fst-italic fw-light tracking-wider mb-1">About Us</h6>
                 </div>
-                <div className='about-header d-flex justify-content-center mb-2'>
-                    <h1 className='fw-bold hero-title'>Why Choose <span className="brand-accent">SANDIGAN</span>?</h1>
+                <div className='about-header mb-2'>
+                    <h1 className='fw-bold hero-title display-1'>Why Choose <span className="brand-accent">SANDIGAN</span>?</h1>
                 </div>
                 <div className='about-description d-flex justify-content-center'>
                     <p className="lead hero-description text-center fs-5" style={{ maxWidth: '700px', fontSize: '1.125rem' }}>
@@ -93,8 +99,8 @@ const AboutSection = () => (
                 </div>
                 <div className='about-features mt-3'>                   
                     <div className='about-cta d-flex justify-content-center mb-5'>
-                        <Link to="/learn-more" className="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center text-white"
-                            style={{ width: '10rem', height: '3rem', borderRadius: '24px', backgroundColor: '#23A0CE', border: 'none', fontSize: '1rem' }}>
+                        <Link to="/learn-more" className="btn btn-primary btn-lg d-flex align-items-center justify-content-center text-white"
+                            style={{ width: '10rem', height: '3rem', borderRadius: '24px', border: 'none', fontSize: '1rem' }}>
                             Learn More
                         </Link>
                     </div>
@@ -143,35 +149,75 @@ const ServiceSection = () => {
     ];
 
     return (
-        <section id="services" className="service-price-section py-5">
-            <div className="container py-5">
-                <div className="text-center mb-5">
-                    <h6 className="text-primary fw-bold text-uppercase tracking-wider">Our Rates</h6>
-                    <h2 className="display-5 fw-bold text-dark">Vehicle Service Menu</h2>
-                    <div className="mx-auto bg-dark mt-3" style={{ height: '4px', width: '60px', borderRadius: '2px' }}></div>
-                </div>
-                <div className="table-responsive shadow-lg rounded-4 overflow-hidden">
-                    <table className="table table-hover align-middle mb-0">
-                        <thead className="table-dark">
-                            <tr>
-                                <th className="py-3 ps-4">Vehicle Type</th>
-                                <th className="py-3 text-center">Body Wash</th>
-                                <th className="py-3 text-center">Wax Wash</th>
-                                <th className="py-3 text-center">Engine Wash</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {priceList.map((item, index) => (
-                                <tr key={item._id || index}>
-                                    <td className="fw-bold ps-4 text-dark">{item.VehicleType}</td>
-                                    <td className="text-center text-muted">₱{item.Wash}</td>
-                                    <td className="text-center text-muted">₱{item.Wax}</td>
-                                    <td className="text-center text-muted">₱{item.Engine}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+        <section id="services" className="service-price-section position-relative py-5">
+            <div className='bubble-container d-flex align-items-center justify-content-between position-absolute w-100 h-100'>
+                <img src={bubble1} className="bubble bubble1" alt="Bubble" />
+                <img src={bubble2} className="bubble bubble2" alt="Bubble" />
+            </div>  
+            <div className="container py-5">    
+                <div className='service-container d-flex flex-column'>
+                    <div className="header-container d-flex justify-content-between align-items-end mb-5">
+                        <div className='side-content'>
+                            <div className='section-badge d-flex justify-content-start gap-2'>
+                                <img src={fluentbubblewhite} alt="Fluent Bubble" />
+                                <h6 className="text-uppercase fst-italic fw-light tracking-wider mb-1">Services</h6>
+                            </div>
+                            <div className='about-header d-flex justify-content-start mb-2'>
+                                <h1 className='fw-bold hero-title display-1'>What We <span className="brand-accent">Offer</span></h1>
+                            </div>  
+                        </div> 
+                        <div className='right-content'>
+                            <p className='lead hero-description' style={{maxWidth: '600px'}}>From keeping your vehicle spotless to providing reliable transportation, 
+                            our services are designed to make every drive easier, cleaner, and more convenient.
+                            </p>
+                        </div>                 
+                    </div>
+                    <div className='service-card-container'>
+                        <div className='card-container d-flex justify-content-center gap-5 flex-wrap'>
+                            <div className='service-card card-1 d-flex flex-column align-items-start gap-3 p-4'>
+                                <img src={img1} className='service-img-wrapper img-fluid' alt="Service 1" />
+                                <div className='service-text-container mt-3'>
+                                    <h3 className='service-title fw-bold mb-1 hero-title'>Armor Wash</h3>
+                                    <div className='service-time service-price d-flex align-items-center gap-3 mb-4'>
+                                        <small className='service-duration brand-accent' style={{fontSize: '12px'}}>• 40 Mins</small>
+                                        <small className='service-cost brand-accent' style={{fontSize: '12px'}}>• ₱150 - ₱750</small>
+                                    </div>
+                                    <p className='service-description hero-description'>Our signature deep-cleaning process that creates a protective barrier for your vehicle's exterior..</p>
+                                </div>
+                                <div className='service-icons-container d-flex align-items-center mt-auto gap-3' style={{width: '336px'}}>
+                                    <div className='icon-container'>
+                                        <img src={serviceicon} alt="Service Icon 1" />
+                                    </div>
+                                    <div className='icon-container'>
+                                        <img src={serviceicon1} alt="Service Icon 2" />
+                                    </div>
+                                    <div className='icon-container'>
+                                        <img src={serviceicon2} alt="Service Icon 3" />
+                                    </div>
+                                    <div className='ms-auto'>
+                                        <Link to="/book" className="btn btn-primary btn-sm d-flex align-items-center justify-content-center text-white"
+                                            style={{ width: '9rem', height: '3rem', borderRadius: '24px', border: 'none', fontSize: '0.875rem' }}>
+                                            Book Now
+                                        </Link>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className='service-card card-2 d-flex flex-column align-items-start gap-3 p-4'>
+                                <img src={img4} className='service-img-wrapper img-fluid' alt="Service 2" />
+                                <div className='service-text-container mt-3'>
+                                    <h3 className='service-title fw-bold mb-1 hero-title'>Premium Wax</h3>
+                                    <div className='service-time service-price d-flex align-items-center gap-3'>
+                                        <small className='service-duration brand-accent' style={{fontSize: '12px'}}>• 60 Mins</small>
+                                        <small className='service-cost brand-accent' style={{fontSize: '12px'}}>• ₱300 - ₱750</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className='service-card card-3 d-flex flex-column align-items-start gap-3 p-4'>
+                                <img src={img2} className='service-img-wrapper img-fluid' alt="Service 3" />
+                            </div>
+                        </div>
+                    </div>
+                </div>          
             </div>
         </section>
     );

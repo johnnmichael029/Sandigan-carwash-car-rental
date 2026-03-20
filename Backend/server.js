@@ -27,7 +27,7 @@ app.use(cors({
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // This is for parsing JSON bodies in POST requests
 
-app.use('/', workoutsRoutes); // Use the workouts routes for all requests to the root URL
+app.use('/api/booking', workoutsRoutes); // Use the workouts routes for all requests to the root URL
 
 // Listen on PORT 8080
 app.listen(port, () => {
