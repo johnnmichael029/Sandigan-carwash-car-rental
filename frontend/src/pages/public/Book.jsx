@@ -6,17 +6,11 @@ import '../../css/style.css';
 import ReCAPTCHA from "react-google-recaptcha";
 import { useNavigate } from 'react-router-dom';
 import fluentbubblewhite from '../../assets/icon/fluent-bubble-white.png';
+import { jsPDF } from "jspdf";
 
 // 1. Keep the base hours as military for backend compatibility
 const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
 
-// 2. Helper function to convert military string "14" to "2:00 PM"
-const formatTo12Hour = (hourStr) => {
-    const hour = parseInt(hourStr);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12; // converts 0 to 12 and 13 to 1
-    return `${displayHour}:00 ${ampm}`;
-};
 
 const Book = () => {
     const [firstName, setFirstName] = useState('');
@@ -31,14 +25,22 @@ const Book = () => {
     const [availability, setAvailability] = useState({});
     const [selectedHour, setSelectedHour] = useState('');
     const [captchaToken, setCaptchaToken] = useState(null);  
+    const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
     // Define the URL
     const BASE_URL = window.location.hostname === 'localhost' 
             ? 'http://localhost:4000/api/booking' 
             : 'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net/api/booking';
-      
-    // 1. Calculate future hours using useMemo so it doesn't recalculate every millisecond
+
+    // Helper function to convert military time to 12-hour format
+    const formatTo12Hour = (hourStr) => {
+        const hour = parseInt(hourStr);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour % 12 || 12; // converts 0 to 12 and 13 to 1
+        return `${displayHour}:00 ${ampm}`;
+    };    
+    // Calculate future hours using useMemo so it doesn't recalculate every millisecond
     const availableFutureHours = useMemo(() => {
         const currentHour = new Date().getHours(); 
         
@@ -56,7 +58,7 @@ const Book = () => {
             }));
     }, [availability, allHours]);
 
-    // 2. Fetch Availability AND Set Initial Hour
+    // Fetch Availability AND Set Initial Hour
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -82,7 +84,7 @@ const Book = () => {
         }
     }, [availableFutureHours, selectedHour]);
 
-    // 3. Timer for Toast messages
+    // Timer for Toast messages
     useEffect(() => {
         if (success || error) {
             const timer = setTimeout(() => {
@@ -95,11 +97,8 @@ const Book = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();      
-
-        if (!privacyChecked) {
-            alert('Please agree to the Privacy Policy before booking.');
-            return;
-        }
+        setIsLoading(true);
+        
         const bookingData = {
             firstName,
             lastName,
@@ -130,22 +129,47 @@ const Book = () => {
                 setPrivacyChecked(false);
                 setError(null);
                 setSuccess(true);
+                
+                // Get the batchID from the server response
+                const bookIdFromTheServer = data.batchID;
 
+                const today = new Date();
+                const dateStr = `${today.getMonth() + 1}${today.getDate()}${today.getFullYear().toString().slice(-2)}`;
+                const finalDisplayId = `${dateStr}-${bookIdFromTheServer}`;
                  // Trigger SweetAlert
                 Swal.fire({
                     title: 'Booking Successful!',
-                    text: 'Staff will contact you shortly.',
+                    html: `Your BookID is: <b>${finalDisplayId}</b><br>Staff will contact you shortly.`,
                     icon: 'success',
-                    confirmButtonText: 'Okay',
-                    confirmButtonColor: '#23A0CE',
+                    showDenyButton: true,
+                    showConfirmButton: false, // Hides the default Okay button
+                    denyButtonText: 'Download PDF',
+                    denyButtonColor: '#23A0CE', // Matching your light blue theme
                     background: '#111',
-                    color: '#fff',
+                    bordeer: '1px solid rgba(255, 255, 255, 0.2)',
+                    color: '#FAFAFA',
                     customClass: {
-                        popup: 'rounded-5' // Optional: matches your UI rounding
+                        popup: 'rounded-5'
                     }
                 }).then((result) => {
-                    if (result.isConfirmed) {
-                        navigate('/'); // Go back to home
+                    if (result.isDenied) {
+                        // 1. Trigger Download
+                        generatePDF(bookIdFromTheServer);
+
+                        // 2. Show the "Download Started" alert with the final Okay button
+                        Swal.fire({
+                            title: 'Download Started!',
+                            html: 'Your receipt is ready to download. Click <b>Save</b> to finish.',
+                            icon: 'info',
+                            confirmButtonText: 'Back to Home',
+                            confirmButtonColor: '#23A0CE',
+                            background: '#111',
+                            color: '#FAFAFA',
+                        }).then(() => {
+                            navigate('/'); // Only goes home AFTER they click Okay
+                        });                   
+                    } else if (result.isConfirmed) {
+                        navigate('/'); // Goes home immediately
                     }
                 });
 
@@ -155,8 +179,12 @@ const Book = () => {
             }
         } catch (err) {
             setError("Server connection failed.");
-        }   
+        } finally {
+            setIsLoading(false);
+        } 
     };
+    
+    // Handle phone number input to allow only digits and limit to 10 characters
     const handlePhoneChange = (e) => {
         const value = e.target.value;
         // This regex says: Replace anything that is NOT a digit (0-9) with an empty string
@@ -166,7 +194,50 @@ const Book = () => {
         if (onlyNums.length <= 10) {
             setPhoneNumber(onlyNums);
         }
-};
+    };
+
+    // Generate PDF Receipt
+    const generatePDF = (bookId) => {
+            const doc = new jsPDF({
+            unit: "mm",
+            format: [80, 100] 
+        });
+
+        const today = new Date();
+        // 32126 format
+        const dateStr = `${today.getMonth() + 1}${today.getDate()}${today.getFullYear().toString().slice(-2)}`;
+        const finalId = `${dateStr}-${bookId}`;
+
+        // Header
+        doc.setFont("courier", "bold");
+        doc.setFontSize(16);
+        doc.text("SANDIGAN CARWASH", 40, 15, { align: "center" });
+        
+        doc.setFontSize(10);
+        doc.setFont("courier", "normal");
+        doc.text("----------------------------", 40, 22, { align: "center" });
+        doc.text(today.toLocaleString(), 40, 28, { align: "center" });
+        doc.text("----------------------------", 40, 34, { align: "center" });
+
+        // Main ID (Big and Bold like Jollibee Kiosk)
+        doc.setFontSize(12);
+        doc.text("YOUR BOOKING NUMBER:", 40, 45, { align: "center" });
+        
+        doc.setFontSize(22); // Extra large
+        doc.setFont("courier", "bold");
+        doc.text(finalId, 40, 58, { align: "center" });
+
+        // Footer
+        doc.setFont("courier", "normal");
+        doc.setFontSize(10);
+        doc.text("----------------------------", 40, 70, { align: "center" });
+        doc.text("Please present this to", 40, 78, { align: "center" });
+        doc.text("the staff upon arrival.", 40, 84, { align: "center" });
+
+        // Save/Download
+        doc.save(`book_Receipt_${finalId}.pdf`);
+    };
+
   return (
     <>
         <Navbar />
@@ -243,14 +314,14 @@ const Book = () => {
                             <div className="input-container mb-3">
                                 <label className="form-label">Vehicle type</label>
                                 <input 
-                                type="text" 
-                                className="form-control" 
-                                onChange={(e) => setVehicleType(e.target.value)}
-                                value={vehicleType}
-                                id="floatingVehicle" 
-                                list="vehicleOptions" 
-                                placeholder="e.g., Sedan" 
-                                required
+                                    type="text" 
+                                    className="form-control" 
+                                    onChange={(e) => setVehicleType(e.target.value)}
+                                    value={vehicleType}
+                                    id="floatingVehicle" 
+                                    list="vehicleOptions" 
+                                    placeholder="e.g., Sedan" 
+                                    required
                                 />                          
                                 <datalist id="vehicleOptions">
                                     <option value="Sedan" />
@@ -359,9 +430,20 @@ const Book = () => {
                                     theme="dark"
                                 /> 
                             </div>
-                            <button type="submit" className="btn btn-primary w-100 btn-lg d-flex align-items-center justify-content-center text-white mb-3">
-                                Book
-                            </button>                                                                           
+                            <button 
+                                type="submit" 
+                                disabled={isLoading} // Prevents duplicate clicks while loading
+                                className="btn btn-primary w-100 btn-lg d-flex align-items-center justify-content-center text-white mb-3"
+                                >
+                                {isLoading ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                        <span role="status">Processing...</span>
+                                    </>
+                                ) : (
+                                    "Book"
+                                )}
+                            </button>                                                                          
                             <div className="">
                                 {error && (
                                     <div class="toast show align-items-center text-bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
