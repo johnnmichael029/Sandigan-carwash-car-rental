@@ -18,7 +18,7 @@ const Book = () => {
     const [phoneNumber, setPhoneNumber] = useState("");
     const [email, setEmail] = useState('');
     const [vehicleType, setVehicleType] = useState('');
-    const [serviceType, setServiceType] = useState('');
+    const [serviceType, setServiceType] = useState([]);
     const [privacyChecked, setPrivacyChecked] = useState(false);
     const [error, setError] = useState(null); 
     const [success, setSuccess] = useState(false);
@@ -26,7 +26,7 @@ const Book = () => {
     const [selectedHour, setSelectedHour] = useState('');
     const [captchaToken, setCaptchaToken] = useState(null);  
     const [isLoading, setIsLoading] = useState(false);
-    const [step, setStep] = useState(1); // 1: Form, 2: Confirmation
+    const [step, setStep] = useState(1);
     const navigate = useNavigate();
 
     // Define the URL
@@ -267,6 +267,24 @@ const Book = () => {
         return input.replace(/<[^>]*>?/gm, '').trim();
     };
 
+    // List of Service type
+    const serviceTypes =  [
+        {id: 'wash', label: 'Wash'},
+        {id: 'armor', label: 'Armor Wash'},
+        {id: 'wax', label: 'Wax Wash'},
+        {id: 'engine', label: 'Engine Wash'}
+    ]
+
+    // Toggle service selection
+    const toggleService = (serviceLabel) => {
+        if (serviceType.includes(serviceLabel)) {
+            // If already there, remove it (Deselect)
+            setServiceType(serviceType.filter(item => item !== serviceLabel));
+        } else {
+            // If not there, add it (Select)
+            setServiceType([...serviceType, serviceLabel]);
+        }
+    };
   return (
     <>
         <Navbar />
@@ -327,21 +345,30 @@ const Book = () => {
                                                 <option value="Coupe" />
                                             </datalist>
                                         </div>
-                                        <div className="input-container service-type-container mb-3">
+                                        <div className="service-type-container">
                                             <label className="form-label">Service type</label>
-                                                <select 
-                                                    className="form-select time-picker" 
-                                                    onChange={(e) => setServiceType(e.target.value)}
-                                                    value={serviceType}
-                                                    required    
-                                                >       
-                                                    <option className='default-option' value="">-- Select a Service --</option>                                             
-                                                    <option value="Wash">Wash</option>
-                                                    <option value="Armor Wash">Armor Wash</option>
-                                                    <option value="Wax Wash">Wax Wash</option>
-                                                    <option value="Engine Wash">Engine Wash</option>
-                                            </select>
-                                        </div>
+                                             <div className="d-flex justify-content-between mb-3">                                           
+                                                {serviceTypes.map((service) => {
+                                                    const isSelected = serviceType.includes(service.label);
+
+                                                    return (
+                                                    <button
+                                                        key={service.id}
+                                                        type="button"
+                                                        onClick={() => toggleService(service.label)}
+                                                        className={`btn rounded-pill px-4 ${
+                                                        isSelected 
+                                                            ? "btn-primary" // Solid color when selected
+                                                            : "btn-outline-secondary text-light" // Outline when not selected
+                                                        }`}
+                                                    >
+                                                        {isSelected && <span className="me-1">✓</span>}
+                                                        {service.label}
+                                                    </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>                                      
                                     </div>
                                        <div className="button-container d-flex justify-content-between">
                                             <a className="icon-link icon-link-hover" style={{color: 'var(--text-secondary)', fontSize: '.9rem', textDecoration: 'underline'}} href="#">
@@ -355,7 +382,7 @@ const Book = () => {
                                                 className="btn btn-primary w-100" 
                                                 style={{maxWidth: '100px'}} 
                                                 onClick={() => setStep(2)}
-                                                disabled={!vehicleType.trim() || !serviceType}
+                                                disabled={!vehicleType.trim() || !serviceType.length}
                                             >
                                                     Next
                                             </button>

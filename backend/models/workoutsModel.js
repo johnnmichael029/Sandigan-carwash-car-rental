@@ -25,7 +25,7 @@ const bookingSchema = new Schema({
         required: true
     },
     serviceType: {
-        type: String,
+        type: [String],
         required: true
     },
     bookingTime: {
