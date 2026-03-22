@@ -33,7 +33,9 @@ html {
 .service-section, 
 .service-price-section, 
 .about-section, 
-.contact-section {
+.contact-section,
+.login-section,
+.book-section {
     /* Use min-height instead of height to prevent content cutting on small screens */
     min-height: 100vh;
     background: var(--background-primary);
@@ -257,44 +259,44 @@ html {
         }
 
         /* Target the first <td> (Vehicle Name) and make it a centered header */
-        .table-responsive td:first-child {
-            display: block;
-            width: 100%;
-            background: #1a1a1a; /* Dark background to match your brand */
-            color: var(--text-primary); /* Brand accent color */
-            text-align: center !important;
-            font-size: 1rem;
-            padding: 12px !important;
-            border: none;
-            position: static; /* Removes relative positioning from card-style */
-            text-transform: uppercase;
-            letter-spacing: 1px;
+.table-responsive td:first-child {
+    display: block;
+    width: 100%;
+    background: #1a1a1a; /* Dark background to match your brand */
+    color: var(--text-primary); /* Brand accent color */
+    text-align: center !important;
+    font-size: 1rem;
+    padding: 12px !important;
+    border: none;
+    position: static; /* Removes relative positioning from card-style */
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+        /* Remove the "Vehicle" label text if you used the data-label approach */
+        .table-responsive td:first-child::before {
+            content: none !important;
         }
 
-            /* Remove the "Vehicle" label text if you used the data-label approach */
-            .table-responsive td:first-child::before {
-                content: none !important;
-            }
 
+    /* Standard data rows */
+    .table-responsive td:not(:first-child) {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right !important;
+        padding: 12px 20px !important;
+        border-bottom: 1px solid #f0f0f0;
+        position: relative;
+    }
 
-        /* Standard data rows */
-        .table-responsive td:not(:first-child) {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            text-align: right !important;
-            padding: 12px 20px !important;
-            border-bottom: 1px solid #f0f0f0;
-            position: relative;
+        /* Label positioning for price rows */
+        .table-responsive td:not(:first-child)::before {
+            content: attr(data-label);
+            font-weight: 500;
+            color: #1a1a1a;
+            text-align: left;
         }
-
-            /* Label positioning for price rows */
-            .table-responsive td:not(:first-child)::before {
-                content: attr(data-label);
-                font-weight: 500;
-                color: #1a1a1a;
-                text-align: left;
-            }
     .feature-card {
         width: auto;    /* Let desktop use original spacing */
         max-width: 320px;
@@ -308,44 +310,6 @@ html {
 /* About Section */
 
 /* Testimonials */
-.testimonial-card {
-    transition: transform 0.3s ease;
-    margin: 20px;
-    min-height: 350px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-    .testimonial-card i {
-        color: #00e8e9; /* Matches your brand accent */
-    }
-
-/* Make sure buttons are visible on the sides */
-.carousel-control-prev, .carousel-control-next {
-    width: 5%;
-    opacity: 0.8;
-}
-
-/* Remove the background and adjust icon color */
-.carousel-control-next-icon,
-.carousel-control-prev-icon {
-    filter: invert(1); /* Flips the color to black */
-    width: 3rem; /* Adjust width here */
-    height: 3rem; /* Adjust height here */
-}
-
-.carousel-control-prev,
-.carousel-control-next {
-    width: 5%; /* Makes the clickable area slimmer */
-}
-
-@media (max-width: 768px) {
-    .testimonial-card {
-        padding: 30px 20px !important;
-        min-height: auto;
-    }
-}
 
 /* Contact Section */
 h6, h2, label {
@@ -354,9 +318,6 @@ h6, h2, label {
 
 
 /* Booking Section */
-.book-section {
-    background: linear-gradient(135deg, #1a1a1a 0%, #0a0e14 100%);
-}
 .form-container {
     background-color: hsl(0, 0%, 100%, .08); 
     box-shadow: 0 0 1px 1px rgba(229, 229, 229, 0.4);

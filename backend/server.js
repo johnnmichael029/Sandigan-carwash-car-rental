@@ -8,14 +8,13 @@ const app = express();
 const port = process.env.PORT // 8080
 const dbURI = process.env.MONGODB_URI;
 
+// Import routes
 const workoutsRoutes = require('./routes/workouts');
 
-const path = require('path');
+// Import employee routes
+const employeeRoutes = require('./routes/employees');
 
-// // Tell Express that the 'views' folder is one level up (..)
-// app.set('views', path.join(__dirname, '../views'));
-// app.set('view engine', 'ejs'); // Tell Express to use EJS
-// app.use(express.static(path.join(__dirname, '../public')));
+const path = require('path');
 
 // Middleware
 const cors = require('cors'); // 1. Import it
@@ -28,6 +27,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // This is for parsing JSON bodies in POST requests
 
 app.use('/api/booking', workoutsRoutes); // Use the workouts routes for all requests to the root URL
+app.use('/api/employees', employeeRoutes); // Use the employee routes for all requests to the /api/employees URL
 
 // Listen on PORT 8080
 app.listen(port, () => {

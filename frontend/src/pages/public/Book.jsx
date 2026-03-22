@@ -7,6 +7,10 @@ import ReCAPTCHA from "react-google-recaptcha";
 import { useNavigate } from 'react-router-dom';
 import fluentbubblewhite from '../../assets/icon/fluent-bubble-white.png';
 import { jsPDF } from "jspdf";
+import bgimg from '../../assets/img/hero-bg-img.png';
+import bubble1 from '../../assets/img/bubble-container.png';
+import bubble2 from '../../assets/img/bubble-container1.png';
+import ellipse from '../../assets/img/ellipse.png';
 
 // 1. Keep the base hours as military for backend compatibility
 const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
@@ -126,12 +130,13 @@ const Book = () => {
                 body: JSON.stringify(cleanData),
                 headers: { 'Content-Type': 'application/json' },
             });
-                
+
+            const data = await response.json();
+
             if (!response.ok){
                 throw new Error(`Error: ${response.status} ${response.statusText}`);
             }
-            const data = await response.json();
-            
+           
             if (response.ok) {
                 setFirstName('');
                 setLastName('');
@@ -288,333 +293,342 @@ const Book = () => {
   return (
     <>
         <Navbar />
-        <section id="book" className="book-section">
-            <div className="container">
-                <div className="py-5">
-                    <div className="row align-items-center my-5">
-                        <div className="col-md-6 text-white">
-                            <div className='section-badge d-flex align-items-center gap-2'>
-                                <img src={fluentbubblewhite} alt="Fluent Bubble" />
-                                <h6 className="text-uppercase fst-italic fw-light tracking-wider mb-1">Book Now</h6>
-                            </div>
-                            <h1 className="fw-bold hero-title display-1">Ready for <span style={{ color: '#1CB2E7' }}><br /> Cleaner / Ride? </span></h1>
-                            <p className="fs-5 lead hero-description">Experience the best car wash service and car rental in the business.</p>
-                        </div>
-                        <div className="col-md-6">
-                            <form className="form-container p-5 w-100" onSubmit={handleSubmit}>
-                                {/* Progress Bar Header */}
-                                <div className="mb-4">
-                                    <div className="d-flex justify-content-between mb-1">
-                                        <span className="text-light small">Step {step} of 3</span>
-                                    <span className='hero-description text-uppercase fw-bold' style={{fontSize: '0.85rem', letterSpacing: '1px' }}>
-                                            {stepTitles[step]}
-                                        </span>
-                                    </div>
-                                    <div className="progress" role="progressbar" aria-valuenow={(step / 3) * 100} aria-valuemin="0" aria-valuemax="100" style={{ height: '2px', backgroundColor: '#333' }}>
-                                        <div 
-                                            className="progress-bar" 
-                                            style={{ 
-                                                width: `${(step / 3) * 100}%`, 
-                                                backgroundColor: '#00e8e9', // Matching your cyan theme
-                                                transition: 'width 0.4s ease' // Makes the bar slide smoothly
-                                            }}
-                                        ></div>
-                                    </div>
+        <section id="book" className="book-section d-flex align-items-center">
+            <div className="hero-bg-image-container position-relative overflow-hidden">
+                <div className='bubble-container d-flex align-items-center justify-content-between position-absolute w-100 h-100'>
+                    <img src={bubble1} className="bubble bubble1" alt="Bubble" />
+                    <img src={bubble2} className="bubble bubble2" alt="Bubble" />
+                    <img src={ellipse} className="ellipse position-absolute top-0 end-0" alt="Ellipse" />
+                </div>                    
+                <img src={bgimg} className='hero-bg-image position-absolute' alt='Hero Background' />
+                <div className="container">
+                    <div className="py-5">
+                        <div className="row align-items-center my-5">
+                            <div className="col-md-6 text-white">
+                                <div className='section-badge d-flex align-items-center gap-2'>
+                                    <img src={fluentbubblewhite} alt="Fluent Bubble" />
+                                    <h6 className="text-uppercase fst-italic fw-light tracking-wider mb-1">Book Now</h6>
                                 </div>
-
-                                {/*Step 1: Vehicle Information */}
-                                <div className="step1-container">
-                                    {step === 1 && (
-                                        <> 
-                                        <div className="vehicle-information-container">
-                                            <div className="input-container vehicle-type-container mb-3">                                       
-                                                <label className="form-label">Vehicle type</label>
-                                                <input 
-                                                    type="text" 
-                                                    className="form-control" 
-                                                    onChange={(e) => setVehicleType(e.target.value)}
-                                                    value={vehicleType}
-                                                    id="floatingVehicle" 
-                                                    list="vehicleOptions" 
-                                                    placeholder="e.g., Sedan" 
-                                                    required
-                                                />                          
-                                                <datalist id="vehicleOptions">
-                                                    <option value="Sedan" />
-                                                    <option value="SUV" />
-                                                    <option value="Truck" />
-                                                    <option value="Coupe" />
-                                                </datalist>
-                                            </div>
-                                            <div className="service-type-container ">
-                                                <label className="form-label">Service type</label>
-                                                <div className="mb-3 row row-cols-2 row-cols-lg-4 g-3">                                           
-                                                    {serviceTypes.map((service) => {
-                                                        const isSelected = serviceType.includes(service.label);
-
-                                                        return (
-                                                        <div key={service.id} className="col">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => toggleService(service.label)}
-                                                                className={`btn rounded-pill px-2 w-100 ${
-                                                                isSelected 
-                                                                    ? "btn-primary" // Solid color when selected
-                                                                    : "btn-outline-secondary text-light" // Outline when not selected
-                                                                }`}
-                                                            >
-                                                                {isSelected && <span className="me-1">✓</span>}
-                                                                {service.label}
-                                                            </button>
-                                                        </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>                                      
+                                <h1 className="fw-bold hero-title display-1">Ready for <span style={{ color: '#1CB2E7' }}><br /> Cleaner / Ride? </span></h1>
+                                <p className="fs-5 lead hero-description">Experience the best car wash service and car rental in the business.</p>
+                            </div>
+                            <div className="col-md-6">
+                                <form className="form-container p-5 w-100" onSubmit={handleSubmit}>
+                                    {/* Progress Bar Header */}
+                                    <div className="mb-4">
+                                        <div className="d-flex justify-content-between mb-1">
+                                            <span className="text-light small">Step {step} of 3</span>
+                                        <span className='hero-description text-uppercase fw-bold' style={{fontSize: '0.85rem', letterSpacing: '1px' }}>
+                                                {stepTitles[step]}
+                                            </span>
                                         </div>
-                                        <div className="button-container d-flex justify-content-between">
-                                                <a className="icon-link icon-link-hover" style={{color: 'var(--text-secondary)', fontSize: '.9rem', textDecoration: 'underline'}} href="#">
-                                                    Learn more service price
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="bi" viewBox="0 0 16 16" aria-hidden="true">
-                                                        <path d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z"/>
-                                                    </svg>
-                                                </a>
-                                                <button 
-                                                    type="button" 
-                                                    className="btn btn-primary w-100" 
-                                                    style={{maxWidth: '100px'}} 
-                                                    onClick={() => setStep(2)}
-                                                    disabled={!vehicleType.trim() || !serviceType.length}
-                                                >
-                                                        Next
-                                                </button>
-                                            </div>  
-                                        </>                                                                   
-                                    )}                                                          
-                                </div> 
+                                        <div className="progress" role="progressbar" aria-valuenow={(step / 3) * 100} aria-valuemin="0" aria-valuemax="100" style={{ height: '2px', backgroundColor: '#333' }}>
+                                            <div 
+                                                className="progress-bar" 
+                                                style={{ 
+                                                    width: `${(step / 3) * 100}%`, 
+                                                    backgroundColor: '#00e8e9', // Matching your cyan theme
+                                                    transition: 'width 0.4s ease' // Makes the bar slide smoothly
+                                                }}
+                                            ></div>
+                                        </div>
+                                    </div>
 
-                                {/*Step 2: Date and Time */}
-                                <div className="step2-container">
-                                    {step === 2 && (
-                                        <>                                                                  
-                                            <div className='input-container mb-3'>
-                                                <label className="form-label">Select time</label>
-                                                <select 
-                                                    className="form-select time-picker"
-                                                    value={selectedHour} 
-                                                    onChange={(e) => setSelectedHour(e.target.value)}
-                                                    required
-                                                    >
-                                                    {availableFutureHours.length === 0 ? (
-                                                        <option value="">No more slots for today</option>
-                                                    ) : (
-                                                        <>
-                                                            <option className='default-option' value="default">-- Select a Time --</option>
-                                                            {availableFutureHours.map((hourObj) => (
-                                                                <option key={hourObj.raw} value={hourObj.raw}>
-                                                                    {hourObj.label}
-                                                                </option>
-                                                            ))}
-                                                        </>
-                                                    )}
-                                                </select>
-                                            </div>
-                                            <div className="buttons d-flex justify-content-between mb-3">
-                                                <div className="button-container">
-                                                    <button type="button" className="btn btn-secondary" style={{width: '100px'}} onClick={() => setStep(1)}>
-                                                            Previous
-                                                    </button>
+                                    {/*Step 1: Vehicle Information */}
+                                    <div className="step1-container">
+                                        {step === 1 && (
+                                            <> 
+                                            <div className="vehicle-information-container">
+                                                <div className="input-container vehicle-type-container mb-3">                                       
+                                                    <label className="form-label">Vehicle type</label>
+                                                    <input 
+                                                        type="text" 
+                                                        className="form-control" 
+                                                        onChange={(e) => setVehicleType(e.target.value)}
+                                                        value={vehicleType}
+                                                        id="floatingVehicle" 
+                                                        list="vehicleOptions" 
+                                                        placeholder="e.g., Sedan" 
+                                                        required
+                                                    />                          
+                                                    <datalist id="vehicleOptions">
+                                                        <option value="Sedan" />
+                                                        <option value="SUV" />
+                                                        <option value="Truck" />
+                                                        <option value="Coupe" />
+                                                    </datalist>
                                                 </div>
-                                                <div className="button-container">
+                                                <div className="service-type-container ">
+                                                    <label className="form-label">Service type</label>
+                                                    <div className="mb-3 row row-cols-2 row-cols-lg-4 g-3">                                           
+                                                        {serviceTypes.map((service) => {
+                                                            const isSelected = serviceType.includes(service.label);
+
+                                                            return (
+                                                            <div key={service.id} className="col">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleService(service.label)}
+                                                                    className={`btn rounded-pill px-2 w-100 ${
+                                                                    isSelected 
+                                                                        ? "btn-primary" // Solid color when selected
+                                                                        : "btn-outline-secondary text-light" // Outline when not selected
+                                                                    }`}
+                                                                >
+                                                                    {isSelected && <span className="me-1">✓</span>}
+                                                                    {service.label}
+                                                                </button>
+                                                            </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>                                      
+                                            </div>
+                                            <div className="button-container d-flex justify-content-between">
+                                                    <a className="icon-link icon-link-hover" style={{color: 'var(--text-secondary)', fontSize: '.9rem', textDecoration: 'underline'}} href="#">
+                                                        Learn more service price
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="bi" viewBox="0 0 16 16" aria-hidden="true">
+                                                            <path d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z"/>
+                                                        </svg>
+                                                    </a>
                                                     <button 
-                                                        type="button"
-                                                        className="btn btn-primary" 
-                                                        style={{width: '100px'}} 
-                                                        onClick={() => setStep(3)}
-                                                        disabled={!selectedHour || selectedHour === "default"} // Disable if no hour is selected
+                                                        type="button" 
+                                                        className="btn btn-primary w-100" 
+                                                        style={{maxWidth: '100px'}} 
+                                                        onClick={() => setStep(2)}
+                                                        disabled={!vehicleType.trim() || !serviceType.length}
                                                     >
                                                             Next
                                                     </button>
-                                                </div>                                          
-                                            </div>    
-                                        </>   
-                                    )}
-                                </div> 
-                                
-                                {/* Step 3: Personal Information */}
-                                {step === 3 && (
-                                    <>
-                                        <div className="input-container d-flex gap-3">
-                                            <div className="form-label flex-fill mb-3">
-                                                <label for="formInput" className="form-label">First name</label>
-                                                <input 
-                                                    type="text" 
-                                                    className="form-control" 
-                                                    onChange={(e) => setFirstName(e.target.value)}
-                                                    value={firstName}
-                                                    id="formInput" 
-                                                    placeholder="e.g., John Michael" 
-                                                    required
-                                                />                           
-                                            </div>
-                                            <div className="form-label flex-fill mb-3">
-                                                <label className="form-label">Last name</label>
-                                                <input 
-                                                type="text" 
-                                                className="form-control" 
-                                                onChange={(e) => setLastName(e.target.value)}
-                                                value={lastName}
-                                                id="floatingInput" 
-                                                placeholder="e.g., Doe" 
-                                                required
-                                                />                              
-                                            </div>
-                                        </div>       
-                                        <div className="input-container">     
-                                            <label for="formInput" className="form-label">Phone number</label>                         
-                                            <div className="input-group mb-3">
-                                                <span className="input-group-text" id="basic-addon1">+63</span>
-                                                <input 
-                                                    type="text" 
-                                                    className="form-control" 
-                                                    placeholder="e.g., 9123456789" 
-                                                    aria-label="Phone number" 
-                                                    aria-describedby="basic-addon1"
-                                                    inputMode="numeric"
-                                                    maxLength="10"
-                                                    onChange={handlePhoneChange}
-                                                    value={phoneNumber}
-                                                    required
-                                                >
-                                                </input>
-                                            </div> 
-                                        </div>               
-                                        <div className="input-container mb-3">
-                                            <label className="form-label">Email address</label>
-                                            <input 
-                                            type="email" 
-                                            className="form-control" 
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            value={email}
-                                            id="floatingInput" 
-                                            placeholder="e.g., name@example.com" 
-                                            required
-                                            />                         
-                                        </div>
-                                        <div className="buttons d-flex justify-content-between mb-3">
-                                                <div className="button-container">
-                                                <button 
-                                                    type="button" 
-                                                    className="btn btn-secondary" 
-                                                    style={{width: '100px'}} 
-                                                    onClick={() => setStep(2)}
-                                                    disabled={isLoading} // Disable while loading to prevent navigation
-                                                    >
-                                                        Previous
-                                                </button>
-                                            </div>                                         
-                                        </div>
+                                                </div>  
+                                            </>                                                                   
+                                        )}                                                          
+                                    </div> 
 
-                                        {/*Privacy Policy and CAPTCHA */}
-                                        <div className="form-check d-flex align-items-start gap-3 mb-3">
-                                            <input 
-                                                className="form-check-input flex-shrink-0" 
-                                                type="checkbox" 
-                                                checked={privacyChecked}
-                                                onChange={(e) => setPrivacyChecked(e.target.checked)}
-                                                id="privacyPolicy" 
-                                                required 
-                                                style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
-                                            />
-                                            <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
-                                                By clicking this box, I agree that the company may use my personal information in accordance with the <a href="#" className="text-decoration-none" style={{ color: '#00e8e9' }}>Terms &</a> <a href="#" className="text-decoration-none" style={{ color: '#00e8e9' }}>Privacy Policy</a>.
-                                            </label>
-                                        </div>
-                                        <div className="form-check d-flex align-items-start gap-3 mb-3">
-                                            <input 
-                                                className="form-check-input flex-shrink-0" 
-                                                type="checkbox" 
-                                                checked={privacyChecked}
-                                                onChange={(e) => setPrivacyChecked(e.target.checked)}
-                                                id="privacyPolicy" 
-                                                required 
-                                                style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
-                                            />
-                                            <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
-                                                I agree to arrive on time for my scheduled booking. Late arrivals may result in rescheduling or cancellation of the booking.
-                                            </label>
-                                        </div>
-                                        <div className="form-check d-flex align-items-start gap-3 mb-3">
-                                            <input 
-                                                className="form-check-input flex-shrink-0" 
-                                                type="checkbox" 
-                                                checked={privacyChecked}
-                                                onChange={(e) => setPrivacyChecked(e.target.checked)}
-                                                id="privacyPolicy" 
-                                                required 
-                                                style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
-                                            />
-                                            <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
-                                                I understand that punctuality is essential to ensure a smooth and efficient service experience for all customers.
-                                            </label>
-                                        </div>
-                                        <div className="form-check d-flex align-items-start gap-3 mb-3">
-                                            <input 
-                                                className="form-check-input flex-shrink-0" 
-                                                type="checkbox" 
-                                                checked={privacyChecked}
-                                                onChange={(e) => setPrivacyChecked(e.target.checked)}
-                                                id="privacyPolicy" 
-                                                required 
-                                                style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
-                                            />
-                                            <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
-                                            I acknowledge that if I am unable to arrive on time, I will contact the company as soon as possible to discuss alternative arrangements.
-                                            </label>
-                                        </div>
-                                        <div className="mb-3">
-                                            <ReCAPTCHA
-                                                sitekey="6LeOuJAsAAAAAPJBVPFJQ5TVhRXJPf-3oQERKub4" 
-                                                onChange={(token) => setCaptchaToken(token)}
-                                                theme="dark"
-                                            /> 
-                                        </div>
-                                        <button 
-                                            type="submit" 
-                                            disabled={isLoading} // Prevents duplicate clicks while loading
-                                            className="btn btn-primary w-100 btn-lg d-flex align-items-center justify-content-center text-white"
-                                            >
-                                            {isLoading ? (
-                                                <>
-                                                    <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                                                    <span role="status">Processing...</span>
-                                                </>
-                                            ) : (
-                                                "Book"
-                                            )}
-                                        </button>   
-                                    </>
-                                )}                                                                                               
-                                <div className="">
-                                    {error && (
-                                        <div className="toast show align-items-center text-bg-danger border-0 mt-3" role="alert" aria-live="assertive" aria-atomic="true">
-                                            <div className="d-flex">
-                                                <div className="toast-body">
-                                                    ❌ {error}
+                                    {/*Step 2: Date and Time */}
+                                    <div className="step2-container">
+                                        {step === 2 && (
+                                            <>                                                                  
+                                                <div className='input-container mb-3'>
+                                                    <label className="form-label">Select time</label>
+                                                    <select 
+                                                        className="form-select time-picker"
+                                                        value={selectedHour} 
+                                                        onChange={(e) => setSelectedHour(e.target.value)}
+                                                        required
+                                                        >
+                                                        {availableFutureHours.length === 0 ? (
+                                                            <option value="">No more slots for today</option>
+                                                        ) : (
+                                                            <>
+                                                                <option className='default-option' value="default">-- Select a Time --</option>
+                                                                {availableFutureHours.map((hourObj) => (
+                                                                    <option key={hourObj.raw} value={hourObj.raw}>
+                                                                        {hourObj.label}
+                                                                    </option>
+                                                                ))}
+                                                            </>
+                                                        )}
+                                                    </select>
                                                 </div>
-                                                <button 
-                                                    type="button" 
-                                                    className="btn-close btn-close-white me-2 m-auto" 
-                                                    onClick={() => setError(null)} 
-                                                    data-bs-dismiss="toast" 
-                                                    aria-label="Close">                                           
-                                                </button>
+                                                <div className="buttons d-flex justify-content-between mb-3">
+                                                    <div className="button-container">
+                                                        <button type="button" className="btn btn-secondary" style={{width: '100px'}} onClick={() => setStep(1)}>
+                                                                Previous
+                                                        </button>
+                                                    </div>
+                                                    <div className="button-container">
+                                                        <button 
+                                                            type="button"
+                                                            className="btn btn-primary" 
+                                                            style={{width: '100px'}} 
+                                                            onClick={() => setStep(3)}
+                                                            disabled={!selectedHour || selectedHour === "default"} // Disable if no hour is selected
+                                                        >
+                                                                Next
+                                                        </button>
+                                                    </div>                                          
+                                                </div>    
+                                            </>   
+                                        )}
+                                    </div> 
+                                    
+                                    {/* Step 3: Personal Information */}
+                                    {step === 3 && (
+                                        <>
+                                            <div className="input-container d-flex gap-3">
+                                                <div className="form-label flex-fill mb-3">
+                                                    <label for="formInput" className="form-label">First name</label>
+                                                    <input 
+                                                        type="text" 
+                                                        className="form-control" 
+                                                        onChange={(e) => setFirstName(e.target.value)}
+                                                        value={firstName}
+                                                        id="formInput" 
+                                                        placeholder="e.g., John Michael" 
+                                                        required
+                                                    />                           
+                                                </div>
+                                                <div className="form-label flex-fill mb-3">
+                                                    <label className="form-label">Last name</label>
+                                                    <input 
+                                                    type="text" 
+                                                    className="form-control" 
+                                                    onChange={(e) => setLastName(e.target.value)}
+                                                    value={lastName}
+                                                    id="floatingInput" 
+                                                    placeholder="e.g., Doe" 
+                                                    required
+                                                    />                              
+                                                </div>
+                                            </div>       
+                                            <div className="input-container">     
+                                                <label for="formInput" className="form-label">Phone number</label>                         
+                                                <div className="input-group mb-3">
+                                                    <span className="input-group-text" id="basic-addon1">+63</span>
+                                                    <input 
+                                                        type="text" 
+                                                        className="form-control" 
+                                                        placeholder="e.g., 9123456789" 
+                                                        aria-label="Phone number" 
+                                                        aria-describedby="basic-addon1"
+                                                        inputMode="numeric"
+                                                        maxLength="10"
+                                                        onChange={handlePhoneChange}
+                                                        value={phoneNumber}
+                                                        required
+                                                    >
+                                                    </input>
+                                                </div> 
+                                            </div>               
+                                            <div className="input-container mb-3">
+                                                <label className="form-label">Email address</label>
+                                                <input 
+                                                type="email" 
+                                                className="form-control" 
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                value={email}
+                                                id="floatingInput" 
+                                                placeholder="e.g., name@example.com" 
+                                                required
+                                                />                         
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
+                                            <div className="buttons d-flex justify-content-between mb-3">
+                                                    <div className="button-container">
+                                                    <button 
+                                                        type="button" 
+                                                        className="btn btn-secondary" 
+                                                        style={{width: '100px'}} 
+                                                        onClick={() => setStep(2)}
+                                                        disabled={isLoading} // Disable while loading to prevent navigation
+                                                        >
+                                                            Previous
+                                                    </button>
+                                                </div>                                         
+                                            </div>
 
-                            </form>
+                                            {/*Privacy Policy and CAPTCHA */}
+                                            <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                                <input 
+                                                    className="form-check-input flex-shrink-0" 
+                                                    type="checkbox" 
+                                                    checked={privacyChecked}
+                                                    onChange={(e) => setPrivacyChecked(e.target.checked)}
+                                                    id="privacyPolicy" 
+                                                    required 
+                                                    style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                                />
+                                                <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                    By clicking this box, I agree that the company may use my personal information in accordance with the <a href="#" className="text-decoration-none" style={{ color: '#00e8e9' }}>Terms &</a> <a href="#" className="text-decoration-none" style={{ color: '#00e8e9' }}>Privacy Policy</a>.
+                                                </label>
+                                            </div>
+                                            <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                                <input 
+                                                    className="form-check-input flex-shrink-0" 
+                                                    type="checkbox" 
+                                                    checked={privacyChecked}
+                                                    onChange={(e) => setPrivacyChecked(e.target.checked)}
+                                                    id="privacyPolicy" 
+                                                    required 
+                                                    style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                                />
+                                                <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                    I agree to arrive on time for my scheduled booking. Late arrivals may result in rescheduling or cancellation of the booking.
+                                                </label>
+                                            </div>
+                                            <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                                <input 
+                                                    className="form-check-input flex-shrink-0" 
+                                                    type="checkbox" 
+                                                    checked={privacyChecked}
+                                                    onChange={(e) => setPrivacyChecked(e.target.checked)}
+                                                    id="privacyPolicy" 
+                                                    required 
+                                                    style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                                />
+                                                <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                    I understand that punctuality is essential to ensure a smooth and efficient service experience for all customers.
+                                                </label>
+                                            </div>
+                                            <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                                <input 
+                                                    className="form-check-input flex-shrink-0" 
+                                                    type="checkbox" 
+                                                    checked={privacyChecked}
+                                                    onChange={(e) => setPrivacyChecked(e.target.checked)}
+                                                    id="privacyPolicy" 
+                                                    required 
+                                                    style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                                />
+                                                <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                I acknowledge that if I am unable to arrive on time, I will contact the company as soon as possible to discuss alternative arrangements.
+                                                </label>
+                                            </div>
+                                            <div className="mb-3">
+                                                <ReCAPTCHA
+                                                    sitekey="6LeOuJAsAAAAAPJBVPFJQ5TVhRXJPf-3oQERKub4" 
+                                                    onChange={(token) => setCaptchaToken(token)}
+                                                    theme="dark"
+                                                /> 
+                                            </div>
+                                            <button 
+                                                type="submit" 
+                                                disabled={isLoading} // Prevents duplicate clicks while loading
+                                                className="btn btn-primary w-100 btn-lg d-flex align-items-center justify-content-center text-white"
+                                                >
+                                                {isLoading ? (
+                                                    <>
+                                                        <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                                        <span role="status">Processing...</span>
+                                                    </>
+                                                ) : (
+                                                    "Book"
+                                                )}
+                                            </button>   
+                                        </>
+                                    )}
+                                                                                                                                
+                                    <div className="">
+                                        {error && (
+                                            <div className="toast show align-items-center text-bg-danger border-0 mt-3" role="alert" aria-live="assertive" aria-atomic="true">
+                                                <div className="d-flex">
+                                                    <div className="toast-body">
+                                                        ❌ {error}
+                                                    </div>
+                                                    <button 
+                                                        type="button" 
+                                                        className="btn-close btn-close-white me-2 m-auto" 
+                                                        onClick={() => setError(null)} 
+                                                        data-bs-dismiss="toast" 
+                                                        aria-label="Close">                                           
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
