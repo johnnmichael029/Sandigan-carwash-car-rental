@@ -4,6 +4,26 @@ html {
     padding: 0;
     margin: 0;
 }
+
+/* Create variables for colors */
+/* Dark Theme */
+:root {
+    --brand-primary: #23A0CE;
+    --brand-accent: #00e8e9;
+    --text-primary: #FAFAFA;
+    --text-secondary: #D1D1D1;
+    --background-primary: #0a0a0a;
+}
+
+/* Light Theme */
+.light-theme {
+    --brand-primary: #23A0CE;
+    --brand-accent: #00e8e9;
+    --text-primary: #0a0a0a;
+    --text-secondary: #666666;
+    --background-primary: #ffffff;
+}
+
 .alert {
     transition: opacity 0.5s ease-out;
 }
@@ -16,20 +36,19 @@ html {
 .contact-section {
     /* Use min-height instead of height to prevent content cutting on small screens */
     min-height: 100vh;
-    background: #0a0a0a;
+    background: var(--background-primary);
 }
 
 .landing-wrapper {
-    background: #0a0a0a;
+    background: var(--background-primary);
     width: 100%;
 }
 
 .hero-title {
-    color: #FAFAFA;
+    color: var(--text-primary);
 }
-
 .btn-primary {
-    background-color: #23A0CE !important;
+    background-color: var(--brand-primary) !important;
     background-color: transparent;
     box-shadow: 0 0 1px 1px rgba(0, 232, 233, 0.3);
     transition: all 0.2s ease-in-out;
@@ -41,7 +60,7 @@ html {
     }
 
 .brand-accent {
-    color: #00e8e9;
+    color: var(--brand-accent);
 }
 .brand-italic {
     font-weight: 300;
@@ -53,7 +72,7 @@ html {
     overflow: hidden;   /* Hide the other words */
     vertical-align: bottom;
     position: relative;
-    color: #00e8e9;
+    color: var(--brand-accent);
     font-style: italic;
 }
 .roller-list {
@@ -79,7 +98,7 @@ html {
 }
 
 .hero-description {
-    color: #D1D1D1;
+    color: var(--text-secondary);
     
 }
 
@@ -242,7 +261,7 @@ html {
             display: block;
             width: 100%;
             background: #1a1a1a; /* Dark background to match your brand */
-            color: #FAFAFA !important; /* Brand accent color */
+            color: var(--text-primary); /* Brand accent color */
             text-align: center !important;
             font-size: 1rem;
             padding: 12px !important;
@@ -350,7 +369,7 @@ h6, h2, label {
     background-color: transparent;
     border: 1px solid rgba(255, 255, 255, 0.2);
     transition: border-color 0.3s ease;
-    color: #FAFAFA;
+    color: var(--text-primary);
 }
     .form-container input::placeholder {
         color: rgba(255, 255, 255, 0.5); /* Semi-transparent white */
@@ -365,14 +384,14 @@ h6, h2, label {
 .time-picker {
     background-color: transparent;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #FAFAFA;
+    color: var(--text-primary);
 }
 .time-picker option {
     background-color: #0a0a0ab2;
-    color: #FAFAFA;
+    color: var(--text-primary);
 }
 .input-group-text {
     background-color: transparent;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #FAFAFA;
+    color: var(--text-primary);
 }

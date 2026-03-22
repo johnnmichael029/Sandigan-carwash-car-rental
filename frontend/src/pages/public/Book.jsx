@@ -96,17 +96,26 @@ const Book = () => {
         }
     }, [success, error]);
 
+    // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();      
         setIsLoading(true);
         
-        const bookingData = {
-            firstName,
-            lastName,
-            phoneNumber,
-            emailAddress: email,   
-            vehicleType,
-            serviceType,
+        // Sanitize all inputs before sending to the server to prevent XSS
+        const cleanData = {
+            // 1. HIGH RISK (Users type anything here - Sanitize strictly)
+            firstName: sanitizeInput(firstName),
+            lastName: sanitizeInput(lastName),
+            vehicleType: sanitizeInput(vehicleType),
+
+            // 2. FORMATTED DATA (Use Validation instead of just Sanitization)
+            // You want to make sure these LOOK like a phone/email, not just clean text.
+            phoneNumber: phoneNumber.trim(), 
+            emailAddress: email.trim().toLowerCase(),
+
+            // 3. CONTROLLED DATA (These come from your own dropdowns/buttons)
+            // Since the user *picks* these from a list you provided, they are safer.
+            serviceType: serviceType, 
             bookingTime: selectedHour,
             captchaToken
         };
@@ -114,12 +123,15 @@ const Book = () => {
         try {
             const response = await fetch(BASE_URL, {
                 method: 'POST',
-                body: JSON.stringify(bookingData),
+                body: JSON.stringify(cleanData),
                 headers: { 'Content-Type': 'application/json' },
             });
-
+                
+            if (!response.ok){
+                throw new Error(`Error: ${response.status} ${response.statusText}`);
+            }
             const data = await response.json();
-
+            
             if (response.ok) {
                 setFirstName('');
                 setLastName('');
@@ -239,10 +251,20 @@ const Book = () => {
         // Save/Download
         doc.save(`book_Receipt_${finalId}.pdf`);
     };
-    const stepTitles = {
+
+    // Step Titles for Progress Bar
+    const stepTitles =  {
         1: "Vehicle Information",
         2: "Date and Time",
         3: "Personal Information"
+    };
+
+    // Sanitize input to prevent XSS (basic example, consider using a library for production)
+    const sanitizeInput = (input) => {
+        // 1. Remove leading/trailing whitespace
+        // 2. Remove any HTML tags (the < > characters)
+        // 3. Escape special characters
+        return input.replace(/<[^>]*>?/gm, '').trim();
     };
 
   return (
@@ -321,7 +343,13 @@ const Book = () => {
                                             </select>
                                         </div>
                                     </div>
-                                       <div className="button-container mb-3 d-flex justify-content-end">
+                                       <div className="button-container d-flex justify-content-between">
+                                            <a className="icon-link icon-link-hover" style={{color: 'var(--text-secondary)', fontSize: '.9rem', textDecoration: 'underline'}} href="#">
+                                                Learn more service price
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="bi" viewBox="0 0 16 16" aria-hidden="true">
+                                                    <path d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z"/>
+                                                </svg>
+                                            </a>
                                             <button 
                                                 type="button" 
                                                 className="btn btn-primary w-100" 
@@ -370,11 +398,11 @@ const Book = () => {
                                             </div>
                                             <div className="button-container">
                                                 <button 
-                                                type="button"
-                                                className="btn btn-primary" 
-                                                style={{width: '100px'}} 
-                                                onClick={() => setStep(3)}
-                                                disabled={!selectedHour}
+                                                    type="button"
+                                                    className="btn btn-primary" 
+                                                    style={{width: '100px'}} 
+                                                    onClick={() => setStep(3)}
+                                                    disabled={!selectedHour}
                                                 >
                                                         Next
                                                 </button>
@@ -446,7 +474,13 @@ const Book = () => {
                                     </div>
                                     <div className="buttons d-flex justify-content-between mb-3">
                                             <div className="button-container">
-                                            <button type="button" className="btn btn-secondary" style={{width: '100px'}} onClick={() => setStep(2)}>
+                                            <button 
+                                                type="button" 
+                                                className="btn btn-secondary" 
+                                                style={{width: '100px'}} 
+                                                onClick={() => setStep(2)}
+                                                disabled={isLoading} // Disable while loading to prevent navigation
+                                                >
                                                     Previous
                                             </button>
                                         </div>                                         
@@ -519,7 +553,7 @@ const Book = () => {
                                     <button 
                                         type="submit" 
                                         disabled={isLoading} // Prevents duplicate clicks while loading
-                                        className="btn btn-primary w-100 btn-lg d-flex align-items-center justify-content-center text-white mb-3"
+                                        className="btn btn-primary w-100 btn-lg d-flex align-items-center justify-content-center text-white"
                                         >
                                         {isLoading ? (
                                             <>
@@ -534,9 +568,9 @@ const Book = () => {
                             )}                                                                                               
                             <div className="">
                                 {error && (
-                                    <div class="toast show align-items-center text-bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                                        <div class="d-flex">
-                                            <div class="toast-body">
+                                    <div className="toast show align-items-center text-bg-danger border-0 mt-3" role="alert" aria-live="assertive" aria-atomic="true">
+                                        <div className="d-flex">
+                                            <div className="toast-body">
                                                 ❌ {error}
                                             </div>
                                             <button 
