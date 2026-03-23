@@ -6,6 +6,7 @@ import ellipse from '../../assets/img/ellipse.png';
 import Swal from 'sweetalert2'
 import { useNavigate } from 'react-router-dom';
 
+
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -67,7 +68,7 @@ const Login = () => {
                         popup: 'rounded-5'
                     }
                 }).then(() => {
-                    navigate('/employee');
+                    navigate('/employee/dashboard'); // Redirect after alert is closed
                 });
 
             }
@@ -80,6 +81,14 @@ const Login = () => {
         }
 
     };
+
+    // Prevent login employee from going back to login page
+    useEffect(() => {
+        const employee = localStorage.getItem('employee');
+        if (employee) {
+            navigate('/employee/dashboard', { replace: true });
+        }
+    }, [navigate]);
 
     // Timer for Toast messages
     useEffect(() => {

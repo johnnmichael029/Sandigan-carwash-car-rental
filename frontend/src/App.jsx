@@ -2,6 +2,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/public/Home'; 
 import Book from './pages/public/Book';
 import Login from './pages/login/Login';
+import EmployeeDashboard from './pages/employee/EmployeeDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
@@ -16,6 +18,13 @@ function App() {
 
         {/* Login Page */}
         <Route path="/login" element={<Login />} />
+
+        {/* Employee Dashboard */}
+        <Route path="/employee/dashboard" element={
+          <ProtectedRoute>
+            <EmployeeDashboard />
+          </ProtectedRoute>
+        } />
 
         {/* Booking Page */}
         <Route path="/book" element={<Book />} />

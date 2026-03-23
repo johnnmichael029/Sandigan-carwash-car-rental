@@ -38,7 +38,7 @@ const HeroSection = () => (
                     <div className="col-md-6">
                         <div className='brand-container d-flex align-items-center gap-1'>
                             <img src={fluentbubble} alt="Fluent Bubble" />
-                            <h6 className="brand-italic text-uppercase brand-accent mb-0 fst-italic">Drive with confidence</h6>
+                            <h6 className="brand-italic-weight text-uppercase brand-accent mb-0 fst-italic">Drive with confidence</h6>
                         </div>                                 
                         <h1 className="display-3 fw-bold hero-title text-uppercase">
                             We make <br /> cars <br />

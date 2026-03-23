@@ -67,31 +67,31 @@ const Navbar = () => {
 
           {/* Desktop Menu */}
           <div className="collapse navbar-collapse d-flex justify-content-center">
-            <ul className="navbar-nav mb-lg-0">
-              <li className="nav-item">
+            <ul className="navbar-nav mb-lg-0 d-flex align-items-center gap-2">
+              <li className="navbar-item">
                   <Link 
-                    className={`nav-link custom-link ${isActive('home')}`}
+                    className={`navbar-link custom-link ${isActive('home')}`}
                     to="/home">
                       Home
                   </Link>
               </li>
-              <li className="nav-item">
+              <li className="navbar-item">
                 <Link 
-                  className={`nav-link custom-link ${isActive('about')}`}
+                  className={`navbar-link custom-link ${isActive('about')}`}
                   to="/about">
                     About
                   </Link>
               </li>
-              <li className="nav-item">
+              <li className="navbar-item">
                 <Link 
-                  className={`nav-link custom-link ${isActive('services')}`}
+                  className={`navbar-link custom-link ${isActive('services')}`}
                   to="/services">
                     Services
                 </Link>
               </li>
-              <li className="nav-item">
+              <li className="navbar-item">
                 <Link 
-                  className={`nav-link custom-link ${isActive('contact')}`}
+                  className={`navbar-link custom-link ${isActive('contact')}`}
                   to="/contact">
                     Contact
                   </Link>
