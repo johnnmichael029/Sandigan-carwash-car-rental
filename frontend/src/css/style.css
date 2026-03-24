@@ -1,4 +1,4 @@
-﻿/* GLOBAL SETTINGS */
+/* GLOBAL SETTINGS */
 html {
     scroll-behavior: smooth;
     padding: 0;
@@ -55,7 +55,7 @@ html {
 }
 
 /* Light Theme */
-[light-theme = "light"] {
+[light-theme="light"] {
     --brand-primary: #23A0CE;
     --brand-accent: #00e8e9;
     --text-primary: #0a0a0a;
@@ -70,12 +70,15 @@ html {
 .background-primary {
     background-color: var(--background-primary);
 }
+
 .background-secondary {
     background-color: var(--background-secondary);
 }
+
 .background-dark100 {
     background-color: var(--background-dark100);
 }
+
 .background-dark200 {
     background-color: var(--background-dark200);
 }
@@ -84,18 +87,23 @@ html {
 .background-light-primary {
     background-color: var(--background-light-primary);
 }
+
 .background-light-secondary {
     background-color: var(--background-light-secondary);
 }
+
 .background-light-gray {
     background-color: var(--background-light-gray);
 }
+
 .background-light-gray100 {
     background-color: var(--background-light-gray100);
 }
+
 .background-light-gray200 {
     background-color: var(--background-light-gray200);
 }
+
 .background-light-gray300 {
     background-color: var(--background-light-gray300);
 }
@@ -104,9 +112,11 @@ html {
 .brand-accent {
     color: var(--brand-accent);
 }
+
 .brand-primary {
     color: var(--brand-primary);
 }
+
 .brand-dark {
     color: var(--brand-dark);
 }
@@ -115,15 +125,19 @@ html {
 .text-primary {
     color: var(--text-primary);
 }
+
 .text-secondary {
     color: var(--text-secondary);
 }
+
 .text-light-gray100 {
     color: var(--text-light-gray100);
 }
+
 .text-light-gray200 {
     color: var(--text-light-gray200);
 }
+
 .text-light-gray300 {
     color: var(--text-light-gray300);
 }
@@ -132,18 +146,23 @@ html {
 .text-dark-primary {
     color: var(--text-dark-primary);
 }
+
 .text-dark-secondary {
     color: var(--text-dark-secondary);
 }
+
 .text-dark-gray100 {
     color: var(--text-dark-gray100);
 }
+
 .text-dark-gray200 {
     color: var(--text-dark-gray200);
 }
+
 .text-dark-gray300 {
     color: var(--text-dark-gray300);
 }
+
 .text-dark-gray400 {
     color: var(--text-dark-gray400);
 }
@@ -152,6 +171,7 @@ html {
 .font-arial {
     font-family: var(--font-arial);
 }
+
 .font-poppins {
     font-family: var(--font-poppins);
 }
@@ -159,12 +179,13 @@ html {
 .alert {
     transition: opacity 0.5s ease-out;
 }
+
 /* Main */
 /* Define height of each section */
 .home-section,
-.service-section, 
-.service-price-section, 
-.about-section, 
+.service-section,
+.service-price-section,
+.about-section,
 .contact-section,
 .login-section,
 .book-section {
@@ -181,6 +202,7 @@ html {
 .hero-title {
     color: var(--text-primary);
 }
+
 .btn-primary {
     background-color: var(--brand-primary);
     box-shadow: var(--btn-shadow);
@@ -188,49 +210,74 @@ html {
     border: none;
 }
 
-    .btn-primary:hover {
-        background-color: var(--btn-bg-hover) !important;
-    }
+.btn-primary:hover {
+    background-color: var(--btn-bg-hover) !important;
+}
 
 
 .brand-italic-weight {
     font-weight: var(--font-weight-light);
 }
+
 /* Animated Roller */
 .roller-container {
     display: inline-block;
-    height: 1.2em;      /* Height of exactly one line */
-    overflow: hidden;   /* Hide the other words */
+    height: 1.2em;
+    /* Height of exactly one line */
+    overflow: hidden;
+    /* Hide the other words */
     vertical-align: bottom;
     position: relative;
     color: var(--brand-accent);
     font-style: italic;
 }
+
 .roller-list {
     display: flex;
     flex-direction: column;
     animation: slideVertical 10s cubic-bezier(0.85, 0, 0.15, 1) infinite;
 }
+
 .roller-list span {
     display: block;
     line-height: 1.2em;
 }
+
 @keyframes slideVertical {
+
     /* 0% to 20%: Word 1 */
-    0%, 20% { transform: translateY(0); }
+    0%,
+    20% {
+        transform: translateY(0);
+    }
+
     /* 25% to 45%: Word 2 */
-    25%, 45% { transform: translateY(-1.2em); }
+    25%,
+    45% {
+        transform: translateY(-1.2em);
+    }
+
     /* 50% to 70%: Word 3 */
-    50%, 70% { transform: translateY(-2.4em); }
+    50%,
+    70% {
+        transform: translateY(-2.4em);
+    }
+
     /* 75% to 95%: Word 4 */
-    75%, 95% { transform: translateY(-3.6em); }
+    75%,
+    95% {
+        transform: translateY(-3.6em);
+    }
+
     /* 100%: Back to the repeated Word 1 */
-    100% { transform: translateY(-4.8em); }
+    100% {
+        transform: translateY(-4.8em);
+    }
 }
 
 .hero-description {
     color: var(--text-secondary);
-    
+
 }
 
 .hero-image-container {
@@ -244,13 +291,15 @@ html {
     left: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover; /* Prevents stretching */
+    object-fit: cover;
+    /* Prevents stretching */
 }
 
 .hero-bg-image-container .container {
     position: relative;
     z-index: 1;
-    color: white; /* Makes text visible against dark bg */
+    color: white;
+    /* Makes text visible against dark bg */
 }
 
 .hero-bg-image-container .bubble {
@@ -261,20 +310,24 @@ html {
 .hero-bg-image-container {
     position: relative;
     width: 100%;
-    min-height: 100vh; /* Makes it full screen height */
+    min-height: 100vh;
+    /* Makes it full screen height */
     overflow: hidden;
     display: flex;
-    align-items: center; /* Centers content vertically */
+    align-items: center;
+    /* Centers content vertically */
 }
 
 .bubble-container {
     top: 0;
     left: 0;
-    pointer-events: none; /* Allows clicks to pass through */
+    pointer-events: none;
+    /* Allows clicks to pass through */
 }
 
 .bubble {
-    width: 9vw; /* On a 1000px screen, this is 120px. On a 400px mobile, it's 48px */
+    width: 9vw;
+    /* On a 1000px screen, this is 120px. On a 400px mobile, it's 48px */
     min-width: 40px;
 }
 
@@ -288,12 +341,14 @@ html {
     border: none;
     font-size: 1rem;
 }
+
 .center-card {
     border-radius: 100px 50px 50px 0px;
     width: 25rem;
     height: 5rem;
     background-color: var(--background-light-primary);
 }
+
 .right-card {
     border-radius: 50px 100px 0px 50px;
     width: 25rem;
@@ -308,11 +363,12 @@ html {
 .service-card {
     width: 384px;
     height: 482px;
-    background-color: hsl(0, 0%, 100%, .08); 
+    background-color: hsl(0, 0%, 100%, .08);
     box-shadow: var(--card-box-shadow);
     border-radius: 30px;
     transition: transform 0.5s ease;
-    border-radius: 30px; /* Rounded corners for the "Premium" look */
+    border-radius: 30px;
+    /* Rounded corners for the "Premium" look */
 }
 
 /* Section Background Color */
@@ -327,9 +383,10 @@ html {
     height: 156px;
     overflow: hidden;
 }
+
 .icon-container {
     width: 44px;
-    height: 44px ;
+    height: 44px;
     background-Color: var(--background-dark200);
     border-Radius: 50%;
     box-Shadow: var(--card-box-shadow);
@@ -337,7 +394,7 @@ html {
     align-items: center;
     justify-content: center;
 }
-    
+
 .img-fluid {
     border-radius: 24px;
 }
@@ -350,7 +407,8 @@ html {
 }
 
 .table tbody tr:hover {
-    background-color: rgba(0, 232, 233, 0.05); /* Very light cyan on hover */
+    background-color: rgba(0, 232, 233, 0.05);
+    /* Very light cyan on hover */
     transition: background-color 0.2s ease;
 }
 
@@ -364,8 +422,10 @@ html {
 /* Testimonials */
 
 /* Contact Section */
-h6, h2, label {
-    color:var(--text-secondary);
+h6,
+h2,
+label {
+    color: var(--text-secondary);
 }
 
 /* Booking Section */
@@ -374,21 +434,26 @@ h6, h2, label {
     box-shadow: var(--card-box-shadow);
     border-radius: 24px;
 }
+
 .form-container .form-label {
     font-weight: 300;
 }
+
 .form-container input {
     background-color: transparent;
     border: var(--input-border);
     transition: border-color 0.3s ease;
     color: var(--text-primary);
 }
-    .form-container input::placeholder {
-        color: var(--placeholder-color);
-        font-weight: 300;
-        font-size: 14px;
-        opacity: 1; /* Firefox requires this to show the full color */
-    }
+
+.form-container input::placeholder {
+    color: var(--placeholder-color);
+    font-weight: 300;
+    font-size: 14px;
+    opacity: 1;
+    /* Firefox requires this to show the full color */
+}
+
 .container .row {
     margin-right: 0;
 }
@@ -398,10 +463,12 @@ h6, h2, label {
     border: var(--input-border);
     color: var(--text-primary);
 }
+
 .time-picker option {
     background-color: var(--option-background);
     color: var(--text-primary);
 }
+
 .input-group-text {
     background-color: transparent;
     border: var(--input-border);
@@ -412,17 +479,20 @@ h6, h2, label {
 .container-fluid {
     background-color: var(--background-light-primary);
 }
+
 .sidebar-container {
     background-color: var(--background-light-secondary);
     border-right: var(--border);
     max-width: 100%;
     width: 250px;
 }
+
 .nav-item {
     height: 2.5rem;
     display: flex;
     align-items: center;
 }
+
 .nav-link {
     width: 100%;
     color: var(--text-dark-secondary);
@@ -430,7 +500,7 @@ h6, h2, label {
     font-size: .9rem;
     height: 100%;
     display: flex;
-    align-items: center;   
+    align-items: center;
 }
 
 .nav-link.active {
@@ -439,14 +509,74 @@ h6, h2, label {
     color: var(--brand-primary);
 
 }
+
 .nav-link:hover {
     background-color: var(--brand-active);
     font-weight: 500;
     color: var(--brand-primary);
 }
-.header-container  {
+
+.header-container {
     height: 2rem;
 }
+
 .brand-container {
-    height: 2rem;
+    height: 6rem;
+    padding: 0.5rem 0;
+}
+
+/* ─── Responsive: Service Cards ─── */
+/* Make service cards full width on mobile */
+.service-card {
+    width: 100%;
+    height: auto;
+    min-height: 400px;
+}
+
+/* ─── Responsive: Feature Cards (About section) ─── */
+.left-card,
+.center-card,
+.right-card {
+    width: 100%;
+    max-width: 480px;
+    height: auto;
+    min-height: 5rem;
+}
+
+/* ─── Responsive: Hero ─── */
+@media (max-width: 767px) {
+    .hero-title.display-3 {
+        font-size: 2.2rem;
+    }
+
+    .display-1 {
+        font-size: 2.4rem !important;
+    }
+
+    .hero-bg-image-container {
+        min-height: 100svh;
+    }
+
+    .bubble {
+        width: 14vw;
+        min-width: 36px;
+    }
+}
+
+/* ─── Responsive: Services section header ─── */
+@media (max-width: 991px) {
+
+    .service-price-section .header-container,
+    .service-price-section>.container>.d-flex {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* ─── Responsive: Navbar spacing fix ─── */
+@media (max-width: 991px) {
+    .navbar-container {
+        justify-content: space-between;
+        padding: 0 1.25rem;
+    }
 }

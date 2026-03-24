@@ -10,15 +10,15 @@ import { useNavigate } from 'react-router-dom';
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState(null); 
+    const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
-        // Define the URL
-    const BASE_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:4000/api/employees/login' 
-            : 'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net/api/employees/login';
+    // Define the URL
+    const BASE_URL = window.location.hostname === 'localhost'
+        ? 'http://localhost:4000/api/employees/login'
+        : 'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net/api/employees/login';
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -45,7 +45,7 @@ const Login = () => {
                 // If backend sent { error: "Invalid credentials" }, show that
                 setError(data.error || 'Login failed. Please check your credentials.');
                 return; // Stop execution here
-            }       
+            }
 
             if (response.ok) {
                 // Handle successful login (e.g., store token, redirect)
@@ -68,7 +68,7 @@ const Login = () => {
                         popup: 'rounded-5'
                     }
                 }).then(() => {
-                    navigate('/employee/dashboard'); // Redirect after alert is closed
+                    navigate('/employee'); // Redirect after alert is closed
                 });
 
             }
@@ -103,10 +103,10 @@ const Login = () => {
 
     // Basic input sanitization function
     const sanitizeInput = (input) => {
-    // 1. Remove leading/trailing whitespace
-    // 2. Remove any HTML tags (the < > characters)
-    // 3. Escape special characters
-    return input.replace(/<[^>]*>?/gm, '').trim();
+        // 1. Remove leading/trailing whitespace
+        // 2. Remove any HTML tags (the < > characters)
+        // 3. Escape special characters
+        return input.replace(/<[^>]*>?/gm, '').trim();
     };
 
     return (
@@ -116,44 +116,44 @@ const Login = () => {
                     <img src={bubble1} className="bubble bubble1" alt="Bubble" />
                     <img src={bubble2} className="bubble bubble2" alt="Bubble" />
                     <img src={ellipse} className="ellipse position-absolute top-0 end-0" alt="Ellipse" />
-                </div>                    
+                </div>
                 <img src={bgimg} className='hero-bg-image position-absolute' alt='Hero Background' />
                 <div className="form-container card p-5" style={{ width: '100%', maxWidth: '400px', borderRadius: '15px' }}>
                     <h3 className="text-center mb-4 hero-title">Employee Login</h3>
                     <form className="w-100" onSubmit={handleLogin}>
                         <div className="input-container mb-3">
                             <label className="form-label">Email Address</label>
-                            <input 
-                                type="email" 
-                                className="form-control" 
+                            <input
+                                type="email"
+                                className="form-control"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                required 
+                                required
                             />
                         </div>
                         <div className="input-container mb-3">
                             <label className="form-label">Password</label>
-                            <input 
-                                type="password" 
-                                className="form-control" 
+                            <input
+                                type="password"
+                                className="form-control"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                required 
+                                required
                             />
                         </div>
-                        <button 
-                        type="submit" 
-                        className="btn btn-primary w-100 py-2"
-                        disabled={isLoading}
+                        <button
+                            type="submit"
+                            className="btn btn-primary w-100 py-2"
+                            disabled={isLoading}
                         >
-                        {isLoading ? (
-                            <>
-                                <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                                <span role="status">Signing in...</span>
-                            </>
-                        ) : (
-                            "Sign In"
-                        )}
+                            {isLoading ? (
+                                <>
+                                    <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                    <span role="status">Signing in...</span>
+                                </>
+                            ) : (
+                                "Sign In"
+                            )}
                         </button>
                         <div className="">
                             {error && (
@@ -162,12 +162,12 @@ const Login = () => {
                                         <div className="toast-body">
                                             {error}
                                         </div>
-                                        <button 
-                                            type="button" 
-                                            className="btn-close btn-close-white me-2 m-auto" 
-                                            onClick={() => setError(null)} 
-                                            data-bs-dismiss="toast" 
-                                            aria-label="Close">                                           
+                                        <button
+                                            type="button"
+                                            className="btn-close btn-close-white me-2 m-auto"
+                                            onClick={() => setError(null)}
+                                            data-bs-dismiss="toast"
+                                            aria-label="Close">
                                         </button>
                                     </div>
                                 </div>
@@ -175,7 +175,7 @@ const Login = () => {
                         </div>
                     </form>
                 </div>
-            </div>  
+            </div>
         </section>
     );
 };

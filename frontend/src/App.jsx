@@ -20,7 +20,7 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         {/* Employee Dashboard */}
-        <Route path="/employee/dashboard" element={
+        <Route path="/employee" element={
           <ProtectedRoute>
             <EmployeeDashboard />
           </ProtectedRoute>
@@ -29,11 +29,8 @@ function App() {
         {/* Booking Page */}
         <Route path="/book" element={<Book />} />
 
-        {/* Admin Section */}
+        {/* Admin Section — placeholder until AdminDashboard is built */}
         <Route path="/admin" element={<div>Admin Dashboard Coming Soon</div>} />
-
-        {/* Employee Section */}
-        <Route path="/employee" element={<div>Employee Panel Coming Soon</div>} />
       </Routes>
     </Router>
   );
