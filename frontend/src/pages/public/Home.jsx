@@ -43,7 +43,7 @@ const HeroSection = () => (
 
                     {/* ── Text Column ── */}
                     <div className="col-lg-6 col-md-7 text-center text-md-start">
-                        <div className="brand-container d-flex align-items-center gap-1 justify-content-center justify-content-md-start mb-2">
+                        <div className="d-flex align-items-center gap-1 justify-content-center justify-content-md-start mb-2">
                             <img src={fluentbubble} alt="" aria-hidden="true" />
                             <h6 className="brand-italic-weight text-uppercase brand-accent mb-0 fst-italic">
                                 Drive with confidence
@@ -77,7 +77,7 @@ const HeroSection = () => (
                             </Link>
                             <Link
                                 to="/services"
-                                className="btn btn-outline-light btn-lg d-flex align-items-center justify-content-center"
+                                className="btn btn-services text-primary border-outline-primary btn-lg d-flex align-items-center justify-content-center"
                                 style={{ minWidth: '10rem', height: '3.25rem', borderRadius: '24px' }}
                             >
                                 Our Services

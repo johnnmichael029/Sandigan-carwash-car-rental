@@ -38,10 +38,10 @@ const createBooking = async (req, res) => {
     try {
         const verificationUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
         const response = await axios.post(verificationUrl);
-        
-        
+
+
         if (!response.data.success) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 error: "Captcha verification failed.",
                 details: response.data['error-codes'] // This helps you debug!
             });
@@ -50,28 +50,28 @@ const createBooking = async (req, res) => {
         const formattedPhoneNumber = `0${phoneNumber}`; // Prepend 0 if phone number exists, else set to null
         // Generate the Batch ID before saving
         const generatedBatchID = await generateBatchID(bookingTime);
-        const booking = await Booking.create({ 
-            firstName, 
-            lastName, 
+        const booking = await Booking.create({
+            firstName,
+            lastName,
             phoneNumber: formattedPhoneNumber,
-            emailAddress, 
-            vehicleType, 
+            emailAddress,
+            vehicleType,
             serviceType,
             bookingTime,
-            batchID: generatedBatchID
+            batchId: generatedBatchID
         });
-    console.log("✅ Booking created:", booking.batchID);
-    res.status(200).json(booking);
-    }   
-    catch (err) {
-    console.error("❌ Error creating booking:", err.message);
-    
-    // Check if the error is our custom "Slot is full" message
-    if (err.message.includes("slot is full")) {
-        return res.status(400).json({ error: err.message });
+        console.log("✅ Booking created:", booking.batchId);
+        res.status(200).json(booking);
     }
+    catch (err) {
+        console.error("❌ Error creating booking:", err.message);
 
-    res.status(500).json({ error: "Server error. Please try again later." });
+        // Check if the error is our custom "Slot is full" message
+        if (err.message.includes("slot is full")) {
+            return res.status(400).json({ error: err.message });
+        }
+
+        res.status(500).json({ error: "Server error. Please try again later." });
     }
 }
 
@@ -96,7 +96,7 @@ const updateBooking = async (req, res) => {
     const { id } = req.params;
     const { firstName, lastName, emailAddress, vehicleType, serviceType, phoneNumber } = req.body;
     try {
-        const booking = await Booking.findByIdAndUpdate(id, { ...req.body }, { new: true });
+        const booking = await Booking.findByIdAndUpdate(id, { ...req.body }, { returnDocument: 'after' });
         if (!booking) {
             return res.status(404).json({ error: "Booking not found." });
         }
@@ -124,8 +124,8 @@ const generateBatchID = async (requestedHour) => {
     });
 
     if (existingCount >= MAX_CAPACITY_PER_HOUR) {
-            throw new Error(`The ${requestedHour}:00 slot is full. Please pick another time.`);
-        }
+        throw new Error(`The ${requestedHour}:00 slot is full. Please pick another time.`);
+    }
 
     // 3. Format: Hour-Sequence (e.g., 10-01)
     const sequence = (existingCount + 1).toString().padStart(2, '0');

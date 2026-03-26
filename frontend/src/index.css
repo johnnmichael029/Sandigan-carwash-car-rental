@@ -6,6 +6,7 @@
 }
 
 body {
-  overflow-x: hidden; /* Prevents accidental horizontal scrolling */
-  background: linear-gradient(135deg, #1a1a1a 0%, #0a0e14 100%);
+  overflow-x: hidden;
+  /* Prevents accidental horizontal scrolling */
+  background: linear-gradient(160deg, #0a0e0e 0%, #070a0a 100%);
 }

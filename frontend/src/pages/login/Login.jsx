@@ -5,6 +5,7 @@ import bubble2 from '../../assets/img/bubble-container1.png';
 import ellipse from '../../assets/img/ellipse.png';
 import Swal from 'sweetalert2'
 import { useNavigate } from 'react-router-dom';
+import sandiganLogo from '../../assets/logo/sandigan-logo.png';
 
 
 const Login = () => {
@@ -86,7 +87,7 @@ const Login = () => {
     useEffect(() => {
         const employee = localStorage.getItem('employee');
         if (employee) {
-            navigate('/employee/dashboard', { replace: true });
+            navigate('/employee', { replace: true });
         }
     }, [navigate]);
 
@@ -119,9 +120,9 @@ const Login = () => {
                 </div>
                 <img src={bgimg} className='hero-bg-image position-absolute' alt='Hero Background' />
                 <div className="form-container card p-5" style={{ width: '100%', maxWidth: '400px', borderRadius: '15px' }}>
-                    <h3 className="text-center mb-4 hero-title">Employee Login</h3>
+                    <img src={sandiganLogo} alt="" />
                     <form className="w-100" onSubmit={handleLogin}>
-                        <div className="input-container mb-3">
+                        <div className="input-container my-3">
                             <label className="form-label">Email Address</label>
                             <input
                                 type="email"

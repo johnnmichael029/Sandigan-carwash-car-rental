@@ -32,7 +32,11 @@ const bookingSchema = new Schema({
         type: String,
         required: true
     },
-    batchID: {
+    status: {
+        type: String,
+        default: 'Pending',
+    },
+    batchId: {
         type: String,
         required: true,
         unique: true

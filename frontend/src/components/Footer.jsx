@@ -1,8 +1,11 @@
 import React from 'react';
 import "../css/footer.css";
-import brandlogo from '../assets/logo/brand-logo.png';
+import brandlogo from '../assets/logo/sandigan-logo.png';
 import locationMap from '../assets/img/sandigan-location.png';
 import { Link } from 'react-router-dom';
+import facebookIcon from '../assets/icon/facebook.png';
+import linkedinIcon from '../assets/icon/linkedin.png';
+import instagramIcon from '../assets/icon/instagram.png';
 
 const Footer = () => {
     return (
@@ -20,14 +23,14 @@ const Footer = () => {
                         </p>
                         <p className="footer-section-label mb-2">Follow Us</p>
                         <div className="social-links d-flex gap-2">
-                            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="social-icon" aria-label="Facebook">
-                                <i className="bi bi-facebook"></i>
+                            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="social-icon " aria-label="Facebook">
+                                <img src={facebookIcon} alt="Facebook" />
                             </a>
                             <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="social-icon" aria-label="LinkedIn">
-                                <i className="bi bi-linkedin"></i>
+                                <img src={linkedinIcon} alt="LinkedIn" />
                             </a>
                             <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="social-icon" aria-label="Instagram">
-                                <i className="bi bi-instagram"></i>
+                                <img src={instagramIcon} alt="Instagram" />
                             </a>
                         </div>
                     </div>
