@@ -11,7 +11,7 @@ import bgimg from '../../assets/img/hero-bg-img.png';
 import bubble1 from '../../assets/img/bubble-container.png';
 import bubble2 from '../../assets/img/bubble-container1.png';
 import ellipse from '../../assets/img/ellipse.png';
-import { API_BASE } from '../../api/config';
+import { API_BASE, authHeaders } from '../../api/config';
 
 // 1. Keep the base hours as military for backend compatibility
 const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
@@ -127,7 +127,8 @@ const Book = () => {
             const response = await fetch(BASE_URL, {
                 method: 'POST',
                 body: JSON.stringify(cleanData),
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
+                credentials: 'include',
             });
 
             const data = await response.json();

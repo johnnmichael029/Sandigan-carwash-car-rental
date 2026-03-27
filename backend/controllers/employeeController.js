@@ -105,9 +105,16 @@ const loginEmployee = async (req, res) => {
             { expiresIn: '8h' }
         );
 
+        // Set token as httpOnly cookie to prevent XSS-based token theft
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 8 * 60 * 60 * 1000, // 8 hours in milliseconds
+        });
+
         res.status(200).json({
             message: "Login successful",
-            token,
             employee: {
                 id: employee._id,
                 fullName: employee.fullName,
@@ -119,12 +126,22 @@ const loginEmployee = async (req, res) => {
     }
 };
 
+// Logout employee
+const logoutEmployee = (req, res) => {
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+    });
+    res.status(200).json({ message: 'Logged out successfully' });
+};
+
 module.exports = {
     getEmployee,
     getEmployees,
     createEmployee,
     updateEmployee,
     deleteEmployee,
-    loginEmployee
-
+    loginEmployee,
+    logoutEmployee,
 }

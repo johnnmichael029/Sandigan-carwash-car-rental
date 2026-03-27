@@ -10,7 +10,8 @@ const {
     createEmployee,
     deleteEmployee,
     updateEmployee,
-    loginEmployee
+    loginEmployee,
+    logoutEmployee
 } = require('../controllers/employeeController');
 
 // --- Rate Limiter for Login (prevent brute force) ---
@@ -26,6 +27,9 @@ const loginLimiter = rateLimit({
 
 // Employee login (rate limited)
 router.post('/login', loginLimiter, loginEmployee);
+
+// Employee logout (clears the auth cookie)
+router.post('/logout', logoutEmployee);
 
 // Create a new employee (sign up - keep public or restrict to admin later)
 router.post('/signup', createEmployee);

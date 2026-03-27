@@ -6,7 +6,7 @@ import ellipse from '../../assets/img/ellipse.png';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import sandiganLogo from '../../assets/logo/sandigan-logo.png';
-import { API_BASE } from '../../api/config';
+import { API_BASE, authHeaders } from '../../api/config';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -18,9 +18,8 @@ const Login = () => {
 
     // Prevent already-logged-in employee from seeing the login page
     useEffect(() => {
-        const token = localStorage.getItem('token');
         const employee = localStorage.getItem('employee');
-        if (token && employee) {
+        if (employee) {
             navigate('/employee', { replace: true });
         }
     }, [navigate]);
@@ -51,7 +50,8 @@ const Login = () => {
             const response = await fetch(`${API_BASE}/employees/login`, {
                 method: 'POST',
                 body: JSON.stringify(cleanData),
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
+                credentials: 'include',
             });
 
             const data = await response.json();
@@ -61,8 +61,7 @@ const Login = () => {
                 return;
             }
 
-            // Store JWT token AND employee info
-            localStorage.setItem('token', data.token);
+            // Store only non-sensitive employee info; the JWT is held in an httpOnly cookie
             localStorage.setItem('employee', JSON.stringify(data.employee));
 
             Swal.fire({
@@ -132,7 +131,6 @@ const Login = () => {
                                     className="btn btn-outline-secondary"
                                     onClick={() => setShowPassword((prev) => !prev)}
                                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                    tabIndex={-1}
                                     style={{ borderLeft: 'none' }}
                                 >
                                     {showPassword ? (
