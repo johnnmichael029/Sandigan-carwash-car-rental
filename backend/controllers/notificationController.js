@@ -56,7 +56,7 @@ const updateNotification = async (req, res) => {
     const notification = await Notification.findOneAndUpdate(
         { _id: id },
         { ...req.body },
-        { new: true }
+        { returnDocument: 'after' }
     );
 
     if (!notification) {
