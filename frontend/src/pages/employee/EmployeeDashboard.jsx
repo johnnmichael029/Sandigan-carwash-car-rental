@@ -379,6 +379,10 @@ const BookingManagement = ({ employee }) => {
 
     // 4. Handle status selection
     const handleStatusChange = async (bookingId, nextStatus, batchId) => {
+        // Guard: do not allow changing a completed booking
+        const currentBooking = bookings.find(b => b._id === bookingId);
+        if (currentBooking?.status === 'Completed') return;
+
         const previousBookings = [...bookings];
 
         // 1. Instantly update the UI
@@ -491,8 +495,9 @@ const BookingManagement = ({ employee }) => {
                                                         booking.status === 'Confirmed' ? 'border-info text-info' :
                                                             'border-warning text-warning'
                                                     }`}
-                                                style={{ minWidth: '120px', cursor: 'pointer' }}
+                                                style={{ minWidth: '120px', cursor: booking.status === 'Completed' ? 'not-allowed' : 'pointer' }}
                                                 value={booking.status || 'Pending'}
+                                                disabled={booking.status === 'Completed'}
                                                 onChange={(e) => handleStatusChange(booking._id, e.target.value, booking.batchId)}
                                             >
                                                 <option value="Pending">🟡 Pending</option>
