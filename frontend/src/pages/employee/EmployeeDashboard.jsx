@@ -147,12 +147,10 @@ const EmployeeDashboard = () => {
 
     /* ── Rehydrate employee from localStorage on mount ── */
     useEffect(() => {
-        const storedToken = localStorage.getItem('token');
         const stored = localStorage.getItem('employee');
 
-        // If either is missing or employee data has no role, force re-login
-        if (!storedToken || !stored) {
-            localStorage.removeItem('token');
+        // If employee data is missing or has no role, force re-login
+        if (!stored) {
             localStorage.removeItem('employee');
             navigate('/login', { replace: true });
             return;
@@ -162,14 +160,12 @@ const EmployeeDashboard = () => {
             const parsed = JSON.parse(stored);
             if (!parsed.role) {
                 // Stale data from before the role fix — force re-login
-                localStorage.removeItem('token');
                 localStorage.removeItem('employee');
                 navigate('/login', { replace: true });
                 return;
             }
             setEmployee(parsed);
         } catch {
-            localStorage.removeItem('token');
             localStorage.removeItem('employee');
             navigate('/login', { replace: true });
         }
@@ -194,9 +190,15 @@ const EmployeeDashboard = () => {
             confirmButtonColor: '#23A0CE',
             cancelButtonColor: '#d33',
             confirmButtonText: 'Yes, log out',
-        }).then((result) => {
+        }).then(async (result) => {
             if (result.isConfirmed) {
-                localStorage.clear();
+                // Clear the httpOnly auth cookie via the backend logout endpoint
+                await fetch(`${API_BASE}/employees/logout`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    credentials: 'include',
+                }).catch(() => {});
+                localStorage.removeItem('employee');
                 navigate('/login');
             }
         });
@@ -463,6 +465,7 @@ const BookingManagement = ({ employee, onNavigate }) => {
         try {
             const response = await axios.get(`${API_BASE}/booking`, {
                 headers: authHeaders(),
+                withCredentials: true,
             });
 
             // The backend sends the array in response.data
@@ -472,7 +475,7 @@ const BookingManagement = ({ employee, onNavigate }) => {
             console.error("Error fetching bookings:", error);
             if (error.response?.status === 401) {
                 Swal.fire('Session Expired', 'Please log in again.', 'warning').then(() => {
-                    localStorage.clear();
+                    localStorage.removeItem('employee');
                     window.location.href = '/login';
                 });
             }
@@ -490,6 +493,10 @@ const BookingManagement = ({ employee, onNavigate }) => {
 
     // 4. Handle status selection
     const handleStatusChange = async (bookingId, nextStatus, batchId) => {
+        // Guard: do not allow changing a completed booking
+        const currentBooking = bookings.find(b => b._id === bookingId);
+        if (currentBooking?.status === 'Completed') return;
+
         const previousBookings = [...bookings];
 
         // 1. Instantly update the UI
@@ -502,7 +509,8 @@ const BookingManagement = ({ employee, onNavigate }) => {
             await axios.patch(`${API_BASE}/booking/${bookingId}`, {
                 status: nextStatus
             }, {
-                headers: authHeaders()
+                headers: authHeaders(),
+                withCredentials: true,
             });
             showToast(`Booking ${batchId || bookingId.substring(0, 8)} status updated to ${nextStatus}`);
         } catch (error) {
@@ -512,7 +520,7 @@ const BookingManagement = ({ employee, onNavigate }) => {
 
             if (error.response?.status === 401) {
                 Swal.fire('Session Expired', 'Please log in again.', 'warning').then(() => {
-                    localStorage.clear();
+                    localStorage.removeItem('employee');
                     window.location.href = '/login';
                 });
             } else {
@@ -582,8 +590,9 @@ const BookingManagement = ({ employee, onNavigate }) => {
                                                         booking.status === 'Confirmed' ? 'border-info text-info' :
                                                             'border-warning text-warning'
                                                     }`}
-                                                style={{ minWidth: '120px', cursor: 'pointer' }}
+                                                style={{ minWidth: '120px', cursor: booking.status === 'Completed' ? 'not-allowed' : 'pointer' }}
                                                 value={booking.status || 'Pending'}
+                                                disabled={booking.status === 'Completed'}
                                                 onChange={(e) => handleStatusChange(booking._id, e.target.value, booking.batchId)}
                                             >
                                                 <option value="Pending">🟡 Pending</option>

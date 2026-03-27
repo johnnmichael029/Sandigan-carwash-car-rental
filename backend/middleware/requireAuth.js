@@ -2,17 +2,15 @@ const jwt = require('jsonwebtoken');
 
 /**
  * Middleware: requireAuth
- * Verifies the JWT token sent in the Authorization header.
+ * Verifies the JWT token sent in the httpOnly 'token' cookie.
  * Usage: router.patch('/:id', requireAuth, updateHandler)
  */
 const requireAuth = (req, res, next) => {
-    const { authorization } = req.headers;
+    const token = req.cookies?.token;
 
-    if (!authorization || !authorization.startsWith('Bearer ')) {
+    if (!token) {
         return res.status(401).json({ error: 'Authorization token required.' });
     }
-
-    const token = authorization.split(' ')[1];
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
