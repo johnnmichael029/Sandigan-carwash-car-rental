@@ -383,6 +383,20 @@ const DashboardOverview = ({ employee, onNavigate }) => {
             }
         };
         fetchBookings();
+
+        const socket = io(API_BASE.replace('/api', ''));
+        socket.on('new_booking', (newBooking) => {
+            setBookings(prev => [newBooking, ...prev]);
+        });
+        socket.on('update_booking', (updatedBooking) => {
+            setBookings(prev => prev.map(b => b._id === updatedBooking._id ? updatedBooking : b));
+        });
+
+        return () => {
+            socket.off('new_booking');
+            socket.off('update_booking');
+            socket.disconnect();
+        };
     }, []);
 
     // Calculate Real-Time Metrics
@@ -1055,9 +1069,24 @@ const BookingManagement = ({ employee }) => {
         }, 3000);
     };
 
-    // 2. Use useEffect to trigger the fetch when the component mounts
     useEffect(() => {
         fetchBookings();
+
+        const socket = io(API_BASE.replace('/api', ''));
+        socket.on('new_booking', (newBooking) => {
+            setBookings(prev => [newBooking, ...prev]);
+            showToast(`New booking received: ${newBooking.batchId || newBooking._id.substring(0, 8)}`);
+        });
+
+        socket.on('update_booking', (updatedBooking) => {
+            setBookings(prev => prev.map(b => b._id === updatedBooking._id ? updatedBooking : b));
+        });
+
+        return () => {
+            socket.off('new_booking');
+            socket.off('update_booking');
+            socket.disconnect();
+        };
     }, []); // The empty array [] means it runs ONLY ONCE when loaded
 
     // 3. Create the fetch function
