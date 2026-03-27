@@ -10,6 +10,9 @@ const { Server } = require('socket.io');
 const app = express();
 const server = createServer(app);
 
+// Trust proxy for Azure/Proxy environments (required for express-rate-limit)
+app.set('trust proxy', 1);
+
 const port = process.env.PORT || 4000;
 const dbURI = process.env.MONGODB_URI;
 
@@ -128,6 +131,18 @@ app.use('/api/employees', employeeRoutes);
 
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/pricing', pricingRoutes);
+
+// --- Custom Error Handler for CSRF and other Errors ---
+app.use((err, req, res, next) => {
+    if (err.code === 'EBADCSRFTOKEN') {
+        // Log locally for debugging but don't crash
+        console.warn(`[CSRF] Invalid token for ${req.method} ${req.originalUrl}`);
+        return res.status(403).json({ error: 'Form security verification failed. Please refresh the page.' });
+    }
+    // General error handling
+    console.error(`[SERVER_ERROR] ${err.message}`);
+    res.status(err.status || 500).json({ error: err.message || 'An internal server error occurred' });
+});
 
 // Listen on PORT
 server.listen(port, () => {
