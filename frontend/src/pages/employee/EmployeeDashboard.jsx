@@ -358,7 +358,8 @@ const BookingManagement = ({ employee }) => {
             console.error("Error fetching bookings:", error);
             if (error.response?.status === 401) {
                 Swal.fire('Session Expired', 'Please log in again.', 'warning').then(() => {
-                    localStorage.clear();
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('employee');
                     window.location.href = '/login';
                 });
             }
