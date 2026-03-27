@@ -7,11 +7,12 @@ import downArrow from '../../assets/icon/down.png';
 import upArrow from '../../assets/icon/up.png';
 import carService from '../../assets/icon/car.png';
 import dashboard from '../../assets/icon/dashboard.png';
-import bookingsIcon from '../../assets/icon/order.png'
-import bookingsCompleted from '../../assets/icon/order-completed.png'
-import bookingsPending from '../../assets/icon/order-pending.png'
-import carRent from '../../assets/icon/car-rent.png'
-import notifIcon from '../../assets/icon/notif.png'
+import bookingsIcon from '../../assets/icon/order.png';
+import bookingsCompleted from '../../assets/icon/order-completed.png';
+import bookingsPending from '../../assets/icon/order-pending.png';
+import carRent from '../../assets/icon/car-rent.png';
+import notifIcon from '../../assets/icon/notif.png';
+import { API_BASE, authHeaders } from '../../api/config';
 
 // Sub-tabs that belong under the "Services" dropdown
 const SERVICE_ITEMS = ['bookings', 'car-rent'];
@@ -33,12 +34,35 @@ const EmployeeDashboard = () => {
 
     /* ── Rehydrate employee from localStorage on mount ── */
     useEffect(() => {
+        const storedToken = localStorage.getItem('token');
         const stored = localStorage.getItem('employee');
-        if (stored) {
-            setEmployee(JSON.parse(stored));
+
+        // If either is missing or employee data has no role, force re-login
+        if (!storedToken || !stored) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('employee');
+            navigate('/login', { replace: true });
+            return;
         }
+
+        try {
+            const parsed = JSON.parse(stored);
+            if (!parsed.role) {
+                // Stale data from before the role fix — force re-login
+                localStorage.removeItem('token');
+                localStorage.removeItem('employee');
+                navigate('/login', { replace: true });
+                return;
+            }
+            setEmployee(parsed);
+        } catch {
+            localStorage.removeItem('token');
+            localStorage.removeItem('employee');
+            navigate('/login', { replace: true });
+        }
+
         setIsLoading(false);
-    }, []);
+    }, [navigate]);
 
     /* ── Auto-open dropdown when a service child tab is active ── */
     useEffect(() => {
@@ -190,7 +214,7 @@ const EmployeeDashboard = () => {
                                     {employee?.fullName ?? 'Employee'}
                                 </p>
                                 <p className="mb-0 text-light-gray300 font-poppins" style={{ fontSize: '0.7rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {employee?.role ?? 'Staff'}
+                                    {employee?.role === 'employee' ? 'Staff' : 'Admin'}
                                 </p>
                             </div>
                         </div>
@@ -315,11 +339,6 @@ const BookingManagement = ({ employee }) => {
         }, 3000);
     };
 
-    // Define the URL
-    const BASE_URL = window.location.hostname === 'localhost'
-        ? 'http://localhost:4000/api/booking'
-        : 'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net/api/booking';
-
     // 2. Use useEffect to trigger the fetch when the component mounts
     useEffect(() => {
         fetchBookings();
@@ -328,8 +347,8 @@ const BookingManagement = ({ employee }) => {
     // 3. Create the fetch function
     const fetchBookings = async () => {
         try {
-            const response = await axios.get(BASE_URL, {
-                headers: { 'Content-Type': 'application/json' },
+            const response = await axios.get(`${API_BASE}/booking`, {
+                headers: authHeaders(),
             });
 
             // The backend sends the array in response.data
@@ -337,6 +356,12 @@ const BookingManagement = ({ employee }) => {
             setIsLoading(false);
         } catch (error) {
             console.error("Error fetching bookings:", error);
+            if (error.response?.status === 401) {
+                Swal.fire('Session Expired', 'Please log in again.', 'warning').then(() => {
+                    localStorage.clear();
+                    window.location.href = '/login';
+                });
+            }
             setIsLoading(false);
         }
     };
@@ -349,35 +374,36 @@ const BookingManagement = ({ employee }) => {
         return `${displayHour}:00 ${ampm}`;
     };
 
-    // 4. Handle status button clicks
-    const handleStatusClick = async (bookingId, currentStatus, batchId) => {
-        // Define our cycle sequence
-        const statusFlow = ['Pending', 'Confirmed', 'Queued', 'Completed'];
-        const currentIndex = statusFlow.indexOf(currentStatus || 'Pending');
+    // 4. Handle status selection
+    const handleStatusChange = async (bookingId, nextStatus, batchId) => {
+        const previousBookings = [...bookings];
 
-        // Prevent it from changing if it's already Completed
-        if (currentIndex === statusFlow.length - 1) return;
-
-        const nextStatus = statusFlow[currentIndex + 1];
-
-        // 1. Instantly update the UI so it feels responsive
-        setBookings((prevBookings) =>
-            prevBookings.map(b => b._id === bookingId ? { ...b, status: nextStatus } : b)
+        // 1. Instantly update the UI
+        setBookings((prev) =>
+            prev.map(b => b._id === bookingId ? { ...b, status: nextStatus } : b)
         );
 
         // 2. Patch the backend database
         try {
-            await axios.patch(`${BASE_URL}/${bookingId}`, {
+            await axios.patch(`${API_BASE}/booking/${bookingId}`, {
                 status: nextStatus
+            }, {
+                headers: authHeaders()
             });
-            showToast(`Booking ${batchId || bookingId.substring(0, 8)}  status updated to ${nextStatus}`);
+            showToast(`Booking ${batchId || bookingId.substring(0, 8)} status updated to ${nextStatus}`);
         } catch (error) {
             console.error("Error updating status:", error);
-            // If the server fails, revert back to the old status
-            setBookings((prevBookings) =>
-                prevBookings.map(b => b._id === bookingId ? { ...b, status: currentStatus } : b)
-            );
-            Swal.fire('Error', 'Failed to update booking status', 'error');
+            // Revert changes on error
+            setBookings(previousBookings);
+
+            if (error.response?.status === 401) {
+                Swal.fire('Session Expired', 'Please log in again.', 'warning').then(() => {
+                    localStorage.clear();
+                    window.location.href = '/login';
+                });
+            } else {
+                Swal.fire('Error', 'Failed to update booking status', 'error');
+            }
         }
     };
 
@@ -455,18 +481,21 @@ const BookingManagement = ({ employee }) => {
                                         <td>{Array.isArray(booking.serviceType) ? booking.serviceType.join(', ') : booking.serviceType}</td>
                                         <td>{formatTo12Hour(booking.bookingTime)} {new Date(booking.createdAt).toLocaleDateString()}</td>
                                         <td>
-                                            <button
-                                                className={`btn btn-sm ${booking.status === 'Completed' ? 'btn-success text-white' :
-                                                    booking.status === 'Queued' ? 'btn-primary text-white' :
-                                                        booking.status === 'Confirmed' ? 'btn-info text-white' :
-                                                            'btn-warning text-dark-gray100'
+                                            <select
+                                                className={`form-select form-select-sm fw-medium shadow-none ${booking.status === 'Completed' ? 'border-success text-success' :
+                                                    booking.status === 'Queued' ? 'border-primary text-primary' :
+                                                        booking.status === 'Confirmed' ? 'border-info text-info' :
+                                                            'border-warning text-warning'
                                                     }`}
-                                                style={{ minWidth: '95px', fontWeight: '500' }}
-                                                onClick={() => handleStatusClick(booking._id, booking.status, booking.batchId)}
-                                                disabled={booking.status === 'Completed'}
+                                                style={{ minWidth: '120px', cursor: 'pointer' }}
+                                                value={booking.status || 'Pending'}
+                                                onChange={(e) => handleStatusChange(booking._id, e.target.value, booking.batchId)}
                                             >
-                                                {booking.status || 'Pending'}
-                                            </button>
+                                                <option value="Pending">🟡 Pending</option>
+                                                <option value="Confirmed">🔵 Confirmed</option>
+                                                <option value="Queued">🟣 Queued</option>
+                                                <option value="Completed">🟢 Completed</option>
+                                            </select>
                                         </td>
                                         <td>
                                             <button className="btn btn-action btn-sm border-outline-primary brand-primary">View / Edit</button>

@@ -1,5 +1,6 @@
 const Employee = require('../models/employeeModel');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 // Get employee by ID
 const getEmployee = async (req, res) => {
@@ -43,9 +44,9 @@ const createEmployee = async (req, res) => {
             fullName,
             email,
             password: hashedPassword
-        }); 
-        
-        res.status(201).json({message: 'Employee created successfully'});
+        });
+
+        res.status(201).json({ message: 'Employee created successfully' });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -97,11 +98,20 @@ const loginEmployee = async (req, res) => {
         const isMatch = await bcrypt.compare(password, employee.password);
         if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
 
-        res.status(200).json({ 
+        // Issue a JWT token (expires in 8 hours)
+        const token = jwt.sign(
+            { id: employee._id, role: employee.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '8h' }
+        );
+
+        res.status(200).json({
             message: "Login successful",
-            employee: { 
-                id: employee._id, 
-                fullName: employee.fullName
+            token,
+            employee: {
+                id: employee._id,
+                fullName: employee.fullName,
+                role: employee.role
             }
         });
     } catch (error) {

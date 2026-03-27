@@ -11,6 +11,7 @@ import bgimg from '../../assets/img/hero-bg-img.png';
 import bubble1 from '../../assets/img/bubble-container.png';
 import bubble2 from '../../assets/img/bubble-container1.png';
 import ellipse from '../../assets/img/ellipse.png';
+import { API_BASE } from '../../api/config';
 
 // 1. Keep the base hours as military for backend compatibility
 const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
@@ -33,10 +34,8 @@ const Book = () => {
     const [step, setStep] = useState(1);
     const navigate = useNavigate();
 
-    // Define the URL
-    const BASE_URL = window.location.hostname === 'localhost'
-        ? 'http://localhost:4000/api/booking'
-        : 'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net/api/booking';
+    // Define the URL using central config
+    const BASE_URL = `${API_BASE}/booking`;
 
     // Helper function to convert military time to 12-hour format
     const formatTo12Hour = (hourStr) => {

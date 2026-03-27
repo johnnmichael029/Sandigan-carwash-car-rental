@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
+const requireAuth = require('../middleware/requireAuth');
 
 // Import controller functions
 const {
@@ -10,23 +12,36 @@ const {
     updateEmployee,
     loginEmployee
 } = require('../controllers/employeeController');
-    
-// --- API DATA ROUTES (These return JSON) ---
 
-// Get all employees
-router.get('/', getEmployees);
+// --- Rate Limiter for Login (prevent brute force) ---
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,                   // max 10 attempts per window
+    message: { error: 'Too many login attempts. Please wait 15 minutes and try again.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
-// Get a single employee
-router.get('/:id', getEmployee);
+// --- PUBLIC ROUTES (no auth needed) ---
 
-// Create a new employee
+// Employee login (rate limited)
+router.post('/login', loginLimiter, loginEmployee);
+
+// Create a new employee (sign up - keep public or restrict to admin later)
 router.post('/signup', createEmployee);
 
-// Employee login
-router.post('/login', loginEmployee);
+// --- PROTECTED ROUTES (require valid JWT) ---
 
-// Delete and Update
-router.delete('/:id', deleteEmployee);
-router.patch('/:id', updateEmployee);
+// Get all employees — sensitive, protect it
+router.get('/', requireAuth, getEmployees);
+
+// Get a single employee
+router.get('/:id', requireAuth, getEmployee);
+
+// Update employee
+router.patch('/:id', requireAuth, updateEmployee);
+
+// Delete employee
+router.delete('/:id', requireAuth, deleteEmployee);
 
 module.exports = router;
