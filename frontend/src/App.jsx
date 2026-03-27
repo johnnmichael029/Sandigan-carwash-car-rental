@@ -1,11 +1,17 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/public/Home'; 
 import Book from './pages/public/Book';
 import Login from './pages/login/Login';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import { initCsrf } from './api/config';
 
 function App() {
+  useEffect(() => {
+    initCsrf();
+  }, []);
+
   return (
     <Router>   
       <Routes>

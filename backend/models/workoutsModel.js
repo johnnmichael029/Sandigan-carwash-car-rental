@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
-const { time } = require('node:console');
-const { type } = require('node:os');
 const Schema = mongoose.Schema;
+
 
 const bookingSchema = new Schema({
     firstName: {

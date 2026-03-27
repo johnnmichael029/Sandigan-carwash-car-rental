@@ -1,4 +1,5 @@
 const express = require('express');
+const requireAuth = require('../middleware/requireAuth');
 const {
     getBookings,
     getBooking,
@@ -8,24 +9,27 @@ const {
     getAvailableTimeSlots
 } = require('../controllers/bookingController');
 const router = express.Router();
-// --- API DATA ROUTES (These return JSON) ---
 
-// Get all bookings
+// --- PUBLIC ROUTES (customers don't need to log in to book) ---
+
+// Check available time slots (public — used on booking form)
 router.get('/availability', getAvailableTimeSlots);
 
-// 2. Get all bookings
-// The actual URL will be: /api/booking/
-router.get('/', getBookings);
-
-// 3. Get a single booking (The :id must come AFTER availability)
-// The actual URL will be: /api/booking/:id
-router.get('/:id', getBooking);
-
-// 4. Create a booking
+// Create a booking (public — customers submit this)
 router.post('/', createBooking);
 
-// 5. Delete and Update
-router.delete('/:id', deleteBooking);
-router.patch('/:id', updateBooking);
+// --- PROTECTED ROUTES (employee or admin only) ---
+
+// Get all bookings — employees only
+router.get('/', requireAuth, getBookings);
+
+// Get a single booking — employees only
+router.get('/:id', requireAuth, getBooking);
+
+// Update booking status — employees only
+router.patch('/:id', requireAuth, updateBooking);
+
+// Delete a booking — employees only
+router.delete('/:id', requireAuth, deleteBooking);
 
 module.exports = router;

@@ -18,13 +18,39 @@ const path = require('path');
 
 // Middleware
 const cors = require('cors'); // 1. Import it
+const cookieParser = require('cookie-parser');
+const { doubleCsrf } = require('csrf-csrf');
+
 app.use(cors({
     origin: ['http://localhost:5173', 'https://sandigan-carwash-carrental-akd8a6cde6hpg4cc.japaneast-01.azurewebsites.net'],
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     credentials: true
 })); // 2. Use it as middleware
+app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // This is for parsing JSON bodies in POST requests
+
+// --- CSRF Protection (Double Submit Cookie Pattern) ---
+const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
+    getSecret: () => process.env.JWT_SECRET || 'csrf-fallback-secret',
+    cookieName: 'csrf',
+    cookieOptions: {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+    },
+    getTokenFromRequest: (req) => req.headers['x-csrf-token'],
+});
+
+// Endpoint to obtain a CSRF token (called by the frontend before any mutating request)
+app.get('/api/csrf-token', (req, res) => {
+    const token = generateCsrfToken(req, res);
+    res.json({ csrfToken: token });
+});
+
+// Apply CSRF protection globally — safe methods (GET, HEAD) are skipped automatically
+app.use(doubleCsrfProtection);
 
 app.use('/api/booking', workoutsRoutes); // Use the workouts routes for all requests to the root URL
 app.use('/api/employees', employeeRoutes); // Use the employee routes for all requests to the /api/employees URL

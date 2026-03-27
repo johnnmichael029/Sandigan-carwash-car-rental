@@ -1,5 +1,5 @@
-const moongose = require('mongoose');
 const Booking = require('../models/workoutsModel');
+
 const secretKey = process.env.RECAPTCHA_SECRET_KEY; // Use variable, not the raw key!
 const axios = require('axios');
 
@@ -61,7 +61,7 @@ const createBooking = async (req, res) => {
             batchId: generatedBatchID
         });
         console.log("✅ Booking created:", booking.batchId);
-        res.status(200).json(booking);
+        res.status(201).json(booking);
     }
     catch (err) {
         console.error("❌ Error creating booking:", err.message);
