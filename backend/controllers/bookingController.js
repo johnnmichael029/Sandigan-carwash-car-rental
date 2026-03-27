@@ -1,4 +1,5 @@
-const Booking = require('../models/workoutsModel');
+const Booking = require('../models/bookingModel');
+const Notification = require('../models/notificationModel');
 
 const secretKey = process.env.RECAPTCHA_SECRET_KEY; // Use variable, not the raw key!
 const axios = require('axios');
@@ -60,6 +61,22 @@ const createBooking = async (req, res) => {
             bookingTime,
             batchId: generatedBatchID
         });
+
+        // Create a notification for this booking
+        const serviceName = Array.isArray(serviceType) ? serviceType.join(', ') : serviceType;
+        const notif = await Notification.create({
+            message: `New booking: ${firstName} ${lastName} (${serviceName})`,
+            type: 'new_booking',
+            bookingId: booking._id
+        });
+
+        // Emit socket events
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('new_notification', notif);
+            io.emit('new_booking', booking);
+        }
+
         console.log("✅ Booking created:", booking.batchId);
         res.status(201).json(booking);
     }

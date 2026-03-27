@@ -132,10 +132,6 @@ const Book = () => {
 
             const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(`Error: ${response.status} ${response.statusText}`);
-            }
-
             if (response.ok) {
                 setFirstName('');
                 setLastName('');
@@ -192,10 +188,28 @@ const Book = () => {
                 });
 
             } else {
+                Swal.fire({
+                    title: 'Booking Error',
+                    text: data.error || 'Check your inputs and try again.',
+                    icon: 'error',
+                    confirmButtonColor: '#23A0CE',
+                    background: '#111',
+                    color: '#FAFAFA',
+                    customClass: { popup: 'rounded-5' }
+                });
                 setError(data.error);
                 setSuccess(false);
             }
         } catch (err) {
+            Swal.fire({
+                title: 'Connection Failed',
+                text: "Server connection failed.",
+                icon: 'error',
+                confirmButtonColor: '#23A0CE',
+                background: '#111',
+                color: '#FAFAFA',
+                customClass: { popup: 'rounded-5' }
+            });
             setError("Server connection failed.");
         } finally {
             setIsLoading(false);
@@ -605,26 +619,6 @@ const Book = () => {
                                                 </button>
                                             </>
                                         )}
-
-                                        <div className="">
-                                            {error && (
-                                                <div className="toast show align-items-center text-bg-danger border-0 mt-3" role="alert" aria-live="assertive" aria-atomic="true">
-                                                    <div className="d-flex">
-                                                        <div className="toast-body">
-                                                            ❌ {error}
-                                                        </div>
-                                                        <button
-                                                            type="button"
-                                                            className="btn-close btn-close-white me-2 m-auto"
-                                                            onClick={() => setError(null)}
-                                                            data-bs-dismiss="toast"
-                                                            aria-label="Close">
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
                                     </form>
                                 </div>
                             </div>

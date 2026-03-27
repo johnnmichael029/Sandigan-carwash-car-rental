@@ -1,18 +1,24 @@
-﻿if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
 }
 
 const mongoose = require('mongoose');
 const express = require('express');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+
 const app = express();
-const port = process.env.PORT // 8080
+const server = createServer(app);
+
+const port = process.env.PORT // 4000
 const dbURI = process.env.MONGODB_URI;
 
 // Import routes
-const workoutsRoutes = require('./routes/workouts');
+const bookingRoutes = require('./routes/bookingRoutes');
 
 // Import employee routes
 const employeeRoutes = require('./routes/employees');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const path = require('path');
 
@@ -23,14 +29,24 @@ app.use(cors({
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     credentials: true
 })); // 2. Use it as middleware
+
+const io = new Server(server, {
+    cors: {
+        origin: ['http://localhost:5173', 'https://sandigan-carwash-carrental-akd8a6cde6hpg4cc.japaneast-01.azurewebsites.net'],
+        methods: ['GET', 'POST', 'PATCH', 'DELETE']
+    }
+});
+app.set('io', io);
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // This is for parsing JSON bodies in POST requests
 
-app.use('/api/booking', workoutsRoutes); // Use the workouts routes for all requests to the root URL
+app.use('/api/booking', bookingRoutes); // Use the workouts routes for all requests to the root URL
 app.use('/api/employees', employeeRoutes); // Use the employee routes for all requests to the /api/employees URL
+app.use('/api/notifications', notificationRoutes); // Use the notifications route
 
-// Listen on PORT 8080
-app.listen(port, () => {
+// Listen on PORT
+server.listen(port, () => {
     console.log(`✅ Server live at http://localhost:${port}`);
 });
 

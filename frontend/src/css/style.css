@@ -610,3 +610,12 @@ label {
         padding: 0 1.25rem;
     }
 }
+
+/*Notification */
+.notification {
+    transition: background-color 0.2s ease;
+}
+
+.notification:hover {
+    background-color: var(--background-light-gray);
+}
