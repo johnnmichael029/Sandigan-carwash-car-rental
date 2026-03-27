@@ -109,7 +109,7 @@ const loginEmployee = async (req, res) => {
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             maxAge: 8 * 60 * 60 * 1000, // 8 hours in milliseconds
         });
 
@@ -131,7 +131,7 @@ const logoutEmployee = (req, res) => {
     res.clearCookie('token', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     });
     res.status(200).json({ message: 'Logged out successfully' });
 };

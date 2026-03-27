@@ -12,6 +12,7 @@ import bubble1 from '../../assets/img/bubble-container.png';
 import bubble2 from '../../assets/img/bubble-container1.png';
 import ellipse from '../../assets/img/ellipse.png';
 import { API_BASE, authHeaders } from '../../api/config';
+import { calculateTotal, getAvailableServices } from '../../utils/priceList';
 
 // 1. Keep the base hours as military for backend compatibility
 const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
@@ -28,6 +29,8 @@ const Book = () => {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
     const [availability, setAvailability] = useState({});
+    const [priceListDict, setPriceListDict] = useState(null);
+    const [armorPrice, setArmorPrice] = useState(100);
     const [selectedHour, setSelectedHour] = useState('');
     const [captchaToken, setCaptchaToken] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -47,6 +50,7 @@ const Book = () => {
     // Calculate future hours using useMemo so it doesn't recalculate every millisecond
     const availableFutureHours = useMemo(() => {
         const currentHour = new Date().getHours();
+        const MAX_CAPACITY = 3;
 
         // 1. Filter by time AND by availability
         return allHours.filter(hour => {
@@ -55,22 +59,39 @@ const Book = () => {
             const count = availability[hourKey] || 0;
 
             // ONLY keep the hour if it's in the future AND not full
-            return hourInt > currentHour && count < 3;
-        }).map(hour => ({
-            raw: hour, // Sent to backend
-            label: formatTo12Hour(hour) // Shown in UI
-        }));
-    }, [availability, allHours]);
+            return hourInt > currentHour && count < MAX_CAPACITY;
+        }).map(hour => {
+            const hourKey = hour.toString().padStart(2, '0');
+            const bookedCount = availability[hourKey] || 0;
+            const slotsLeft = MAX_CAPACITY - bookedCount;
+            const slotText = slotsLeft <= 3 ? ` (${slotsLeft} slot${slotsLeft === 1 ? '' : 's'} left)` : '';
+
+            return {
+                raw: hour, // Sent to backend
+                label: `${formatTo12Hour(hour)}${slotText}` // Shown in UI
+            };
+        });
+    }, [availability]);
 
     // Fetch Availability AND Set Initial Hour
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch(`${BASE_URL}/availability`);
-                const data = await response.json();
-                setAvailability(data);
+                // Fetch availability and pricing concurrently
+                const [availRes, pricingRes] = await Promise.all([
+                    fetch(`${BASE_URL}/availability`),
+                    fetch(`${API_BASE}/pricing`)
+                ]);
+                const availData = await availRes.json();
+                const pricingData = await pricingRes.json();
+
+                setAvailability(availData);
+                if (pricingData && pricingData.priceList) {
+                    setPriceListDict(pricingData.priceList);
+                    setArmorPrice(pricingData.armorPrice);
+                }
             } catch (err) {
-                console.error("Failed to fetch availability", err);
+                console.error("Failed to fetch initial data", err);
             }
         };
         fetchData();
@@ -278,7 +299,21 @@ const Book = () => {
         { id: 'armor', label: 'Armor' },
         { id: 'wax', label: 'Wax' },
         { id: 'engine', label: 'Engine' }
-    ]
+    ];
+
+    // Get available services for chosen vehicle
+    const availableServices = vehicleType ? getAvailableServices(vehicleType, priceListDict) : serviceTypes.map(s => s.label);
+
+    // Live price calculation
+    const vehiclePrices = priceListDict ? priceListDict[vehicleType] : null;
+    const totalPrice = calculateTotal(vehicleType, serviceType, priceListDict, armorPrice);
+
+    const getServicePrice = (label) => {
+        if (!vehiclePrices) return null;
+        if (label === 'Armor') return vehiclePrices.Armor ? armorPrice : null;
+        const price = vehiclePrices[label];
+        return typeof price === 'number' ? price : null;
+    };
 
     // Toggle service selection
     const toggleService = (serviceLabel) => {
@@ -341,46 +376,55 @@ const Book = () => {
                                                     <div className="vehicle-information-container">
                                                         <div className="input-container vehicle-type-container mb-3">
                                                             <label className="form-label">Vehicle type</label>
-                                                            <input
-                                                                type="text"
-                                                                className="form-control"
-                                                                onChange={(e) => setVehicleType(e.target.value)}
+                                                            <select
+                                                                className="form-select"
+                                                                onChange={(e) => { setVehicleType(e.target.value); setServiceType([]); }}
                                                                 value={vehicleType}
-                                                                id="floatingVehicle"
-                                                                list="vehicleOptions"
-                                                                placeholder="e.g., Sedan"
                                                                 required
-                                                            />
-                                                            <datalist id="vehicleOptions">
-                                                                <option value="Sedan" />
-                                                                <option value="SUV" />
-                                                                <option value="Truck" />
-                                                                <option value="Coupe" />
-                                                            </datalist>
+                                                                disabled={!priceListDict}
+                                                            >
+                                                                <option value="">{priceListDict ? "-- Select Vehicle --" : "Loading vehicles..."}</option>
+                                                                {priceListDict && Object.keys(priceListDict).map(v => (
+                                                                    <option key={v} value={v}>{v}</option>
+                                                                ))}
+                                                            </select>
                                                         </div>
-                                                        <div className="service-type-container ">
+                                                        <div className="service-type-container">
                                                             <label className="form-label">Service type</label>
-                                                            <div className="mb-3 row row-cols-2 row-cols-lg-4 g-3">
+                                                            <div className="mb-1 row row-cols-2 row-cols-lg-4 g-3">
                                                                 {serviceTypes.map((service) => {
                                                                     const isSelected = serviceType.includes(service.label);
+                                                                    const isAvailable = availableServices.includes(service.label);
+                                                                    const price = getServicePrice(service.label);
 
                                                                     return (
-                                                                        <div key={service.id} className="col">
+                                                                        <div key={service.id} className="col mb-3">
                                                                             <button
                                                                                 type="button"
-                                                                                onClick={() => toggleService(service.label)}
+                                                                                onClick={() => isAvailable && toggleService(service.label)}
+                                                                                disabled={!isAvailable}
                                                                                 className={`btn rounded-pill px-2 w-100 ${isSelected
-                                                                                    ? "btn-primary" // Solid color when selected
-                                                                                    : "btn-outline-secondary text-light" // Outline when not selected
+                                                                                    ? "btn-primary"
+                                                                                    : isAvailable ? "btn-outline-secondary text-light" : "btn-outline-secondary text-secondary opacity-50"
                                                                                     }`}
                                                                             >
                                                                                 {isSelected && <span className="me-1">✓</span>}
                                                                                 {service.label}
+                                                                                {price !== null && (
+                                                                                    <span style={{ fontSize: '0.7rem', display: 'block', opacity: 0.8 }}>₱{service.label === 'Armor' ? '+' : ''}{price}</span>
+                                                                                )}
                                                                             </button>
                                                                         </div>
                                                                     );
                                                                 })}
                                                             </div>
+                                                            {/* Live Total */}
+                                                            {vehicleType && serviceType.length > 0 && (
+                                                                <div className="px-3 py-2 rounded-3 d-flex justify-content-between align-items-center mb-3" style={{ background: 'rgba(35,160,206,0.12)', border: '1px solid rgba(35,160,206,0.3)' }}>
+                                                                    <span className="text-light" style={{ fontSize: '0.85rem' }}>Estimated Total</span>
+                                                                    <span className="fw-bold" style={{ color: '#23A0CE', fontSize: '1.1rem' }}>₱{totalPrice.toLocaleString()}</span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <div className="button-container d-flex justify-content-between">

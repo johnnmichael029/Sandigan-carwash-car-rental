@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const rateLimit = require('express-rate-limit');
 const requireAuth = require('../middleware/requireAuth');
 
 // Import controller functions
@@ -14,19 +13,10 @@ const {
     logoutEmployee
 } = require('../controllers/employeeController');
 
-// --- Rate Limiter for Login (prevent brute force) ---
-const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10,                   // max 10 attempts per window
-    message: { error: 'Too many login attempts. Please wait 15 minutes and try again.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
 // --- PUBLIC ROUTES (no auth needed) ---
 
-// Employee login (rate limited)
-router.post('/login', loginLimiter, loginEmployee);
+// Employee login (rate limited — 10 attempts per 15 mins, defined centrally in server.js)
+router.post('/login', loginEmployee);
 
 // Employee logout (clears the auth cookie)
 router.post('/logout', logoutEmployee);

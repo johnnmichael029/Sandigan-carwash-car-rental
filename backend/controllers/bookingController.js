@@ -1,4 +1,6 @@
-const Booking = require('../models/workoutsModel');
+const Booking = require('../models/bookingModel');
+const Notification = require('../models/notificationModel');
+const { calculateTotalFromDb } = require('./pricingController');
 
 const secretKey = process.env.RECAPTCHA_SECRET_KEY; // Use variable, not the raw key!
 const axios = require('axios');
@@ -50,6 +52,7 @@ const createBooking = async (req, res) => {
         const formattedPhoneNumber = `0${phoneNumber}`; // Prepend 0 if phone number exists, else set to null
         // Generate the Batch ID before saving
         const generatedBatchID = await generateBatchID(bookingTime);
+        const totalPrice = await calculateTotalFromDb(vehicleType, serviceType);
         const booking = await Booking.create({
             firstName,
             lastName,
@@ -58,8 +61,25 @@ const createBooking = async (req, res) => {
             vehicleType,
             serviceType,
             bookingTime,
-            batchId: generatedBatchID
+            batchId: generatedBatchID,
+            totalPrice
         });
+
+        // Create a notification for this booking
+        const serviceName = Array.isArray(serviceType) ? serviceType.join(', ') : serviceType;
+        const notif = await Notification.create({
+            message: `New booking: ${firstName} ${lastName} (${serviceName})`,
+            type: 'new_booking',
+            bookingId: booking._id
+        });
+
+        // Emit socket events
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('new_notification', notif);
+            io.emit('new_booking', booking);
+        }
+
         console.log("✅ Booking created:", booking.batchId);
         res.status(201).json(booking);
     }
@@ -94,12 +114,46 @@ const deleteBooking = async (req, res) => {
 // Update a booking
 const updateBooking = async (req, res) => {
     const { id } = req.params;
-    const { firstName, lastName, emailAddress, vehicleType, serviceType, phoneNumber } = req.body;
     try {
-        const booking = await Booking.findByIdAndUpdate(id, { ...req.body }, { returnDocument: 'after' });
-        if (!booking) {
+        // Find existing to know if we need to log a status change
+        const currentBooking = await Booking.findById(id);
+        if (!currentBooking) {
             return res.status(404).json({ error: "Booking not found." });
         }
+
+        const updateQuery = { $set: { ...req.body } };
+
+        // If status changed, push to logs
+        if (req.body.status && req.body.status !== currentBooking.status) {
+            updateQuery.$push = { statusLogs: { status: req.body.status, timestamp: new Date() } };
+        }
+
+        // If bookingTime changed, regenerate a fresh batchId to prevent duplicate sequences
+        if (req.body.bookingTime && req.body.bookingTime !== currentBooking.bookingTime) {
+            try {
+                const newBatchId = await generateBatchID(req.body.bookingTime);
+                updateQuery.$set.batchId = newBatchId;
+            } catch (slotError) {
+                // The new time slot is full – reject the edit
+                return res.status(400).json({ error: slotError.message });
+            }
+        }
+
+        // If vehicle or services changed, recalculate total price
+        const newVehicle = req.body.vehicleType || currentBooking.vehicleType;
+        const newServices = req.body.serviceType || currentBooking.serviceType;
+        if (req.body.vehicleType || req.body.serviceType) {
+            updateQuery.$set.totalPrice = await calculateTotalFromDb(newVehicle, newServices);
+        }
+
+        const booking = await Booking.findByIdAndUpdate(id, updateQuery, { returnDocument: 'after' });
+
+        // Emit to sockets so dashboard updates instantly
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('update_booking', booking);
+        }
+
         res.status(200).json(booking);
     }
     catch (err) {
@@ -117,10 +171,11 @@ const generateBatchID = async (requestedHour) => {
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    // 2. Count how many bookings exist for this specific hour today
+    // 2. Count how many non-cancelled bookings exist for this specific hour today
     const existingCount = await Booking.countDocuments({
         bookingTime: requestedHour,
-        createdAt: { $gte: startOfDay, $lte: endOfDay }
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        status: { $ne: 'Cancelled' } // Don't count Cancelled slots against capacity
     });
 
     if (existingCount >= MAX_CAPACITY_PER_HOUR) {
@@ -139,9 +194,9 @@ const getAvailableTimeSlots = async (req, res) => {
         const endOfDay = new Date();
         endOfDay.setHours(23, 59, 59, 999);
 
-        // Group bookings by their 'bookingTime' for today
+        // Group non-cancelled bookings by their 'bookingTime' for today
         const bookings = await Booking.aggregate([
-            { $match: { createdAt: { $gte: startOfDay, $lte: endOfDay } } },
+            { $match: { createdAt: { $gte: startOfDay, $lte: endOfDay }, status: { $ne: 'Cancelled' } } },
             { $group: { _id: "$bookingTime", count: { $sum: 1 } } }
         ]);
 

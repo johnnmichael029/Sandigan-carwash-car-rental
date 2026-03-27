@@ -17,6 +17,8 @@
     "react-google-recaptcha": "^3.1.0",
     "react-router-dom": "^7.13.1",
     "react-router-hash-link": "^2.4.3",
+    "recharts": "^3.8.1",
+    "socket.io-client": "^4.8.3",
     "sweetalert2": "^11.26.23",
     "sweetalert2-react-content": "^5.1.2"
   },

@@ -35,10 +35,25 @@ const bookingSchema = new Schema({
         type: String,
         default: 'Pending',
     },
+    statusLogs: {
+        type: [{
+            status: String,
+            timestamp: { type: Date, default: Date.now }
+        }],
+        default: [{ status: 'Pending' }]
+    },
     batchId: {
         type: String,
         required: true,
         unique: true
+    },
+    totalPrice: {
+        type: Number,
+        default: 0
+    },
+    detailer: {
+        type: String,
+        default: ''
     }
 }, { timestamps: true });
 const Booking = mongoose.model('booking', bookingSchema);
