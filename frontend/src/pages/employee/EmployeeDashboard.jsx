@@ -216,13 +216,13 @@ const EmployeeDashboard = () => {
     const renderContent = () => {
         switch (toggleActive) {
             case 'dashboard':
-                return <DashboardOverview onNavigate={setToggleActive} />;
+                return <DashboardOverview employee={employee} onNavigate={setToggleActive} />;
             case 'bookings':
                 return <BookingManagement employee={employee} />;
             case 'car-rent':
                 return <CarRentManagement employee={employee} />;
             default:
-                return <DashboardOverview onNavigate={setToggleActive} />;
+                return <DashboardOverview employee={employee} onNavigate={setToggleActive} />;
         }
     };
 

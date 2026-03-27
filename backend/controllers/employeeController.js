@@ -101,7 +101,7 @@ const loginEmployee = async (req, res) => {
         // Issue a JWT token (expires in 8 hours)
         const token = jwt.sign(
             { id: employee._id, role: employee.role },
-            process.env.JWT_SECRET,
+            process.env.JWT_SECRET || 'fallback-secret-until-azure-env-set',
             { expiresIn: '8h' }
         );
 

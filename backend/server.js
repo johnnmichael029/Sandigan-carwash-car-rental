@@ -58,6 +58,11 @@ const loginLimiter = rateLimit({
     max: 10,
     message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
     standardHeaders: true, legacyHeaders: false,
+    keyGenerator: (req) => {
+        const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        // Strip out the port if present and any IPv6 prefix
+        return ip.replace(/:\d+$/, '').replace(/^.*:/, ''); 
+    },
 });
 
 // 2. Booking creation limiter
@@ -66,6 +71,11 @@ const bookingLimiter = rateLimit({
     max: 20,
     message: { error: 'Too many booking requests. Please try again later.' },
     standardHeaders: true, legacyHeaders: false,
+    keyGenerator: (req) => {
+        const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        // Strip out the port if present and any IPv6 prefix
+        return ip.replace(/:\d+$/, '').replace(/^.*:/, ''); 
+    },
 });
 
 // 3. General API limiter
@@ -74,6 +84,11 @@ const generalLimiter = rateLimit({
     max: 200,
     message: { error: 'Too many requests from this IP. Please slow down.' },
     standardHeaders: true, legacyHeaders: false,
+    keyGenerator: (req) => {
+        const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        // Strip out the port if present and any IPv6 prefix
+        return ip.replace(/:\d+$/, '').replace(/^.*:/, ''); 
+    },
 });
 
 // Apply the general limiter globally to all /api/* routes
