@@ -1,6 +1,7 @@
 const Employee = require('../models/employeeModel');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { createLog } = require('./activityLogController');
 
 // Get employee by ID
 const getEmployee = async (req, res) => {
@@ -27,7 +28,7 @@ const getEmployees = async (req, res) => {
 
 // Create employee
 const createEmployee = async (req, res) => {
-    const { fullName, email, password } = req.body;
+    const { fullName, email, password, role } = req.body;
 
     try {
         // Check if email already exists
@@ -43,7 +44,8 @@ const createEmployee = async (req, res) => {
         const newEmployee = await Employee.create({
             fullName,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            role: role || 'employee'
         });
 
         res.status(201).json({ message: 'Employee created successfully' });
@@ -121,19 +123,57 @@ const loginEmployee = async (req, res) => {
                 role: employee.role
             }
         });
+
+        // Log the login (non-blocking — after response sent)
+        createLog({
+            actorId: employee._id,
+            actorName: employee.fullName,
+            actorRole: employee.role,
+            action: 'staff_logged_in',
+            message: `${employee.fullName} logged into the system`,
+            meta: { role: employee.role }
+        }).catch(() => {});
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
 
 // Logout employee
-const logoutEmployee = (req, res) => {
+const logoutEmployee = async (req, res) => {
+    let actorName = 'Unknown Staff';
+    let actorId = null;
+    let actorRole = 'employee';
+
+    try {
+        const token = req.cookies?.token;
+        if (token) {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            actorId = decoded.id;
+            actorRole = decoded.role;
+
+            // Look up the name in the database before clearing the cookie
+            const emp = await Employee.findById(actorId).lean();
+            if (emp) actorName = emp.fullName;
+        }
+    } catch (_) { }
+
     res.clearCookie('token', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     });
+
     res.status(200).json({ message: 'Logged out successfully' });
+
+    // Log logout with the captured name
+    if (actorId) {
+        createLog({
+            actorId, actorName, actorRole,
+            action: 'staff_logged_out',
+            message: `${actorName} logged out of the system`,
+            meta: { role: actorRole }
+        }).catch(() => { });
+    }
 };
 
 module.exports = {

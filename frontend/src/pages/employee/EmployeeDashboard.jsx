@@ -331,7 +331,7 @@ const EmployeeDashboard = () => {
                                     width: 32, height: 32, borderRadius: '50%',
                                     background: 'rgba(0, 232, 233, 0.12)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    color: '#fff', fontWeight: 600, fontSize: '0.8rem', flexShrink: 0,
+                                    color: '#00e8e9', fontWeight: 600, fontSize: '0.8rem', flexShrink: 0,
                                 }}
                             >
                                 {employee?.fullName?.charAt(0)?.toUpperCase() ?? '?'}
@@ -1707,7 +1707,7 @@ const BookingManagement = ({ employee }) => {
                                                 <option value="Queued" disabled={['Pending', 'Completed', 'In-progress'].includes(booking.status)}>🟣 Queued</option>
                                                 <option value="In-progress" disabled={['Pending', 'Completed'].includes(booking.status)}>🟠 In-progress</option>
                                                 <option value="Completed" >🟢 Completed</option>
-                                                <option value="Cancelled">🔴 Cancelled</option>
+                                                <option value="Cancelled" disabled={['In-progress']}>🔴 Cancelled</option>
                                             </select>
                                         </td>
                                         <td>

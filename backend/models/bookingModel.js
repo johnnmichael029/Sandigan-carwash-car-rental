@@ -54,6 +54,15 @@ const bookingSchema = new Schema({
     detailer: {
         type: String,
         default: ''
+    },
+    commission: {
+        type: Number,
+        default: 0
+    },
+    commissionStatus: {
+        type: String,
+        enum: ['Unpaid', 'Paid'],
+        default: 'Unpaid'
     }
 }, { timestamps: true });
 const Booking = mongoose.model('booking', bookingSchema);

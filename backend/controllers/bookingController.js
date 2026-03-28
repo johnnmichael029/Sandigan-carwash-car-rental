@@ -1,6 +1,7 @@
 const Booking = require('../models/bookingModel');
 const Notification = require('../models/notificationModel');
 const { calculateTotalFromDb } = require('./pricingController');
+const { createLog } = require('./activityLogController');
 
 const secretKey = process.env.RECAPTCHA_SECRET_KEY; // Use variable, not the raw key!
 const axios = require('axios');
@@ -87,11 +88,41 @@ const createBooking = async (req, res) => {
             bookingId: booking._id
         });
 
+        // Resolve actor from JWT (staff) or mark as public
+        let actorName = 'Public Customer';
+        let actorId = null;
+        let actorRole = 'public';
+        const jwtForLog = require('jsonwebtoken');
+        const tokenForLog = req.cookies?.token;
+        if (tokenForLog) {
+            try {
+                const decoded = jwtForLog.verify(tokenForLog, process.env.JWT_SECRET);
+                actorId = decoded.id;
+                actorRole = decoded.role || 'employee';
+                // Fetch name
+                const Employee = require('../models/employeeModel');
+                const emp = await Employee.findById(decoded.id).lean();
+                if (emp) actorName = emp.fullName;
+            } catch (_) { /* public booking */ }
+        }
+
+        // Log the activity
+        const log = await createLog({
+            actorId,
+            actorName,
+            actorRole,
+            action: 'booking_created',
+            message: `${actorName} created a booking for ${firstName} ${lastName} (${serviceName})`,
+            bookingId: booking._id,
+            meta: { customer: `${firstName} ${lastName}`, services: serviceName }
+        });
+
         // Emit socket events
         const io = req.app.get('io');
         if (io) {
             io.emit('new_notification', notif);
             io.emit('new_booking', booking);
+            if (log) io.emit('new_activity_log', log);
         }
 
         console.log("✅ Booking created:", booking.batchId);
@@ -117,6 +148,32 @@ const deleteBooking = async (req, res) => {
         if (!booking) {
             return res.status(404).json({ error: "Booking not found." });
         }
+
+        // Resolve actor
+        let actorName = 'Unknown Staff';
+        let actorId = null;
+        let actorRole = 'employee';
+        const jwt = require('jsonwebtoken');
+        const token = req.cookies?.token;
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                actorId = decoded.id;
+                actorRole = decoded.role;
+                const Employee = require('../models/employeeModel');
+                const emp = await Employee.findById(decoded.id).lean();
+                if (emp) actorName = emp.fullName;
+            } catch (_) { }
+        }
+
+        await createLog({
+            actorId, actorName, actorRole,
+            action: 'booking_deleted',
+            message: `${actorName} deleted booking for ${booking.firstName} ${booking.lastName}`,
+            bookingId: booking._id,
+            meta: { customer: `${booking.firstName} ${booking.lastName}` }
+        });
+
         res.status(200).json(booking);
     }
     catch (err) {
@@ -160,12 +217,97 @@ const updateBooking = async (req, res) => {
             updateQuery.$set.totalPrice = await calculateTotalFromDb(newVehicle, newServices);
         }
 
+        // --- ERP Phase 2: Handle Detailer Commission ---
+        const finalStatus = req.body.status || currentBooking.status;
+        const priceChanged = !!(req.body.vehicleType || req.body.serviceType);
+        const statusJustCompleted = (req.body.status === 'Completed' && currentBooking.status !== 'Completed');
+
+        if (finalStatus === 'Completed' && (statusJustCompleted || priceChanged)) {
+            const finalPrice = updateQuery.$set.totalPrice || currentBooking.totalPrice;
+            
+            // Fetch current commission rate from settings (default to 0.30 if not set)
+            const { getSettingValue } = require('./settingController');
+            const commissionRate = await getSettingValue('commission_rate', 0.30);
+
+            updateQuery.$set.commission = finalPrice * commissionRate;
+            if (statusJustCompleted) updateQuery.$set.commissionStatus = 'Unpaid';
+
+            // ERP Phase 3: Auto-deduct inventory stock & record supply cost as expense
+            if (statusJustCompleted) {
+                try {
+                    const { deductStockForBooking } = require('./serviceRecipeController');
+                    const serviceTypes = Array.isArray(currentBooking.serviceType)
+                        ? currentBooking.serviceType
+                        : [currentBooking.serviceType].filter(Boolean);
+
+                    const supplyCost = await deductStockForBooking({
+                        serviceTypes,
+                        vehicleType: newVehicle,
+                    });
+
+                    if (supplyCost > 0) {
+                        const Expense = require('../models/expenseModel');
+                        const shortId = currentBooking.batchId || id.toString().slice(-6);
+                        await Expense.create({
+                            title: `Supplies used — Booking #${shortId}`,
+                            category: 'Supplies',
+                            amount: supplyCost,
+                            description: `Auto-deducted per service recipe for ${serviceTypes.join(', ')} (${newVehicle})`,
+                        });
+                    }
+                } catch (recipeErr) {
+                    // Non-fatal: log the error but don't block the booking update
+                    console.error('[Recipe] Failed to deduct stock:', recipeErr.message);
+                }
+            }
+        }
+
         const booking = await Booking.findByIdAndUpdate(id, updateQuery, { returnDocument: 'after' });
 
-        // Emit to sockets so dashboard updates instantly
-        const io = req.app.get('io');
-        if (io) {
-            io.emit('update_booking', booking);
+        // Resolve actor from JWT
+        let actorName = 'Unknown Staff';
+        let actorId = null;
+        let actorRole = 'employee';
+        const jwt = require('jsonwebtoken');
+        const token = req.cookies?.token;
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                actorId = decoded.id;
+                actorRole = decoded.role;
+                const Employee = require('../models/employeeModel');
+                const emp = await Employee.findById(decoded.id).lean();
+                if (emp) actorName = emp.fullName;
+            } catch (_) { }
+        }
+
+        // Log status change vs generic update
+        if (req.body.status && req.body.status !== currentBooking.status) {
+            const log = await createLog({
+                actorId, actorName, actorRole,
+                action: 'booking_status_changed',
+                message: `${actorName} changed booking #${booking.batchId} status from ${currentBooking.status} → ${req.body.status}`,
+                bookingId: booking._id,
+                meta: { fromStatus: currentBooking.status, toStatus: req.body.status, customer: `${booking.firstName} ${booking.lastName}` }
+            });
+            const io = req.app.get('io');
+            if (io) {
+                io.emit('update_booking', booking);
+                if (log) io.emit('new_activity_log', log);
+            }
+        } else {
+            const log = await createLog({
+                actorId, actorName, actorRole,
+                action: 'booking_updated',
+                message: `${actorName} updated booking details for ${booking.firstName} ${booking.lastName}`,
+                bookingId: booking._id,
+                meta: { customer: `${booking.firstName} ${booking.lastName}` }
+            });
+            const io = req.app.get('io');
+            if (io) {
+                io.emit('update_booking', booking);
+                if (log) io.emit('new_activity_log', log);
+            }
         }
 
         res.status(200).json(booking);

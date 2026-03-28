@@ -16,11 +16,16 @@ const Login = () => {
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
-    // Prevent already-logged-in employee from seeing the login page
+    // Prevent already-logged-in users from seeing the login page
     useEffect(() => {
-        const employee = localStorage.getItem('employee');
-        if (employee) {
-            navigate('/employee', { replace: true });
+        const employeeData = localStorage.getItem('employee');
+        if (employeeData) {
+            const employee = JSON.parse(employeeData);
+            if (employee.role === 'admin') {
+                navigate('/admin', { replace: true });
+            } else {
+                navigate('/employee', { replace: true });
+            }
         }
     }, [navigate]);
 
@@ -75,7 +80,11 @@ const Login = () => {
                 color: '#FAFAFA',
                 customClass: { popup: 'rounded-5' },
             }).then(() => {
-                navigate('/employee');
+                if (data.employee.role === 'admin') {
+                    navigate('/admin');
+                } else {
+                    navigate('/employee');
+                }
             });
         } catch (err) {
             console.error('Network error:', err);

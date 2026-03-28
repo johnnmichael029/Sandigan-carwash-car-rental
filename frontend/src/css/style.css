@@ -571,6 +571,21 @@ label {
     border-color: var(--brand-dark) !important;
 }
 
+/* Admin Dashboard */
+.btn-record-expenses,
+.btn-register-item,
+.btn-save {
+    background-color: var(--brand-primary);
+    color: var(--text-primary);
+}
+
+.btn-record-expenses:hover,
+.btn-register-item:hover,
+.btn-save:hover {
+    background-color: var(--brand-dark) !important;
+    color: var(--text-primary) !important;
+}
+
 /* ─── Responsive: Service Cards ─── */
 /* Make service cards full width on mobile */
 .service-card {

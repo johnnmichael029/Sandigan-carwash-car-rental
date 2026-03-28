@@ -4,6 +4,7 @@ import Home from './pages/public/Home';
 import Book from './pages/public/Book';
 import Login from './pages/login/Login';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { initCsrf } from './api/config';
 
@@ -27,16 +28,19 @@ function App() {
 
         {/* Employee Dashboard */}
         <Route path="/employee" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['employee']}>
             <EmployeeDashboard />
           </ProtectedRoute>
         } />
 
+        {/* Admin Dashboard */}
+        <Route path="/admin" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
         {/* Booking Page */}
         <Route path="/book" element={<Book />} />
-
-        {/* Admin Section — placeholder until AdminDashboard is built */}
-        <Route path="/admin" element={<div>Admin Dashboard Coming Soon</div>} />
       </Routes>
     </Router>
   );

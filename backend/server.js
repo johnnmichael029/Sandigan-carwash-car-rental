@@ -18,10 +18,13 @@ const dbURI = process.env.MONGODB_URI;
 
 // Import routes
 const bookingRoutes = require('./routes/bookingRoutes');
-
-// Import employee routes
 const employeeRoutes = require('./routes/employees');
 const notificationRoutes = require('./routes/notificationRoutes');
+const activityLogRoutes = require('./routes/activityLogRoutes');
+const financeRoutes = require('./routes/financeRoutes');
+const inventoryRoutes = require('./routes/inventoryRoutes');
+const serviceRecipeRoutes = require('./routes/serviceRecipeRoutes');
+const recurringBillRoutes = require('./routes/recurringBillRoutes');
 
 const path = require('path');
 
@@ -58,11 +61,6 @@ const loginLimiter = rateLimit({
     max: 10,
     message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
     standardHeaders: true, legacyHeaders: false,
-    keyGenerator: (req) => {
-        const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-        // Strip out the port if present and any IPv6 prefix
-        return ip.replace(/:\d+$/, '').replace(/^.*:/, ''); 
-    },
 });
 
 // 2. Booking creation limiter
@@ -71,11 +69,6 @@ const bookingLimiter = rateLimit({
     max: 20,
     message: { error: 'Too many booking requests. Please try again later.' },
     standardHeaders: true, legacyHeaders: false,
-    keyGenerator: (req) => {
-        const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-        // Strip out the port if present and any IPv6 prefix
-        return ip.replace(/:\d+$/, '').replace(/^.*:/, ''); 
-    },
 });
 
 // 3. General API limiter
@@ -84,11 +77,6 @@ const generalLimiter = rateLimit({
     max: 200,
     message: { error: 'Too many requests from this IP. Please slow down.' },
     standardHeaders: true, legacyHeaders: false,
-    keyGenerator: (req) => {
-        const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-        // Strip out the port if present and any IPv6 prefix
-        return ip.replace(/:\d+$/, '').replace(/^.*:/, ''); 
-    },
 });
 
 // Apply the general limiter globally to all /api/* routes
@@ -146,6 +134,11 @@ app.use('/api/employees', employeeRoutes);
 
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/pricing', pricingRoutes);
+app.use('/api/activity-logs', activityLogRoutes);
+app.use('/api/finance', financeRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/service-recipes', serviceRecipeRoutes);
+app.use('/api/recurring-bills', recurringBillRoutes);
 
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {
