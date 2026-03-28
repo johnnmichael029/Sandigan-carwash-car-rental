@@ -1,4 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +21,7 @@ import queuedBooking from '../../assets/icon/queued-booking-brand.png';
 import completedBooking from '../../assets/icon/completed-booking-brand.png';
 import editBooking from '../../assets/icon/edit-book.png';
 import bookDuration from '../../assets/icon/duration.png';
+import inProgressBooking from '../../assets/icon/in-progress.png';
 import { API_BASE, authHeaders } from '../../api/config';
 import { calculateTotal, getAvailableServices } from '../../utils/priceList';
 import { io } from 'socket.io-client';
@@ -693,7 +697,7 @@ const DashboardOverview = ({ employee, onNavigate }) => {
 /* ─────────────────────────────────────────────
    BOOKING MODAL (View / Edit)
 ───────────────────────────────────────────── */
-const BookingModal = ({ booking, onClose, onSave, showToast }) => {
+const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
     const [editMode, setEditMode] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [formData, setFormData] = useState({
@@ -839,12 +843,12 @@ const BookingModal = ({ booking, onClose, onSave, showToast }) => {
 
     let durationText = null;
     if (logsToDisplay.length > 0) {
-        const queuedLog = logsToDisplay.find(l => l.status === 'Queued');
+        const inProgressLog = logsToDisplay.find(l => l.status === 'In-progress');
         const completedLog = logsToDisplay.find(l => l.status === 'Completed');
-        if (queuedLog && completedLog) {
-            const diffMs = new Date(completedLog.timestamp) - new Date(queuedLog.timestamp);
+        if (inProgressLog && completedLog) {
+            const diffMs = new Date(completedLog.timestamp) - new Date(inProgressLog.timestamp);
             const diffMins = Math.round(diffMs / 60000);
-            durationText = `It took ${diffMins} mins from Queued to Completed.`;
+            durationText = `It took ${diffMins} mins from In-progress to Completed.`;
         }
     }
 
@@ -919,7 +923,7 @@ const BookingModal = ({ booking, onClose, onSave, showToast }) => {
                                                             type="button"
                                                             onClick={() => isAvailable && toggleService(service)}
                                                             disabled={!editMode || !isAvailable}
-                                                            className={`btn rounded-pill px-3 w-100 ${isSelected ? 'btn-primary' : 'btn-outline-secondary'
+                                                            className={`btn rounded-pill px-3 w-100 text-dark-secondary ${isSelected ? 'btn-primary text-primary' : 'btn-outline-secondary'
                                                                 }`}
                                                             style={{
                                                                 opacity: isSelected || (editMode && isAvailable) ? 1 : 0.5,
@@ -983,6 +987,7 @@ const BookingModal = ({ booking, onClose, onSave, showToast }) => {
                                             else if (log.status === 'Confirmed') iconSrc = confirmedBooking;
                                             else if (log.status === 'Queued') iconSrc = queuedBooking;
                                             else if (log.status === 'Completed') iconSrc = completedBooking;
+                                            else if (log.status === 'In-progress') iconSrc = inProgressBooking;
 
                                             return (
                                                 <li key={i} className="position-relative pb-4" style={{ borderLeft: isLast ? '2px solid transparent' : '2px solid #23A0CE', paddingLeft: '28px' }}>
@@ -1037,12 +1042,467 @@ const BookingModal = ({ booking, onClose, onSave, showToast }) => {
                                 </button>
                             )
                         )}
+
+                        {booking.status === 'Completed' && (
+                            <button className="btn btn-receipt btn-outline-primary rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2"
+                                style={{ fontSize: '0.85rem', borderColor: '#23A0CE', color: 'var(--text-secondary)', backgroundColor: 'var(--brand-primary)' }}
+                                onClick={() => onPrint(booking)}>
+                                Generate Receipt
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
         </div>
     );
 };
+
+/* ─────────────────────────────────────────────
+   CREATE BOOKING MODAL
+───────────────────────────────────────────── */
+const CreateBookingModal = ({ onClose, onSave, showToast }) => {
+    const [isSaving, setIsSaving] = useState(false);
+    const [isQuickMode, setIsQuickMode] = useState(false);
+    const [formData, setFormData] = useState({
+        firstName: '',
+        lastName: '',
+        phoneNumber: '',
+        emailAddress: '',
+        vehicleType: '',
+        serviceType: [],
+        bookingTime: '',
+        detailer: '',
+    });
+
+    const [availability, setAvailability] = useState({});
+    const [priceListDict, setPriceListDict] = useState(null);
+    const [armorPrice, setArmorPrice] = useState(100);
+
+    useEffect(() => {
+        Promise.all([
+            axios.get(`${API_BASE}/booking/availability`, { headers: authHeaders(), withCredentials: true }),
+            axios.get(`${API_BASE}/pricing`)
+        ])
+            .then(([availRes, pricingRes]) => {
+                setAvailability(availRes.data);
+                if (pricingRes.data && pricingRes.data.priceList) {
+                    setPriceListDict(pricingRes.data.priceList);
+                    setArmorPrice(pricingRes.data.armorPrice);
+                }
+            })
+            .catch(err => console.error("Failed to fetch create mode data", err));
+    }, []);
+
+    const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
+    const formatTo12Hour = (hourStr) => {
+        const hour = parseInt(hourStr);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour % 12 || 12;
+        return `${displayHour}:00 ${ampm}`;
+    };
+
+    const availableHours = useMemo(() => {
+        const currentHour = new Date().getHours();
+        const MAX_CAPACITY = 3;
+        return allHours.filter(hour => {
+            const hourInt = parseInt(hour);
+            const hourKey = hour.toString().padStart(2, '0');
+            const count = availability[hourKey] || 0;
+            return hourInt >= currentHour && count < MAX_CAPACITY;
+        }).map(hour => {
+            const hourKey = hour.toString().padStart(2, '0');
+            const bookedCount = availability[hourKey] || 0;
+            const slotsLeft = MAX_CAPACITY - bookedCount;
+            return { raw: hour, label: `${formatTo12Hour(hour)} (${slotsLeft} slots left)` };
+        });
+    }, [availability]);
+
+    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    const toggleService = (serviceLabel) => {
+        setFormData(prev => {
+            const current = prev.serviceType;
+            if (current.includes(serviceLabel)) {
+                return { ...prev, serviceType: current.filter(item => item !== serviceLabel) };
+            } else {
+                return { ...prev, serviceType: [...current, serviceLabel] };
+            }
+        });
+    };
+
+    const handleSave = async () => {
+        // Validation logic
+        if (isQuickMode) {
+            if (!formData.vehicleType || formData.serviceType.length === 0 || !formData.bookingTime) {
+                Swal.fire('Incomplete', 'Please fill in vehicle, services, and time.', 'warning');
+                return;
+            }
+        } else {
+            if (!formData.firstName || !formData.lastName || !formData.vehicleType || formData.serviceType.length === 0 || !formData.bookingTime) {
+                Swal.fire('Incomplete', 'Please fill in all required fields.', 'warning');
+                return;
+            }
+        }
+
+        setIsSaving(true);
+        try {
+            // Prepare submission data with defaults if in Quick Mode to satisfy DB requirements
+            const submissionData = {
+                ...formData,
+                firstName: isQuickMode ? "Walk-in" : formData.firstName,
+                lastName: isQuickMode ? "Customer" : formData.lastName,
+                emailAddress: isQuickMode ? "walkin@example.com" : (formData.emailAddress || "walkin@example.com"),
+                phoneNumber: isQuickMode ? "00000000000" : (formData.phoneNumber || "00000000000")
+            };
+
+            await axios.post(`${API_BASE}/booking`, submissionData, { headers: authHeaders(), withCredentials: true });
+            showToast('New booking created successfully.');
+            onSave();
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'Failed to create booking.', 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const liveTotalPrice = calculateTotal(formData.vehicleType, formData.serviceType, priceListDict, armorPrice);
+    const availableServices = formData.vehicleType ? getAvailableServices(formData.vehicleType, priceListDict) : [];
+    const SERVICE_OPTIONS = ['Wash', 'Armor', 'Wax', 'Engine'];
+
+    const getServicePrice = (label) => {
+        if (!priceListDict || !formData.vehicleType) return null;
+        const vehiclePrices = priceListDict[formData.vehicleType];
+        if (!vehiclePrices) return null;
+        if (label === 'Armor') return vehiclePrices.Armor ? armorPrice : null;
+        return typeof vehiclePrices[label] === 'number' ? vehiclePrices[label] : null;
+    };
+
+    return (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1060 }}>
+            <div className="modal-dialog modal-dialog-centered modal-lg">
+                <div className="modal-content rounded-4 shadow border-0 bg-white">
+                    <div className="modal-header border-bottom-0 pb-0 pt-4 px-4 d-flex align-items-center flex-wrap gap-2">
+                        <div className="me-auto">
+                            <h5 className="modal-title font-poppins text-dark-secondary fw-bold mb-0" style={{ fontSize: '1.25rem' }}>Create New Booking</h5>
+                            <div className="mt-1">
+                                <span className="badge rounded-pill px-3 py-2 font-poppins" style={{ background: 'rgba(35,160,206,0.1)', color: '#23A0CE', border: '1px solid rgba(35,160,206,0.3)', fontSize: '0.85rem', fontWeight: 600 }}>
+                                    Estimated Total: ₱{liveTotalPrice.toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Quick Mode Toggle */}
+                        <div className="form-check form-switch d-flex align-items-center gap-2 bg-light rounded-pill px-3 py-2 border">
+                            <input
+                                className="form-check-input mt-0"
+                                type="checkbox"
+                                role="switch"
+                                id="quickModeSwitch"
+                                checked={isQuickMode}
+                                onChange={(e) => setIsQuickMode(e.target.checked)}
+                                style={{ cursor: 'pointer' }}
+                            />
+                            <label className="form-check-label font-poppins fw-600 mb-0" htmlFor="quickModeSwitch" style={{ fontSize: '0.85rem', cursor: 'pointer', color: isQuickMode ? '#23A0CE' : '#666' }}>
+                                ⚡ Quick Walk-in
+                            </label>
+                        </div>
+
+                        <button type="button" className="btn-close shadow-none" onClick={onClose}></button>
+                    </div>
+                    <div className="modal-body p-4">
+                        <div className="row g-4">
+                            {!isQuickMode && (
+                                <div className="col-12">
+                                    <h6 className="fw-bold mb-3 font-poppins" style={{ fontSize: '0.9rem', color: '#23A0CE' }}>CUSTOMER INFORMATION</h6>
+                                    <div className="row g-3">
+                                        <div className="col-md-6 text-start">
+                                            <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>First Name</label>
+                                            <input type="text" name="firstName" className="form-control form-control-sm shadow-none" value={formData.firstName} onChange={handleChange} placeholder="Required" />
+                                        </div>
+                                        <div className="col-md-6 text-start">
+                                            <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Last Name</label>
+                                            <input type="text" name="lastName" className="form-control form-control-sm shadow-none" value={formData.lastName} onChange={handleChange} placeholder="Required" />
+                                        </div>
+                                        <div className="col-md-6 text-start">
+                                            <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Email Address</label>
+                                            <input type="email" name="emailAddress" className="form-control form-control-sm shadow-none" value={formData.emailAddress} onChange={handleChange} placeholder="Optional" />
+                                        </div>
+                                        <div className="col-md-6 text-start">
+                                            <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Phone (No leading 0)</label>
+                                            <input type="text" name="phoneNumber" className="form-control form-control-sm shadow-none" value={formData.phoneNumber} onChange={handleChange} placeholder="e.g. 9123456789" />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="col-12">
+                                <h6 className="fw-bold mb-3 font-poppins" style={{ fontSize: '0.9rem', color: '#23A0CE' }}>{isQuickMode ? 'BOOKING DETAILS' : 'VEHICLE & SERVICES'}</h6>
+                                <div className="row g-3">
+                                    <div className="col-md-6 text-start">
+                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Vehicle Type</label>
+                                        <select name="vehicleType" className="form-select form-select-sm shadow-none" value={formData.vehicleType} onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value, serviceType: [] })}>
+                                            <option value="">-- Select Vehicle --</option>
+                                            {priceListDict && Object.keys(priceListDict).map(v => <option key={v} value={v}>{v}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="col-md-6 text-start">
+                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Preferred Time Slot</label>
+                                        <select name="bookingTime" className="form-select form-select-sm shadow-none" value={formData.bookingTime} onChange={handleChange}>
+                                            <option value="">-- Select Time --</option>
+                                            {availableHours.map(h => <option key={h.raw} value={h.raw}>{h.label}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="col-12 col-sm-6 text-start">
+                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Assigned Detailer</label>
+                                        <select
+                                            name="detailer"
+                                            className="form-select form-select-sm shadow-none"
+                                            value={formData.detailer}
+                                            onChange={handleChange}
+                                        >
+                                            <option value="">Unassigned</option>
+                                            {/* Currently empty pending future Detailer employee registry build */}
+                                            {formData.detailer && formData.detailer !== '' && (
+                                                <option value={formData.detailer}>{formData.detailer}</option>
+                                            )}
+                                        </select>
+                                    </div>
+                                    <div className="col-12 text-start">
+                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Services Requested</label>
+                                        <div className="row row-cols-2 row-cols-lg-4 g-2">
+                                            {SERVICE_OPTIONS.map(service => {
+                                                const isSelected = formData.serviceType.includes(service);
+                                                const isAvailable = availableServices.includes(service);
+                                                const price = getServicePrice(service);
+                                                return (
+                                                    <div className="col" key={service}>
+                                                        <button type="button" onClick={() => isAvailable && toggleService(service)} disabled={!isAvailable} className={`btn rounded-pill px-3 w-100 text-dark-secondary ${isSelected ? 'btn-primary text-primary' : 'btn-outline-secondary'}`} style={{ opacity: isSelected || isAvailable ? 1 : 0.5, fontSize: '0.8rem' }}>
+                                                            {isSelected && <span className="me-1">✓</span>} {service}
+                                                            {price !== null && <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{service === 'Armor' ? '+' : ''}{price}</span>}
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="modal-footer border-top-0 pb-4 px-4 pt-1 justify-content-end gap-2">
+                        <button className="btn btn-light rounded-pill px-4 shadow-sm font-poppins" style={{ fontSize: '0.85rem' }} onClick={onClose}>Cancel</button>
+                        <button className="btn rounded-pill px-4 shadow-sm font-poppins brand-primary" style={{ fontSize: '0.85rem' }} onClick={handleSave} disabled={isSaving}>
+                            {isSaving ? 'Creating...' : 'Create Booking'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+/* ─────────────────────────────────────────────
+   RECEIPT MODAL  
+───────────────────────────────────────────── */
+const ReceiptModal = ({ booking, onClose }) => {
+    const receiptRef = useRef();
+    const [priceListDict, setPriceListDict] = useState(null);
+    const [armorPrice, setArmorPrice] = useState(100);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+    useEffect(() => {
+        axios.get(`${API_BASE}/pricing`)
+            .then(res => {
+                if (res.data && res.data.priceList) {
+                    setPriceListDict(res.data.priceList);
+                    setArmorPrice(res.data.armorPrice);
+                }
+            })
+            .catch(err => console.error("Failed to fetch receipt pricing", err));
+    }, []);
+
+    const getServicePrice = (label) => {
+        if (!priceListDict || !booking.vehicleType) return null;
+        const vehiclePrices = priceListDict[booking.vehicleType];
+        if (!vehiclePrices) return null;
+        if (label === 'Armor') return vehiclePrices.Armor ? armorPrice : null;
+        return typeof vehiclePrices[label] === 'number' ? vehiclePrices[label] : null;
+    };
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+    const handleDownloadPdf = async () => {
+        if (!receiptRef.current) return;
+        setIsGeneratingPdf(true);
+        try {
+            const canvas = await html2canvas(receiptRef.current, {
+                scale: 3, // Higher scale for crisp text on small prints
+                logging: false,
+                useCORS: true,
+                backgroundColor: "#ffffff"
+            });
+            const imgData = canvas.toDataURL('image/png');
+
+            // Set for 80mm thermal paper width
+            const widthMm = 80;
+            const heightMm = (canvas.height * widthMm) / canvas.width;
+
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: [widthMm, heightMm]
+            });
+
+            pdf.addImage(imgData, 'PNG', 0, 0, widthMm, heightMm);
+            pdf.save(`Sandigan-Receipt-${booking.batchId || booking._id.substring(0, 8)}.pdf`);
+        } catch (err) {
+            console.error("PDF generation failed:", err);
+            Swal.fire('Error', 'Could not generate PDF.', 'error');
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    };
+
+    const qrLink = "https://sandigan-carwash-carrental-akd8a6cde6hpg4cc.japaneast-01.azurewebsites.net";
+
+    return (
+        <div className="modal show d-block no-print-backdrop" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1070 }}>
+            <div className="modal-dialog modal-dialog-centered no-print-dialog" style={{ maxWidth: '400px' }}>
+                <div className="modal-content rounded-4 shadow border-0 overflow-hidden bg-white">
+                    <div className="modal-header border-bottom-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center no-print">
+                        <h5 className="modal-title font-poppins fw-bold text-dark-secondary">Receipt Preview</h5>
+                        <button type="button" className="btn-close shadow-none" onClick={onClose}></button>
+                    </div>
+
+                    <div className="modal-body p-0 pt-3">
+                        {/* THE ACTUAL RECEIPT CONTAINER */}
+                        <div id="receipt-content" ref={receiptRef} className="receipt-paper mx-auto p-4 bg-white" style={{ fontFamily: 'monospace', color: '#333' }}>
+                            <div className="text-center mb-4">
+                                <img src={sandiganLogo} alt="Logo" style={{ width: '80px', marginBottom: '10px', filter: 'grayscale(1)' }} />
+                                <p className="mb-0 fw-bold" style={{ fontSize: '0.9rem' }}>Carwash & Car Rental</p>
+                                <p className="mb-0 text-muted" style={{ fontSize: '0.65rem' }}>68 Ruhale st. Calzada Tipas Taguig City</p>
+                                <p className="mb-0 text-muted" style={{ fontSize: '0.65rem' }}>+63 912 345 6789</p>
+                            </div>
+
+                            <div className="d-flex justify-content-between mb-2" style={{ borderTop: '1px dashed #ccc', paddingTop: '10px' }}>
+                                <span style={{ fontSize: '0.75rem' }}>RECEIPT #: {booking.batchId?.substring(0, 8).toUpperCase()}</span>
+                                <span style={{ fontSize: '0.75rem' }}>{new Date().toLocaleDateString()}</span>
+                            </div>
+
+                            <div className="mb-3" style={{ borderBottom: '1px dashed #ccc', paddingBottom: '10px' }}>
+                                <p className="mb-1" style={{ fontSize: '0.8rem' }}><strong>Customer:</strong> {booking.firstName} {booking.lastName}</p>
+                                <p className="mb-1" style={{ fontSize: '0.8rem' }}><strong>Vehicle:</strong> {booking.vehicleType}</p>
+                                <p className="mb-0" style={{ fontSize: '0.8rem' }}><strong>Detailer:</strong> {booking.detailer || 'Management'}</p>
+                            </div>
+
+                            <div className="mb-3">
+                                <div className="d-flex justify-content-between fw-bold border-bottom pb-1 mb-2" style={{ fontSize: '0.8rem' }}>
+                                    <span>SERVICE</span>
+                                    <span>PRICE</span>
+                                </div>
+                                {booking.serviceType?.map((service, idx) => {
+                                    const price = getServicePrice(service);
+                                    return (
+                                        <div key={idx} className="d-flex justify-content-between mb-1" style={{ fontSize: '0.75rem' }}>
+                                            <span>{service}</span>
+                                            <span>₱{price !== null ? price.toLocaleString() : '---'}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="pt-2 border-top" style={{ borderTop: '2px solid #333 !important' }}>
+                                <div className="d-flex justify-content-between fw-bold" style={{ fontSize: '1.1rem' }}>
+                                    <span>TOTAL</span>
+                                    <span>₱{booking.totalPrice?.toLocaleString()}</span>
+                                </div>
+                                <p className="text-center mt-2 text-uppercase fw-bold" style={{ fontSize: '0.8rem', letterSpacing: '4px', opacity: 0.8 }}>*** PAID ***</p>
+                            </div>
+
+                            <div className="text-center mt-4">
+                                <div className="d-flex justify-content-center mb-2">
+                                    <QRCodeCanvas
+                                        value={qrLink}
+                                        size={90}
+                                        level={"H"}
+                                        includeMargin={true}
+                                    />
+                                </div>
+                                <p className="mb-1" style={{ fontSize: '0.7rem', fontWeight: 600 }}>SCAN TO VISIT US</p>
+                                <p className="mb-0" style={{ fontSize: '0.6rem' }}>sandigan-carwash.com</p>
+                            </div>
+
+                            <div className="text-center mt-4 pt-3" style={{ borderTop: '1px dashed #ccc' }}>
+                                <p className="mb-0" style={{ fontSize: '0.7rem' }}>THANK YOU FOR YOUR BUSINESS!</p>
+                                <p className="mb-0" style={{ fontSize: '0.6rem', color: '#888' }}>Please come again soon</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="modal-footer border-top-0 p-4 pt-2 no-print flex-column gap-2">
+                        <button className="btn brand-primary rounded-pill px-4 shadow-sm w-100 font-poppins" style={{ fontSize: '0.85rem' }} onClick={handlePrint}>
+                            <span className="me-2">🖨️</span> Print Receipt
+                        </button>
+                        <button className="btn btn-outline-success rounded-pill px-4 shadow-sm w-100 font-poppins" style={{ fontSize: '0.85rem' }} onClick={handleDownloadPdf} disabled={isGeneratingPdf}>
+                            <span className="me-2">📥</span> {isGeneratingPdf ? 'Generating PDF...' : 'Download as PDF'}
+                        </button>
+                        <button className="btn btn-light rounded-pill px-4 shadow-sm w-100 font-poppins" style={{ fontSize: '0.85rem' }} onClick={onClose}>Close</button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Print-only CSS injection */}
+            <style>
+                {`
+                @media print {
+                    @page {
+                        margin: 0;
+                        size: auto;
+                    }
+                    body * {
+                        display: none !important;
+                    }
+                    .no-print-backdrop, .no-print-backdrop div, #receipt-content, #receipt-content * {
+                        display: block !important;
+                        visibility: visible !important;
+                    }
+                    .no-print-backdrop {
+                        background: none !important;
+                        position: absolute !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        width: 100% !important;
+                        height: auto !important;
+                    }
+                    .modal-dialog {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        max-width: 100% !important;
+                    }
+                    .modal-content {
+                        border: none !important;
+                        box-shadow: none !important;
+                    }
+                    .no-print {
+                        display: none !important;
+                    }
+                    #receipt-content {
+                        width: 100% !important;
+                        max-width: 80mm !important; /* Standard thermal receipt width */
+                        margin: 0 auto !important;
+                        padding: 10mm !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                    }
+                }
+                `}
+            </style>
+        </div>
+    );
+};
+
 
 /* ─────────────────────────────────────────────
    BOOKING MANAGEMENT
@@ -1053,6 +1513,9 @@ const BookingManagement = ({ employee }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [toasts, setToasts] = useState([]);
     const [selectedBooking, setSelectedBooking] = useState(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+    const [receiptBooking, setReceiptBooking] = useState(null);
 
     // Custom Toast Launcher
     const showToast = (message) => {
@@ -1231,17 +1694,19 @@ const BookingManagement = ({ employee }) => {
                                                     booking.status === 'Queued' ? 'border-primary text-queued' :
                                                         booking.status === 'Confirmed' ? 'border-info text-info' :
                                                             booking.status === 'Cancelled' ? 'border-danger text-danger' :
-                                                                'border-warning text-warning'
+                                                                booking.status === 'In-progress' ? 'border-warning text-in-progress' :
+                                                                    'border-warning text-warning'
                                                     }`}
                                                 style={{ minWidth: '120px', cursor: booking.status === 'Completed' || booking.status === 'Cancelled' ? 'not-allowed' : 'pointer' }}
                                                 value={booking.status || 'Pending'}
                                                 disabled={booking.status === 'Completed' || booking.status === 'Cancelled'}
                                                 onChange={(e) => handleStatusChange(booking._id, e.target.value, booking.batchId)}
                                             >
-                                                <option value="Pending" disabled={['Confirmed', 'Queued', 'Completed'].includes(booking.status)}>🟡 Pending</option>
-                                                <option value="Confirmed" disabled={['Queued', 'Completed'].includes(booking.status)}>🔵 Confirmed</option>
-                                                <option value="Queued" disabled={['Pending', 'Completed'].includes(booking.status)}>🟣 Queued</option>
-                                                <option value="Completed" disabled={['Pending', 'Confirmed'].includes(booking.status)}>🟢 Completed</option>
+                                                <option value="Pending" disabled={['Confirmed', 'Queued', 'Completed', 'In-progress'].includes(booking.status)}>🟡 Pending</option>
+                                                <option value="Confirmed" disabled={['Queued', 'Completed', 'In-progress'].includes(booking.status)}>🔵 Confirmed</option>
+                                                <option value="Queued" disabled={['Pending', 'Completed', 'In-progress'].includes(booking.status)}>🟣 Queued</option>
+                                                <option value="In-progress" disabled={['Pending', 'Completed'].includes(booking.status)}>🟠 In-progress</option>
+                                                <option value="Completed" >🟢 Completed</option>
                                                 <option value="Cancelled">🔴 Cancelled</option>
                                             </select>
                                         </td>
@@ -1260,16 +1725,64 @@ const BookingManagement = ({ employee }) => {
                     booking={selectedBooking}
                     onClose={() => setSelectedBooking(null)}
                     showToast={showToast}
+                    onPrint={(b) => {
+                        setReceiptBooking(b);
+                        setIsReceiptModalOpen(true);
+                    }}
                     onSave={() => {
                         setSelectedBooking(null);
                         fetchBookings(); // Refresh data to get newly saved logs
                     }}
                 />
             )}
+
+            {isReceiptModalOpen && receiptBooking && (
+                <ReceiptModal
+                    booking={receiptBooking}
+                    onClose={() => {
+                        setIsReceiptModalOpen(false);
+                        setReceiptBooking(null);
+                    }}
+                />
+            )}
+
+            {isCreateModalOpen && (
+                <CreateBookingModal
+                    onClose={() => setIsCreateModalOpen(false)}
+                    showToast={showToast}
+                    onSave={() => {
+                        setIsCreateModalOpen(false);
+                        fetchBookings();
+                    }}
+                />
+            )}
+
+
+
+
+            {/* ─── FLOATING ACTION BUTTON ─── */}
+            <button
+                className="btn btn-primary rounded-circle shadow-lg d-flex align-items-center justify-content-center p-0"
+                onClick={() => setIsCreateModalOpen(true)}
+                style={{
+                    position: 'fixed',
+                    bottom: '40px',
+                    right: '40px',
+                    width: '60px',
+                    height: '60px',
+                    zIndex: 1000,
+                    transition: 'transform 0.2s',
+                    background: 'linear-gradient(135deg, #23A0CE 0%, #1a88b1 100%)',
+                    border: '3px solid #fff'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                title="Create New Booking"
+            >
+                <span style={{ fontSize: '2rem', fontWeight: 600, color: '#fff', marginBottom: '4px' }}>+</span>            </button>
         </div>
     );
 };
-
 
 /* ─────────────────────────────────────────────
    CAR RENT MANAGEMENT

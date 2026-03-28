@@ -38,15 +38,29 @@ const getBooking = async (req, res) => {
 const createBooking = async (req, res) => {
     const { captchaToken, firstName, lastName, phoneNumber, emailAddress, vehicleType, serviceType, bookingTime } = req.body;
     try {
-        const verificationUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
-        const response = await axios.post(verificationUrl);
+        // Skip captcha for internal staff (check for valid session cookie)
+        const jwt = require('jsonwebtoken');
+        let skipCaptcha = false;
+        const token = req.cookies?.token;
+        if (token) {
+            try {
+                jwt.verify(token, process.env.JWT_SECRET);
+                skipCaptcha = true;
+            } catch (err) { /* Invalid token — force captcha check */ }
+        }
 
-
-        if (!response.data.success) {
-            return res.status(400).json({
-                error: "Captcha verification failed.",
-                details: response.data['error-codes'] // This helps you debug!
-            });
+        if (!skipCaptcha) {
+            if (!captchaToken) {
+                return res.status(400).json({ error: "Captcha token is required for public bookings." });
+            }
+            const verificationUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
+            const response = await axios.post(verificationUrl);
+            if (!response.data.success) {
+                return res.status(400).json({
+                    error: "Captcha verification failed.",
+                    details: response.data['error-codes']
+                });
+            }
         }
 
         const formattedPhoneNumber = `0${phoneNumber}`; // Prepend 0 if phone number exists, else set to null
