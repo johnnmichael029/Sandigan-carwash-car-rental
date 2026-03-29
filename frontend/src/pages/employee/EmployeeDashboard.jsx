@@ -23,7 +23,6 @@ import editBooking from '../../assets/icon/edit-book.png';
 import bookDuration from '../../assets/icon/duration.png';
 import inProgressBooking from '../../assets/icon/in-progress.png';
 import { API_BASE, authHeaders } from '../../api/config';
-import { calculateTotal, getAvailableServices } from '../../utils/priceList';
 import { io } from 'socket.io-client';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -193,7 +192,27 @@ const EmployeeDashboard = () => {
     }, [toggleActive]);
 
     /* ── Logout with SweetAlert2 confirmation ── */
-    const handleLogout = () => {
+    const handleLogout = (isAuto = false) => {
+        if (isAuto === true) {
+            Swal.fire({
+                title: 'Session Expired',
+                text: 'You have been logged out due to 15 minutes of inactivity.',
+                icon: 'info',
+                confirmButtonColor: '#23A0CE',
+                confirmButtonText: 'OK',
+            }).then(async () => {
+                // Clear the httpOnly auth cookie via the backend logout endpoint
+                await fetch(`${API_BASE}/employees/logout`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    credentials: 'include',
+                }).catch(() => { });
+                localStorage.removeItem('employee');
+                navigate('/login');
+            });
+            return;
+        }
+
         Swal.fire({
             title: 'Log out?',
             text: 'You will be returned to the login page.',
@@ -215,6 +234,29 @@ const EmployeeDashboard = () => {
             }
         });
     };
+
+    /* ── Idle Timeout (15 minutes) ── */
+    useEffect(() => {
+        let timeoutId;
+
+        const resetTimer = () => {
+            clearTimeout(timeoutId);
+            // 15 minutes = 15 * 60 * 1000 = 900000 ms
+            timeoutId = setTimeout(() => {
+                handleLogout(true);
+            }, 900000);
+        };
+
+        const events = ['mousemove', 'keydown', 'wheel', 'click', 'scroll', 'touchstart'];
+        events.forEach(event => window.addEventListener(event, resetTimer));
+
+        resetTimer(); // Initialize on mount
+
+        return () => {
+            clearTimeout(timeoutId);
+            events.forEach(event => window.removeEventListener(event, resetTimer));
+        };
+    }, []);
 
     /* ── Render correct content panel ── */
     const renderContent = () => {
@@ -712,8 +754,7 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
     });
 
     const [availability, setAvailability] = useState({});
-    const [priceListDict, setPriceListDict] = useState(null);
-    const [armorPrice, setArmorPrice] = useState(100);
+    const [dynamicPricingData, setDynamicPricingData] = useState([]);
 
     // Fetch availability and pricing when edit mode opens
     useEffect(() => {
@@ -724,9 +765,8 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
             ])
                 .then(([availRes, pricingRes]) => {
                     setAvailability(availRes.data);
-                    if (pricingRes.data && pricingRes.data.priceList) {
-                        setPriceListDict(pricingRes.data.priceList);
-                        setArmorPrice(pricingRes.data.armorPrice);
+                    if (pricingRes.data && pricingRes.data.dynamicPricing) {
+                        setDynamicPricingData(pricingRes.data.dynamicPricing);
                     }
                 })
                 .catch(err => console.error("Failed to fetch edit mode data", err));
@@ -815,31 +855,25 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
         }
     }
 
+    // Active vehicle data mapped dynamically
+    const activeVehicleData = useMemo(() => {
+        return dynamicPricingData.find(v => v.vehicleType === formData.vehicleType) || null;
+    }, [dynamicPricingData, formData.vehicleType]);
+
     // Compute live price based on current formData (updates as employee edits)
-    const liveTotalPrice = calculateTotal(
-        formData.vehicleType,
-        formData.serviceType,
-        priceListDict,
-        armorPrice
-    );
+    const liveTotalPrice = useMemo(() => {
+        if (!activeVehicleData) return 0;
+        return formData.serviceType.reduce((sum, name) => {
+            const serv = activeVehicleData.services?.find(s => s.name === name);
+            const add = activeVehicleData.addons?.find(a => a.name === name);
+            if (serv) return sum + serv.price;
+            if (add) return sum + add.price;
+            return sum;
+        }, 0);
+    }, [activeVehicleData, formData.serviceType]);
 
     // Original stored price for reference
     const storedTotalPrice = booking.totalPrice || 0;
-
-    const availableServices = formData.vehicleType ? getAvailableServices(formData.vehicleType, priceListDict) : [];
-
-    // Constant UI array matches your Book.jsx options
-    const SERVICE_OPTIONS = ['Wash', 'Armor', 'Wax', 'Engine'];
-
-    const getServicePrice = (label) => {
-        if (!priceListDict || !formData.vehicleType) return null;
-        const vehiclePrices = priceListDict[formData.vehicleType];
-        if (!vehiclePrices) return null;
-
-        if (label === 'Armor') return vehiclePrices.Armor ? armorPrice : null;
-        const price = vehiclePrices[label];
-        return typeof price === 'number' ? price : null;
-    };
 
     let durationText = null;
     if (logsToDisplay.length > 0) {
@@ -897,11 +931,11 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
                                     </div>
                                     <div className="col-12 col-sm-6">
                                         <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Vehicle Type</label>
-                                        {editMode && priceListDict ? (
+                                        {editMode && dynamicPricingData.length > 0 ? (
                                             <select name="vehicleType" className="form-select form-select-sm shadow-none" value={formData.vehicleType} onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value, serviceType: [] })}>
                                                 <option value="" disabled>-- Select Vehicle --</option>
-                                                {Object.keys(priceListDict).map(v => (
-                                                    <option key={v} value={v}>{v}</option>
+                                                {dynamicPricingData.map(v => (
+                                                    <option key={v._id} value={v.vehicleType}>{v.vehicleType}</option>
                                                 ))}
                                             </select>
                                         ) : (
@@ -910,37 +944,55 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
                                     </div>
                                     <div className="col-12">
                                         <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Services Requested</label>
-                                        <div className="row row-cols-2 row-cols-lg-4 g-2">
-                                            {SERVICE_OPTIONS.map(service => {
-                                                const isSelected = formData.serviceType.includes(service);
-                                                const isAvailable = editMode && availableServices.includes(service) || !editMode;
-                                                const price = getServicePrice(service);
-
-                                                return (
-                                                    <div className="col">
-                                                        <button
-                                                            key={service}
-                                                            type="button"
-                                                            onClick={() => isAvailable && toggleService(service)}
-                                                            disabled={!editMode || !isAvailable}
-                                                            className={`btn rounded-pill px-3 w-100 text-dark-secondary ${isSelected ? 'btn-primary text-primary' : 'btn-outline-secondary'
-                                                                }`}
-                                                            style={{
-                                                                opacity: isSelected || (editMode && isAvailable) ? 1 : 0.5,
-                                                                fontSize: '0.8rem'
-                                                            }}>
-
-                                                            {isSelected && <span className="me-1">✓</span>} {service}
-                                                            {price !== null && editMode && (
-                                                                <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>
-                                                                    ₱{service === 'Armor' ? '+' : ''}{price}
-                                                                </span>
-                                                            )}
-                                                        </button>
+                                        {(!editMode && !activeVehicleData) ? (
+                                            <div className="d-flex flex-wrap gap-2">
+                                                {formData.serviceType.map(s => (
+                                                    <span key={s} className="badge bg-primary px-3 py-2 rounded-pill font-poppins">{s}</span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="row row-cols-2 row-cols-lg-4 g-2 mb-2">
+                                                    {activeVehicleData?.services?.map(service => {
+                                                        const isSelected = formData.serviceType.includes(service.name);
+                                                        return (
+                                                            <div className="col" key={service.name}>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleService(service.name)}
+                                                                    disabled={!editMode}
+                                                                    className={`btn rounded-pill px-3 w-100 ${isSelected ? 'btn-primary text-white' : 'btn-outline-secondary text-dark-secondary'}`}
+                                                                    style={{ opacity: isSelected || editMode ? 1 : 0.5, fontSize: '0.8rem' }}>
+                                                                    {isSelected && <span className="me-1">✓</span>} {service.name}
+                                                                    {editMode && <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{service.price}</span>}
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <label className="form-label brand-primary mb-1" style={{ fontSize: '0.8rem' }} >Add-ons</label>
+                                                {activeVehicleData?.addons?.length > 0 && (
+                                                    <div className="row row-cols-2 row-cols-lg-2 g-2">
+                                                        {activeVehicleData.addons.map(addon => {
+                                                            const isSelected = formData.serviceType.includes(addon.name);
+                                                            return (
+                                                                <div className="col" key={addon.name}>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => toggleService(addon.name)}
+                                                                        disabled={!editMode}
+                                                                        className={`btn rounded-pill px-3 w-100 ${isSelected ? 'btn-primary text-white' : 'btn-outline-secondary text-dark-secondary'}`}
+                                                                        style={{ opacity: isSelected || editMode ? 1 : 0.5, fontSize: '0.8rem' }}>
+                                                                        {isSelected && <span className="me-1">✓</span>} {addon.name}
+                                                                        {editMode && <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{addon.price}</span>}
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
                                     <div className="col-12 col-sm-6">
                                         <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Time Slot</label>
@@ -1075,8 +1127,7 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
     });
 
     const [availability, setAvailability] = useState({});
-    const [priceListDict, setPriceListDict] = useState(null);
-    const [armorPrice, setArmorPrice] = useState(100);
+    const [dynamicPricingData, setDynamicPricingData] = useState([]);
 
     useEffect(() => {
         Promise.all([
@@ -1085,9 +1136,8 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
         ])
             .then(([availRes, pricingRes]) => {
                 setAvailability(availRes.data);
-                if (pricingRes.data && pricingRes.data.priceList) {
-                    setPriceListDict(pricingRes.data.priceList);
-                    setArmorPrice(pricingRes.data.armorPrice);
+                if (pricingRes.data && pricingRes.data.dynamicPricing) {
+                    setDynamicPricingData(pricingRes.data.dynamicPricing);
                 }
             })
             .catch(err => console.error("Failed to fetch create mode data", err));
@@ -1164,17 +1214,20 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
         }
     };
 
-    const liveTotalPrice = calculateTotal(formData.vehicleType, formData.serviceType, priceListDict, armorPrice);
-    const availableServices = formData.vehicleType ? getAvailableServices(formData.vehicleType, priceListDict) : [];
-    const SERVICE_OPTIONS = ['Wash', 'Armor', 'Wax', 'Engine'];
+    const activeVehicleData = useMemo(() => {
+        return dynamicPricingData.find(v => v.vehicleType === formData.vehicleType) || null;
+    }, [dynamicPricingData, formData.vehicleType]);
 
-    const getServicePrice = (label) => {
-        if (!priceListDict || !formData.vehicleType) return null;
-        const vehiclePrices = priceListDict[formData.vehicleType];
-        if (!vehiclePrices) return null;
-        if (label === 'Armor') return vehiclePrices.Armor ? armorPrice : null;
-        return typeof vehiclePrices[label] === 'number' ? vehiclePrices[label] : null;
-    };
+    const liveTotalPrice = useMemo(() => {
+        if (!activeVehicleData) return 0;
+        return formData.serviceType.reduce((sum, name) => {
+            const serv = activeVehicleData.services?.find(s => s.name === name);
+            const add = activeVehicleData.addons?.find(a => a.name === name);
+            if (serv) return sum + serv.price;
+            if (add) return sum + add.price;
+            return sum;
+        }, 0);
+    }, [activeVehicleData, formData.serviceType]);
 
     return (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1060 }}>
@@ -1241,7 +1294,7 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
                                         <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Vehicle Type</label>
                                         <select name="vehicleType" className="form-select form-select-sm shadow-none" value={formData.vehicleType} onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value, serviceType: [] })}>
                                             <option value="">-- Select Vehicle --</option>
-                                            {priceListDict && Object.keys(priceListDict).map(v => <option key={v} value={v}>{v}</option>)}
+                                            {dynamicPricingData.map(v => <option key={v._id} value={v.vehicleType}>{v.vehicleType}</option>)}
                                         </select>
                                     </div>
                                     <div className="col-md-6 text-start">
@@ -1268,21 +1321,35 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
                                     </div>
                                     <div className="col-12 text-start">
                                         <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Services Requested</label>
-                                        <div className="row row-cols-2 row-cols-lg-4 g-2">
-                                            {SERVICE_OPTIONS.map(service => {
-                                                const isSelected = formData.serviceType.includes(service);
-                                                const isAvailable = availableServices.includes(service);
-                                                const price = getServicePrice(service);
+                                        <div className="row row-cols-2 row-cols-lg-4 g-2 mb-2">
+                                            {activeVehicleData?.services?.map(service => {
+                                                const isSelected = formData.serviceType.includes(service.name);
                                                 return (
-                                                    <div className="col" key={service}>
-                                                        <button type="button" onClick={() => isAvailable && toggleService(service)} disabled={!isAvailable} className={`btn rounded-pill px-3 w-100 text-dark-secondary ${isSelected ? 'btn-primary text-primary' : 'btn-outline-secondary'}`} style={{ opacity: isSelected || isAvailable ? 1 : 0.5, fontSize: '0.8rem' }}>
-                                                            {isSelected && <span className="me-1">✓</span>} {service}
-                                                            {price !== null && <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{service === 'Armor' ? '+' : ''}{price}</span>}
+                                                    <div className="col" key={service.name}>
+                                                        <button type="button" onClick={() => toggleService(service.name)} className={`btn rounded-pill px-3 w-100 ${isSelected ? 'btn-primary text-white' : 'btn-outline-secondary text-dark-secondary'}`} style={{ fontSize: '0.8rem' }}>
+                                                            {isSelected && <span className="me-1">✓</span>} {service.name}
+                                                            <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{service.price}</span>
                                                         </button>
                                                     </div>
                                                 );
                                             })}
                                         </div>
+                                        <label className="form-label mb-1 brand-primary" style={{ fontSize: '0.8rem' }}>Add-ons</label>
+                                        {activeVehicleData?.addons?.length > 0 && (
+                                            <div className="row row-cols-2 row-cols-lg-4 g-2">
+                                                {activeVehicleData.addons.map(addon => {
+                                                    const isSelected = formData.serviceType.includes(addon.name);
+                                                    return (
+                                                        <div className="col" key={addon.name}>
+                                                            <button type="button" onClick={() => toggleService(addon.name)} className={`btn rounded-pill px-3 w-100 ${isSelected ? 'btn-primary text-white' : 'btn-outline-secondary text-dark-secondary'}`} style={{ fontSize: '0.8rem' }}>
+                                                                {isSelected && <span className="me-1">✓</span>} {addon.name}
+                                                                <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{addon.price}</span>
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1306,27 +1373,27 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
 ───────────────────────────────────────────── */
 const ReceiptModal = ({ booking, onClose }) => {
     const receiptRef = useRef();
-    const [priceListDict, setPriceListDict] = useState(null);
-    const [armorPrice, setArmorPrice] = useState(100);
+    const [dynamicPricingData, setDynamicPricingData] = useState([]);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
     useEffect(() => {
         axios.get(`${API_BASE}/pricing`)
             .then(res => {
-                if (res.data && res.data.priceList) {
-                    setPriceListDict(res.data.priceList);
-                    setArmorPrice(res.data.armorPrice);
+                if (res.data && res.data.dynamicPricing) {
+                    setDynamicPricingData(res.data.dynamicPricing);
                 }
             })
             .catch(err => console.error("Failed to fetch receipt pricing", err));
     }, []);
 
     const getServicePrice = (label) => {
-        if (!priceListDict || !booking.vehicleType) return null;
-        const vehiclePrices = priceListDict[booking.vehicleType];
-        if (!vehiclePrices) return null;
-        if (label === 'Armor') return vehiclePrices.Armor ? armorPrice : null;
-        return typeof vehiclePrices[label] === 'number' ? vehiclePrices[label] : null;
+        const activeVehicleData = dynamicPricingData.find(v => v.vehicleType === booking.vehicleType);
+        if (!activeVehicleData) return null;
+        const serv = activeVehicleData.services?.find(s => s.name === label);
+        const add = activeVehicleData.addons?.find(a => a.name === label);
+        if (serv) return serv.price;
+        if (add) return add.price;
+        return null;
     };
 
     const handlePrint = () => {

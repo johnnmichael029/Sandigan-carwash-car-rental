@@ -12,7 +12,6 @@ import bubble1 from '../../assets/img/bubble-container.png';
 import bubble2 from '../../assets/img/bubble-container1.png';
 import ellipse from '../../assets/img/ellipse.png';
 import { API_BASE, authHeaders } from '../../api/config';
-import { calculateTotal, getAvailableServices } from '../../utils/priceList';
 
 // 1. Keep the base hours as military for backend compatibility
 const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
@@ -30,6 +29,7 @@ const Book = () => {
     const [success, setSuccess] = useState(false);
     const [availability, setAvailability] = useState({});
     const [priceListDict, setPriceListDict] = useState(null);
+    const [dynamicPricingData, setDynamicPricingData] = useState([]);
     const [armorPrice, setArmorPrice] = useState(100);
     const [selectedHour, setSelectedHour] = useState('');
     const [captchaToken, setCaptchaToken] = useState(null);
@@ -89,6 +89,7 @@ const Book = () => {
                 if (pricingData && pricingData.priceList) {
                     setPriceListDict(pricingData.priceList);
                     setArmorPrice(pricingData.armorPrice);
+                    setDynamicPricingData(pricingData.dynamicPricing || []);
                 }
             } catch (err) {
                 console.error("Failed to fetch initial data", err);
@@ -293,27 +294,22 @@ const Book = () => {
         return input.replace(/<[^>]*>?/gm, '').trim();
     };
 
-    // List of Service type
-    const serviceTypes = [
-        { id: 'wash', label: 'Wash' },
-        { id: 'armor', label: 'Armor' },
-        { id: 'wax', label: 'Wax' },
-        { id: 'engine', label: 'Engine' }
-    ];
-
-    // Get available services for chosen vehicle
-    const availableServices = vehicleType ? getAvailableServices(vehicleType, priceListDict) : serviceTypes.map(s => s.label);
+    // Active vehicle data mapped dynamically
+    const activeVehicleData = useMemo(() => {
+        return dynamicPricingData.find(v => v.vehicleType === vehicleType) || null;
+    }, [dynamicPricingData, vehicleType]);
 
     // Live price calculation
-    const vehiclePrices = priceListDict ? priceListDict[vehicleType] : null;
-    const totalPrice = calculateTotal(vehicleType, serviceType, priceListDict, armorPrice);
-
-    const getServicePrice = (label) => {
-        if (!vehiclePrices) return null;
-        if (label === 'Armor') return vehiclePrices.Armor ? armorPrice : null;
-        const price = vehiclePrices[label];
-        return typeof price === 'number' ? price : null;
-    };
+    const totalPrice = useMemo(() => {
+        if (!activeVehicleData) return 0;
+        return serviceType.reduce((sum, name) => {
+            const serv = activeVehicleData.services?.find(s => s.name === name);
+            const add = activeVehicleData.addons?.find(a => a.name === name);
+            if (serv) return sum + serv.price;
+            if (add) return sum + add.price;
+            return sum;
+        }, 0);
+    }, [activeVehicleData, serviceType]);
 
     // Toggle service selection
     const toggleService = (serviceLabel) => {
@@ -384,40 +380,56 @@ const Book = () => {
                                                                 disabled={!priceListDict}
                                                             >
                                                                 <option value="">{priceListDict ? "-- Select Vehicle --" : "Loading vehicles..."}</option>
-                                                                {priceListDict && Object.keys(priceListDict).map(v => (
-                                                                    <option key={v} value={v}>{v}</option>
+                                                                {dynamicPricingData && dynamicPricingData.map(v => (
+                                                                    <option key={v._id} value={v.vehicleType}>{v.vehicleType}</option>
                                                                 ))}
                                                             </select>
                                                         </div>
                                                         <div className="service-type-container">
-                                                            <label className="form-label">Service type</label>
-                                                            <div className="mb-1 row row-cols-2 row-cols-lg-4 g-3">
-                                                                {serviceTypes.map((service) => {
-                                                                    const isSelected = serviceType.includes(service.label);
-                                                                    const isAvailable = availableServices.includes(service.label);
-                                                                    const price = getServicePrice(service.label);
-
+                                                            <label className="form-label brand-accent" >Core Services</label>
+                                                            <div className="mb-3 row row-cols-2 row-cols-lg-4 g-3">
+                                                                {activeVehicleData?.services?.map((service) => {
+                                                                    const isSelected = serviceType.includes(service.name);
                                                                     return (
-                                                                        <div key={service.id} className="col mb-3">
+                                                                        <div key={service.name} className="col mb-3">
                                                                             <button
                                                                                 type="button"
-                                                                                onClick={() => isAvailable && toggleService(service.label)}
-                                                                                disabled={!isAvailable}
-                                                                                className={`btn rounded-pill px-2 w-100 ${isSelected
-                                                                                    ? "btn-primary"
-                                                                                    : isAvailable ? "btn-outline-secondary text-light" : "btn-outline-secondary text-secondary opacity-50"
-                                                                                    }`}
+                                                                                onClick={() => toggleService(service.name)}
+                                                                                className={`btn rounded-pill px-2 w-100 ${isSelected ? "btn-primary" : "btn-outline-secondary text-light"}`}
                                                                             >
                                                                                 {isSelected && <span className="me-1">✓</span>}
-                                                                                {service.label}
-                                                                                {price !== null && (
-                                                                                    <span style={{ fontSize: '0.7rem', display: 'block', opacity: 0.8 }}>₱{service.label === 'Armor' ? '+' : ''}{price}</span>
-                                                                                )}
+                                                                                {service.name}
+                                                                                <span style={{ fontSize: '0.7rem', display: 'block', opacity: 0.7 }}>₱{service.price}</span>
                                                                             </button>
                                                                         </div>
                                                                     );
                                                                 })}
                                                             </div>
+
+                                                            {activeVehicleData?.addons?.length > 0 && (
+                                                                <>
+                                                                    <label className="form-label brand-accent">Add-ons & Extras</label>
+                                                                    <div className="mb-4 row row-cols-2 row-cols-lg- g-3">
+                                                                        {activeVehicleData.addons.map((addon) => {
+                                                                            const isSelected = serviceType.includes(addon.name);
+                                                                            return (
+                                                                                <div key={addon.name} className="col mb-3">
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => toggleService(addon.name)}
+                                                                                        className={`btn rounded-pill px-2 w-100 ${isSelected ? "btn-info text-white border-0 bg-info" : "btn-outline-secondary text-light"}`}
+                                                                                    >
+                                                                                        {isSelected && <span className="me-1">✓</span>}
+                                                                                        {addon.name}
+                                                                                        <span style={{ fontSize: '0.7rem', display: 'block', opacity: 0.8 }}>₱{addon.price}</span>
+                                                                                    </button>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </>
+                                                            )}
+
                                                             {/* Live Total */}
                                                             {vehicleType && serviceType.length > 0 && (
                                                                 <div className="px-3 py-2 rounded-3 d-flex justify-content-between align-items-center mb-3" style={{ background: 'rgba(35,160,206,0.12)', border: '1px solid rgba(35,160,206,0.3)' }}>

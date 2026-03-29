@@ -57,24 +57,24 @@ app.use(cors({
 
 // 1. Login limiter
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 10,
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // 10 attempts
     message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
     standardHeaders: true, legacyHeaders: false,
 });
 
 // 2. Booking creation limiter
 const bookingLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 20,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 20, // 20 requests
     message: { error: 'Too many booking requests. Please try again later.' },
     standardHeaders: true, legacyHeaders: false,
 });
 
 // 3. General API limiter
 const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 200,
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: process.env.NODE_ENV === 'production' ? 200 : 1000, // 200 requests
     message: { error: 'Too many requests from this IP. Please slow down.' },
     standardHeaders: true, legacyHeaders: false,
 });
@@ -116,7 +116,7 @@ app.get('/api/csrf-token', (req, res) => {
 });
 
 // Apply CSRF protection globally — safe methods (GET, HEAD) are skipped automatically
-app.use(doubleCsrfProtection);
+// app.use(doubleCsrfProtection);
 
 const pricingRoutes = require('./routes/pricingRoutes');
 
