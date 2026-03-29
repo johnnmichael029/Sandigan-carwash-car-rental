@@ -18,6 +18,12 @@ import logoutIcon from '../../assets/icon/logout.png';
 import loginIcon from '../../assets/icon/login.png';
 import deleteIcon from '../../assets/icon/delete.png';
 import editIcon from '../../assets/icon/edit.png';
+import settingsIcon from '../../assets/icon/setting.png'
+import financeIcon from '../../assets/icon/finance.png'
+import humanResourcIcon from '../../assets/icon/human-resource.png'
+import inventoryIcon from '../../assets/icon/inventory.png'
+import salesIcon from '../../assets/icon/sales.png'
+import operationIcon from '../../assets/icon/operation.png'
 import { API_BASE, authHeaders } from '../../api/config';
 import { io } from 'socket.io-client';
 import {
@@ -322,7 +328,7 @@ const AdminDashboard = () => {
                                 className={`nav-link ps-4 w-100 d-flex align-items-center ${toggleActive === 'settings' ? 'active' : ''}`}
                                 onClick={() => setToggleActive('settings')}
                             >
-                                <span className="pe-2 fs-5">⚙️</span>
+                                <img className="pe-2" style={{ width: '24px' }} src={settingsIcon} alt="Settings Icon" />
                                 Service Settings
                             </button>
                         </li>
@@ -364,19 +370,19 @@ const AdminDashboard = () => {
                             <li className="nav-item w-100 animate-fade-in" style={{ height: 'auto' }}>
                                 <ul style={{ listStyleType: 'none', padding: 0, margin: 0, width: '100%' }}>
                                     {[
-                                        { key: 'finance', label: '💰 Finance' },
-                                        { key: 'hris', label: '👥 HRIS' },
-                                        { key: 'inventory', label: '📦 Inventory' },
-                                        { key: 'crm', label: '🤝 Sales / CRM' },
-                                        { key: 'operations', label: '⚙️ Operations' },
+                                        { key: 'finance', icon: <img src={financeIcon} style={{ width: '16px' }} alt="Finance Icon" />, label: 'Finance' },
+                                        { key: 'hris', icon: <img src={humanResourcIcon} style={{ width: '16px' }} alt="HRIS Icon" />, label: 'HRIS' },
+                                        { key: 'inventory', icon: <img src={inventoryIcon} style={{ width: '16px' }} alt="Inventory Icon" />, label: 'Inventory' },
+                                        { key: 'crm', icon: <img src={salesIcon} style={{ width: '16px' }} alt="CRM Icon" />, label: 'CRM' },
+                                        { key: 'operations', icon: <img src={operationIcon} style={{ width: '16px' }} alt="Operations Icon" />, label: 'Operations' },
                                     ].map(item => (
                                         <li className="nav-item w-100" key={item.key}>
                                             <button
                                                 id={`admin-nav-${item.key}`}
-                                                className={`nav-link ps-5 w-100 d-flex align-items-center ${toggleActive === item.key ? 'active' : ''}`}
+                                                className={`nav-link ps-5 w-100 d-flex align-items-center gap-2 ${toggleActive === item.key ? 'active' : ''}`}
                                                 onClick={() => setToggleActive(item.key)}
                                             >
-                                                {item.label}
+                                                {item.icon} {item.label}
                                             </button>
                                         </li>
                                     ))}
@@ -783,7 +789,7 @@ const AdminOverview = ({ user, onNavigate }) => {
 const ModulePlaceholder = ({ title, icon, description }) => (
     <div>
         <div className="border-bottom pb-3 mb-4">
-            <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>{icon} {title}</h4>
+            <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>{title}</h4>
             <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Enterprise Management Module</p>
         </div>
         <div
@@ -1106,7 +1112,7 @@ const FinancePage = ({ user }) => {
             {/* Header */}
             <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
                 <div>
-                    <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>💰 Finance & Accounting</h4>
+                    <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>Finance & Accounting</h4>
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Track Revenue, Commission Payouts, and Business Expenses</p>
                 </div>
                 <div className="d-flex gap-2">
@@ -1528,7 +1534,7 @@ const InventoryPage = ({ user }) => {
             {/* Header */}
             <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
                 <div>
-                    <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>📦 Inventory & Supply Chain</h4>
+                    <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>Inventory & Supply Chain</h4>
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Track Warehouse Stock levels and soap usage</p>
                 </div>
                 <div className="d-flex gap-2">
