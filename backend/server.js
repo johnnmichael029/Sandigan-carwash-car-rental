@@ -116,7 +116,7 @@ app.get('/api/csrf-token', (req, res) => {
 });
 
 // Apply CSRF protection globally — safe methods (GET, HEAD) are skipped automatically
-//app.use(doubleCsrfProtection);
+app.use(doubleCsrfProtection);
 
 const pricingRoutes = require('./routes/pricingRoutes');
 
