@@ -586,6 +586,26 @@ label {
     color: var(--text-primary) !important;
 }
 
+/* Service Settings */
+.service-settings:hover {
+    background-color: var(--brand-active);
+    font-weight: 500;
+    color: var(--brand-primary);
+}
+
+.service-settings-active {
+    background-color: var(--brand-dark);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.service-settings-active:hover {
+    background-color: var(--brand-dark);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+
 /* ─── Responsive: Service Cards ─── */
 /* Make service cards full width on mobile */
 .service-card {

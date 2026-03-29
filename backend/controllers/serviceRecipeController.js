@@ -73,3 +73,21 @@ exports.deductStockForBooking = async ({ serviceTypes, vehicleType }) => {
 
     return totalSupplyCost;
 };
+exports.getIngredientsForBooking = async ({ serviceTypes, vehicleType }) => {
+    const allIngredients = [];
+    for (const serviceType of serviceTypes) {
+        const recipe = await ServiceRecipe.findOne({
+            serviceType,
+            vehicleType: { $in: [vehicleType, 'All'] }
+        });
+        if (recipe) {
+            recipe.ingredients.forEach(ing => {
+                allIngredients.push({
+                    inventoryItem: ing.inventoryItem,
+                    quantityUsed: ing.quantityUsed
+                });
+            });
+        }
+    }
+    return allIngredients;
+};

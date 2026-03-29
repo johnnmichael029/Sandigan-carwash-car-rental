@@ -324,18 +324,6 @@ const AdminDashboard = () => {
                         {/* Activity Log nav item — standalone, before ERP */}
                         <li className="nav-item w-100">
                             <button
-                                id="admin-nav-settings"
-                                className={`nav-link ps-4 w-100 d-flex align-items-center ${toggleActive === 'settings' ? 'active' : ''}`}
-                                onClick={() => setToggleActive('settings')}
-                            >
-                                <img className="pe-2" style={{ width: '24px' }} src={settingsIcon} alt="Settings Icon" />
-                                Service Settings
-                            </button>
-                        </li>
-
-                        {/* Activity Log nav item — standalone, before ERP */}
-                        <li className="nav-item w-100">
-                            <button
                                 id="admin-nav-activity-log"
                                 className={`nav-link ps-4 w-100 d-flex align-items-center ${toggleActive === 'activity-log' ? 'active' : ''}`}
                                 onClick={() => setToggleActive('activity-log')}
@@ -389,6 +377,19 @@ const AdminDashboard = () => {
                                 </ul>
                             </li>
                         )}
+
+                        {/* Service Settings */}
+                        <li className="nav-item w-100">
+                            <button
+                                id="admin-nav-settings"
+                                className={`nav-link ps-4 w-100 d-flex align-items-center ${toggleActive === 'settings' ? 'active' : ''}`}
+                                onClick={() => setToggleActive('settings')}
+                            >
+                                <img className="pe-2" style={{ width: '24px' }} src={settingsIcon} alt="Settings Icon" />
+                                Service Settings
+                            </button>
+                        </li>
+
                     </ul>
 
                     {/* Footer: user info + logout */}
@@ -981,6 +982,7 @@ const ActivityLogPage = () => {
 const FinancePage = ({ user }) => {
     const [summary, setSummary] = useState({ totalRevenue: 0, totalCommissionOwed: 0, totalExpenses: 0, netProfit: 0 });
     const [expenses, setExpenses] = useState([]);
+    const [recipes, setRecipes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'settings'
     const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -995,6 +997,18 @@ const FinancePage = ({ user }) => {
     const [newBill, setNewBill] = useState({ name: '', amount: '', category: 'Utilities', frequency: 'Monthly' });
     const [isApplying, setIsApplying] = useState(false);
     const [showBillForm, setShowBillForm] = useState(false);
+
+    const fetchData = async () => {
+        try {
+            const [recipesRes] = await Promise.all([
+                axios.get(`${API_BASE}/service-recipes`, { headers: authHeaders(), withCredentials: true }),
+            ]);
+            setRecipes(recipesRes.data);
+        } catch (err) { console.error("Error fetching recipe data:", err); }
+    };
+
+    useEffect(() => { fetchData(); }, []);
+
 
     const fetchFinanceData = async () => {
         try {
@@ -1016,7 +1030,16 @@ const FinancePage = ({ user }) => {
         setIsSavingRate(true);
         try {
             await axios.post(`${API_BASE}/finance/settings`, { key: 'commission_rate', value: parseFloat(commissionRate) }, { headers: authHeaders(), withCredentials: true });
-            Swal.fire('Updated', 'Detailer commission rate updated successfully!', 'success');
+            Swal.fire({
+                title: 'Commission Rate Updated Successfully!',
+                icon: 'success',
+                toast: true,
+                position: 'top-end',
+                timer: 3000,
+                showConfirmButton: false,
+                background: '#002525',
+                color: '#FAFAFA'
+            });
             fetchFinanceData();
         } catch (err) { Swal.fire('Error', 'Failed to update rate', 'error'); }
         finally { setIsSavingRate(false); }
@@ -1039,7 +1062,16 @@ const FinancePage = ({ user }) => {
         e.preventDefault();
         try {
             await axios.post(`${API_BASE}/finance/expenses`, newExpense, { headers: authHeaders(), withCredentials: true });
-            Swal.fire('Success', 'Expense recorded successfully!', 'success');
+            Swal.fire({
+                title: 'Expense Added Successfully!',
+                icon: 'success',
+                toast: true,
+                position: 'top-end',
+                timer: 3000,
+                showConfirmButton: false,
+                background: '#002525',
+                color: '#FAFAFA'
+            });
             setShowExpenseModal(false);
             setNewExpense({ title: '', category: 'Supplies', amount: '', description: '' });
             fetchFinanceData();
@@ -1070,7 +1102,16 @@ const FinancePage = ({ user }) => {
             setNewBill({ name: '', amount: '', category: 'Utilities', frequency: 'Monthly' });
             setShowBillForm(false);
             fetchRecurringBills();
-            Swal.fire({ icon: 'success', title: 'Bill Saved!', timer: 1500, showConfirmButton: false });
+            Swal.fire({
+                title: 'Bill Added Successfully!',
+                icon: 'success',
+                toast: true,
+                position: 'top-end',
+                timer: 3000,
+                showConfirmButton: false,
+                background: '#002525',
+                color: '#FAFAFA'
+            });
         } catch (err) { Swal.fire('Error', 'Could not save bill.', 'error'); }
     };
 
@@ -1086,7 +1127,16 @@ const FinancePage = ({ user }) => {
         setIsApplying(true);
         try {
             const res = await axios.post(`${API_BASE}/recurring-bills/apply`, {}, { headers: authHeaders(), withCredentials: true });
-            Swal.fire('Applied!', `${res.data.applied} bill(s) have been posted to your expenses.`, 'success');
+            Swal.fire({
+                title: 'Bill Applied Successfully!',
+                icon: 'success',
+                toast: true,
+                position: 'top-end',
+                timer: 3000,
+                showConfirmButton: false,
+                background: '#002525',
+                color: '#FAFAFA'
+            });
             fetchRecurringBills();
             fetchFinanceData();
         } catch (err) { Swal.fire('Error', 'Could not apply bills.', 'error'); }
@@ -1100,6 +1150,16 @@ const FinancePage = ({ user }) => {
         e.preventDefault();
         try {
             await axios.patch(`${API_BASE}/recurring-bills/${editingBill._id}`, editingBill, { headers: authHeaders(), withCredentials: true });
+            Swal.fire({
+                title: 'Bill Updated Successfully!',
+                icon: 'success',
+                toast: true,
+                position: 'top-end',
+                timer: 3000,
+                showConfirmButton: false,
+                background: '#002525',
+                color: '#FAFAFA'
+            });
             setEditingBill(null);
             fetchRecurringBills();
         } catch (err) { Swal.fire('Error', 'Could not update bill.', 'error'); }
@@ -1141,7 +1201,7 @@ const FinancePage = ({ user }) => {
                     {/* Left: Commission Rate */}
                     <div className="col-md-5">
                         <div className="card border-0 shadow-sm rounded-4 p-4 mb-4">
-                            <h6 className="fw-bold text-dark-secondary mb-4">⚙️ Commission Rate</h6>
+                            <h6 className="fw-bold text-dark-secondary mb-4">Commission Rate</h6>
                             <div className="mb-4">
                                 <label className="form-label text-muted small fw-bold mb-2">Detailer Commission Rate</label>
                                 <div className="input-group" style={{ maxWidth: '200px' }}>
@@ -1192,7 +1252,7 @@ const FinancePage = ({ user }) => {
                                     <h6 className="mb-0 fw-bold text-dark-secondary">🗓 Recurring Bills</h6>
                                     <small className="text-muted" style={{ fontSize: '0.72rem' }}>Fixed monthly/weekly costs (Internet, Water, Electricity)</small>
                                 </div>
-                                <button onClick={() => setShowBillForm(!showBillForm)} className="btn btn-outline-primary btn-sm rounded-pill px-3">+ Add Bill</button>
+                                <button onClick={() => setShowBillForm(!showBillForm)} className="btn btn-save btn-sm rounded-pill px-3">+ Add Bill</button>
                             </div>
 
                             {/* Add Bill Form */}
@@ -1364,12 +1424,20 @@ const FinancePage = ({ user }) => {
                                                         <tr key={exp._id}>
                                                             <td className="ps-4">
                                                                 <div className="fw-bold text-dark-secondary">{exp.title}</div>
-                                                                <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>{exp.description || 'No description'}</small>
+
+                                                                <div className="d-flex flex-wrap gap-2 mt-1">
+                                                                    {exp.ingredients && exp.ingredients.map((ing, i) => (
+                                                                        <span key={i} className="badge bg-light text-dark-gray100 border rounded-pill px-2 py-1" style={{ fontSize: '0.7rem' }}>
+                                                                            {ing.inventoryItem?.name ?? '–'}: {ing.quantityUsed} {ing.inventoryItem?.unit}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                                <span className="text-dark-gray200" style={{ fontSize: '0.7rem' }}>{exp.description}</span>
                                                             </td>
                                                             <td>
                                                                 <span className="badge rounded-pill" style={{ background: 'rgba(35,160,206,0.1)', color: '#23A0CE', fontSize: '0.7rem' }}>{exp.category}</span>
                                                             </td>
-                                                            <td className="text-muted">{new Date(exp.date).toLocaleDateString()}</td>
+                                                            <td className="text-dark-gray200">{new Date(exp.date).toLocaleDateString()}</td>
                                                             <td className="fw-bold text-danger">- ₱{exp.amount.toLocaleString()}</td>
                                                             <td className="pe-4 text-end">
                                                                 <button onClick={() => deleteExpense(exp._id)} className="btn btn-sm text-danger-hover p-0 border-0 bg-transparent">
@@ -1491,7 +1559,16 @@ const InventoryPage = ({ user }) => {
         e.preventDefault();
         try {
             await axios.post(`${API_BASE}/inventory`, newItem, { headers: authHeaders(), withCredentials: true });
-            Swal.fire('Success', 'Item added to inventory', 'success');
+            Swal.fire({
+                title: 'Item Added Successfully!',
+                icon: 'success',
+                toast: true,
+                position: 'top-end',
+                timer: 3000,
+                showConfirmButton: false,
+                background: '#002525',
+                color: '#FAFAFA'
+            });
             setShowAddModal(false);
             setNewItem({ name: '', category: 'Chemicals', currentStock: '', unit: 'ml', reorderPoint: '', costPerUnit: '' });
             fetchInventory();
@@ -1734,25 +1811,51 @@ const InventoryPage = ({ user }) => {
 /* ─────────────────────────────────────────────
    RECIPE BUILDER — Service → Ingredient Linker
 ───────────────────────────────────────────── */
-const SERVICE_TYPES = ['Wash', 'Wax', 'Engine', 'Armor'];
-const VEHICLE_TYPES = ['All', 'Sedan', 'SUV', 'Motorcycle', 'Pickup', 'Van'];
 
 const RecipeBuilder = ({ inventoryItems }) => {
     const [recipes, setRecipes] = useState([]);
+    const [dynamicPricing, setDynamicPricing] = useState([]);
     const [serviceType, setServiceType] = useState('Wash');
     const [vehicleType, setVehicleType] = useState('All');
     const [ingredients, setIngredients] = useState([{ inventoryItem: '', quantityUsed: '' }]);
     const [isSaving, setIsSaving] = useState(false);
     const [editingId, setEditingId] = useState(null);
 
-    const fetchRecipes = async () => {
+    const fetchData = async () => {
         try {
-            const res = await axios.get(`${API_BASE}/service-recipes`, { headers: authHeaders(), withCredentials: true });
-            setRecipes(res.data);
-        } catch (err) { console.error(err); }
+            const [recipesRes, pricingRes] = await Promise.all([
+                axios.get(`${API_BASE}/service-recipes`, { headers: authHeaders(), withCredentials: true }),
+                axios.get(`${API_BASE}/pricing`, { headers: authHeaders(), withCredentials: true })
+            ]);
+            setRecipes(recipesRes.data);
+            setDynamicPricing(pricingRes.data.dynamicPricing || []);
+        } catch (err) { console.error("Error fetching recipe data:", err); }
     };
 
-    useEffect(() => { fetchRecipes(); }, []);
+    useEffect(() => { fetchData(); }, []);
+
+    const dynamicServiceTypes = useMemo(() => {
+        const all = new Set();
+        dynamicPricing.forEach(v => {
+            v.services?.forEach(s => all.add(s.name));
+            v.addons?.forEach(a => all.add(a.name));
+        });
+        if (all.size === 0) return ['Wash', 'Wax', 'Engine', 'Armor'];
+        return Array.from(all).sort();
+    }, [dynamicPricing]);
+
+    const dynamicVehicleTypes = useMemo(() => {
+        const all = new Set(dynamicPricing.map(p => p.vehicleType));
+        if (all.size === 0) return ['All', 'Sedan', 'SUV', 'Motorcycle', 'Pickup', 'Van'];
+        return ['All', ...Array.from(all).sort()];
+    }, [dynamicPricing]);
+
+    useEffect(() => {
+        // Wait until dynamic data is loaded to set defaults, only if not editing
+        if (!editingId && dynamicServiceTypes.length > 0 && !dynamicServiceTypes.includes(serviceType)) {
+            setServiceType(dynamicServiceTypes[0]);
+        }
+    }, [dynamicServiceTypes, serviceType, editingId]);
 
     const addIngredientRow = () => setIngredients([...ingredients, { inventoryItem: '', quantityUsed: '' }]);
 
@@ -1782,17 +1885,35 @@ const RecipeBuilder = ({ inventoryItems }) => {
             if (editingId) {
                 // UPDATE existing
                 await axios.patch(`${API_BASE}/service-recipes/${editingId}`, { serviceType, vehicleType, ingredients: validIngredients }, { headers: authHeaders(), withCredentials: true });
-                Swal.fire({ icon: 'success', title: 'Recipe Updated!', timer: 2000, showConfirmButton: true });
+                Swal.fire({
+                    title: 'Recipe Updated Successfully!',
+                    icon: 'success',
+                    toast: true,
+                    position: 'top-end',
+                    timer: 3000,
+                    showConfirmButton: false,
+                    background: '#002525',
+                    color: '#FAFAFA'
+                });
             } else {
                 // CREATE new (upsert)
                 await axios.post(`${API_BASE}/service-recipes`, { serviceType, vehicleType, ingredients: validIngredients }, { headers: authHeaders(), withCredentials: true });
-                Swal.fire({ icon: 'success', title: 'Recipe Saved!', text: `${serviceType} recipe for ${vehicleType} is now active.`, timer: 2000, showConfirmButton: true });
+                Swal.fire({
+                    title: 'Recipe Saved Successfully!',
+                    icon: 'success',
+                    toast: true,
+                    position: 'top-end',
+                    timer: 3000,
+                    showConfirmButton: false,
+                    background: '#002525',
+                    color: '#FAFAFA'
+                });
             }
 
             // Reset form
             setEditingId(null);
             setIngredients([{ inventoryItem: '', quantityUsed: '' }]);
-            fetchRecipes();
+            fetchData();
         } catch (err) {
             Swal.fire('Error', 'Could not save recipe.', 'error');
         }
@@ -1821,7 +1942,7 @@ const RecipeBuilder = ({ inventoryItems }) => {
         const result = await Swal.fire({ title: 'Delete Recipe?', icon: 'warning', showCancelButton: true });
         if (result.isConfirmed) {
             await axios.delete(`${API_BASE}/service-recipes/${id}`, { headers: authHeaders(), withCredentials: true });
-            fetchRecipes();
+            fetchData();
         }
     };
 
@@ -1831,22 +1952,22 @@ const RecipeBuilder = ({ inventoryItems }) => {
             <div className="col-lg-5">
                 <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
                     <div className="card-header bg-white border-bottom py-3">
-                        <h6 className="mb-0 fw-bold text-dark-secondary">🧪 Build a Service Recipe</h6>
+                        <h6 className="mb-0 fw-bold text-dark-secondary">Build a Service Recipe</h6>
                         <small className="text-muted" style={{ fontSize: '0.75rem' }}>Define which soaps/chemicals are used per service</small>
                     </div>
                     <form onSubmit={handleSaveRecipe}>
                         <div className="card-body p-4">
                             <div className="row g-3 mb-4">
                                 <div className="col-6">
-                                    <label className="form-label small fw-bold text-muted">Service</label>
+                                    <label className="form-label small fw-bold text-muted">Service or Add-on</label>
                                     <select className="form-select rounded-3" value={serviceType} onChange={e => setServiceType(e.target.value)}>
-                                        {SERVICE_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+                                        {dynamicServiceTypes.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
                                 </div>
                                 <div className="col-6">
                                     <label className="form-label small fw-bold text-muted">Vehicle Type</label>
                                     <select className="form-select rounded-3" value={vehicleType} onChange={e => setVehicleType(e.target.value)}>
-                                        {VEHICLE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
+                                        {dynamicVehicleTypes.map(v => <option key={v} value={v}>{v}</option>)}
                                     </select>
                                 </div>
                             </div>
@@ -1910,7 +2031,7 @@ const RecipeBuilder = ({ inventoryItems }) => {
                                 <button type="button" onClick={cancelEdit} className="btn btn-danger px-4 rounded-3">Cancel</button>
                             ) : <div />}
                             <button type="submit" disabled={isSaving || inventoryItems.length === 0} className="btn btn-save px-4 rounded-3 shadow-sm">
-                                {isSaving ? 'Saving...' : (editingId ? 'Update Recipe' : '💾 Save Recipe')}
+                                {isSaving ? 'Saving...' : (editingId ? 'Update Recipe' : 'Save Recipe')}
                             </button>
                         </div>
                     </form>
@@ -2049,6 +2170,15 @@ const ServiceSettingsPage = ({ user }) => {
     };
 
     const handleSaveDoc = async () => {
+        if (!editingDoc || !editingDoc._id) return;
+
+        // Validation Check
+        const hasEmptyNames = [...editingDoc.services, ...editingDoc.addons].some(item => !item.name.trim());
+        if (hasEmptyNames) {
+            Swal.fire('Incomplete Data', 'All services and add-ons must have a name.', 'warning');
+            return;
+        }
+
         setIsSaving(true);
         try {
             const res = await axios.put(`${API_BASE}/pricing/${editingDoc._id}`, {
@@ -2057,13 +2187,25 @@ const ServiceSettingsPage = ({ user }) => {
                 addons: editingDoc.addons
             }, { headers: authHeaders(), withCredentials: true });
 
-            setVehicles(prev => prev.map(v => v._id === res.data._id ? res.data : v));
-            setSelectedVehicle(res.data);
-            setEditingDoc(res.data);
-            Swal.fire({ title: 'Saved!', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+            if (res.data && res.data._id) {
+                setVehicles(prev => prev.map(v => v._id === res.data._id ? res.data : v));
+                setSelectedVehicle(res.data);
+                setEditingDoc(JSON.parse(JSON.stringify(res.data))); // Refresh edit buffer
+                Swal.fire({
+                    title: 'Item Added Successfully!',
+                    icon: 'success',
+                    toast: true,
+                    position: 'top-end',
+                    timer: 3000,
+                    showConfirmButton: false,
+                    background: '#002525',
+                    color: '#FAFAFA'
+                });
+            }
         } catch (err) {
-            console.error(err);
-            Swal.fire('Error', 'Failed to save changes.', 'error');
+            console.error("Pricing Save Error:", err);
+            const errMsg = err.response?.data?.error || 'Failed to save changes. Please try again.';
+            Swal.fire('Save Failed', errMsg, 'error');
         } finally {
             setIsSaving(false);
         }
@@ -2099,11 +2241,11 @@ const ServiceSettingsPage = ({ user }) => {
         <div>
             <div className="border-bottom pb-3 mb-4 d-flex justify-content-between align-items-center">
                 <div>
-                    <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>⚙️ Service & Pricing Settings</h4>
+                    <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>Service & Pricing Settings</h4>
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Dynamic pricing configuration for bookings.</p>
                 </div>
-                <button onClick={handleCreateVehicle} className="btn btn-primary rounded-3 text-white fw-bold shadow-sm">
-                    + Add New Vehicle Type
+                <button onClick={handleCreateVehicle} className="btn btn-save rounded-3 text-white fw-bold shadow-sm">
+                    + Add Vehicle Type
                 </button>
             </div>
 
@@ -2112,13 +2254,13 @@ const ServiceSettingsPage = ({ user }) => {
                 <div className="col-12 col-md-4 col-lg-3">
                     <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
                         <div className="card-header bg-white border-bottom py-3">
-                            <h6 className="mb-0 fw-bold">Select Vehicle</h6>
+                            <h6 className="mb-0 fw-bold text-dark-secondary">Select Vehicle</h6>
                         </div>
                         <ul className="list-group list-group-flush" style={{ maxHeight: '600px', overflowY: 'auto' }}>
                             {vehicles.map(v => (
                                 <li
                                     key={v._id}
-                                    className={`list-group-item d-flex justify-content-between align-items-center cursor-pointer p-3 ${selectedVehicle?._id === v._id ? 'bg-primary text-white' : ''}`}
+                                    className={`list-group-item service-settings d-flex justify-content-between align-items-center cursor-pointer p-3  ${selectedVehicle?._id === v._id ? 'service-settings-active text-white' : ''}`}
                                     onClick={() => handleSelectVehicle(v)}
                                     style={{ cursor: 'pointer', transition: '0.2s' }}
                                 >
@@ -2134,14 +2276,14 @@ const ServiceSettingsPage = ({ user }) => {
                 <div className="col-12 col-md-8 col-lg-9">
                     {!editingDoc ? (
                         <div className="card border-0 shadow-sm rounded-4 h-100 d-flex align-items-center justify-content-center p-5 text-muted">
-                            <p>👈 Select a vehicle from the left to manage its services and prices.</p>
+                            <p>Select a vehicle from the left to manage its services and prices.</p>
                         </div>
                     ) : (
                         <div className="card border-0 shadow-sm rounded-4">
                             <div className="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
                                 <h5 className="mb-0 fw-bold font-poppins">Pricing for {editingDoc.vehicleType}</h5>
-                                <button onClick={() => handleDeleteVehicle(editingDoc._id, editingDoc.vehicleType)} className="btn btn-sm btn-outline-danger px-3 rounded-pill">
-                                    🗑️ Delete {editingDoc.vehicleType}
+                                <button onClick={() => handleDeleteVehicle(editingDoc._id, editingDoc.vehicleType)} className="btn">
+                                    <img src={deleteIcon} alt="Delete Icon" style={{ width: '16px' }} />
                                 </button>
                             </div>
 
@@ -2149,8 +2291,8 @@ const ServiceSettingsPage = ({ user }) => {
                                 {/* Core Services */}
                                 <div className="mb-5">
                                     <div className="d-flex justify-content-between align-items-center mb-3">
-                                        <h6 className="fw-bold text-dark-secondary mb-0">🛠️ Core Services</h6>
-                                        <button onClick={() => addServiceOrAddon('services')} className="btn btn-sm btn-primary rounded-pill text-white shadow-sm">+ Add Core Service</button>
+                                        <h6 className="fw-bold text-dark-secondary mb-0">Core Services</h6>
+                                        <button onClick={() => addServiceOrAddon('services')} className="btn btn-sm btn-save rounded-pill text-white shadow-sm">+ Add Service</button>
                                     </div>
                                     {editingDoc.services.length === 0 ? <p className="text-muted small">No core services defined.</p> : (
                                         <div className="table-responsive">
@@ -2185,8 +2327,8 @@ const ServiceSettingsPage = ({ user }) => {
                                 {/* Addons */}
                                 <div className="mb-4">
                                     <div className="d-flex justify-content-between align-items-center mb-3">
-                                        <h6 className="fw-bold text-dark-secondary mb-0">✨ Add-ons & Extras</h6>
-                                        <button onClick={() => addServiceOrAddon('addons')} className="btn btn-sm btn-info rounded-pill text-white shadow-sm">+ Add Extra Item</button>
+                                        <h6 className="fw-bold brand-primary mb-0">Add-ons & Extras</h6>
+                                        <button onClick={() => addServiceOrAddon('addons')} className="btn btn-sm btn-save rounded-pill text-white shadow-sm">+ Add Item</button>
                                     </div>
                                     {editingDoc.addons.length === 0 ? <p className="text-muted small">No add-ons defined.</p> : (
                                         <div className="table-responsive">
@@ -2226,7 +2368,7 @@ const ServiceSettingsPage = ({ user }) => {
                                     className="btn btn-success px-5 rounded-pill shadow"
                                     disabled={isSaving}
                                 >
-                                    {isSaving ? 'Saving...' : '💾 Save All Changes'}
+                                    {isSaving ? 'Saving...' : 'Save All Changes'}
                                 </button>
                             </div>
                         </div>

@@ -25,6 +25,10 @@ const expenseSchema = new Schema({
     receiptUrl: {
         type: String // We can add file upload later
     },
+    ingredients: [{
+        inventoryItem: { type: mongoose.Schema.Types.ObjectId, ref: 'Inventory' },
+        quantityUsed: { type: Number }
+    }],
     recordedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'employee'

@@ -16,17 +16,30 @@ const Login = () => {
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
-    // Prevent already-logged-in users from seeing the login page
+    // Redirect to setup if no admin exists yet
     useEffect(() => {
-        const employeeData = localStorage.getItem('employee');
-        if (employeeData) {
-            const employee = JSON.parse(employeeData);
-            if (employee.role === 'admin') {
-                navigate('/admin', { replace: true });
-            } else {
-                navigate('/employee', { replace: true });
+        const checkSetup = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/employees/setup-status`);
+                const data = await res.json();
+                if (data.setupRequired) {
+                    navigate('/setup', { replace: true });
+                    return;
+                }
+            } catch { /* server unreachable — show login form normally */ }
+
+            // If already logged in, go to the right dashboard
+            const employeeData = localStorage.getItem('employee');
+            if (employeeData) {
+                const employee = JSON.parse(employeeData);
+                if (employee.role === 'admin') {
+                    navigate('/admin', { replace: true });
+                } else {
+                    navigate('/employee', { replace: true });
+                }
             }
-        }
+        };
+        checkSetup();
     }, [navigate]);
 
     // Auto-clear error after 5 seconds

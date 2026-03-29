@@ -15,6 +15,36 @@ const {
 
 // --- PUBLIC ROUTES (no auth needed) ---
 
+// ── FIRST-RUN SETUP ──────────────────────────────────────────────────────────
+// Check if any admin account exists (used to show/hide the setup page)
+router.get('/setup-status', async (req, res) => {
+    try {
+        const Employee = require('../models/employeeModel');
+        const adminCount = await Employee.countDocuments({ role: 'admin' });
+        res.json({ setupRequired: adminCount === 0 });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Create the FIRST admin account — only works if no admin exists
+router.post('/setup', async (req, res) => {
+    try {
+        const Employee = require('../models/employeeModel');
+        const adminCount = await Employee.countDocuments({ role: 'admin' });
+        if (adminCount > 0) {
+            return res.status(403).json({ error: 'Setup already completed. This page is locked.' });
+        }
+        const { createEmployee } = require('../controllers/employeeController');
+        // Force the role to 'admin' regardless of what was sent
+        req.body.role = 'admin';
+        return createEmployee(req, res);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Employee login (rate limited — 10 attempts per 15 mins, defined centrally in server.js)
 router.post('/login', loginEmployee);
 

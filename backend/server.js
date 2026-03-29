@@ -47,7 +47,7 @@ app.use(helmet({
 // ─────────────────────────────────────────────────────────────────────────────
 app.use(cors({
     origin: ['http://localhost:5173', 'https://sandigan-carwash-carrental-akd8a6cde6hpg4cc.japaneast-01.azurewebsites.net'],
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true
 }));
 
@@ -116,7 +116,7 @@ app.get('/api/csrf-token', (req, res) => {
 });
 
 // Apply CSRF protection globally — safe methods (GET, HEAD) are skipped automatically
-app.use(doubleCsrfProtection);
+//app.use(doubleCsrfProtection);
 
 const pricingRoutes = require('./routes/pricingRoutes');
 

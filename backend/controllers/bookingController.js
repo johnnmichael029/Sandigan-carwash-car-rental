@@ -224,7 +224,7 @@ const updateBooking = async (req, res) => {
 
         if (finalStatus === 'Completed' && (statusJustCompleted || priceChanged)) {
             const finalPrice = updateQuery.$set.totalPrice || currentBooking.totalPrice;
-            
+
             // Fetch current commission rate from settings (default to 0.30 if not set)
             const { getSettingValue } = require('./settingController');
             const commissionRate = await getSettingValue('commission_rate', 0.30);
@@ -248,11 +248,20 @@ const updateBooking = async (req, res) => {
                     if (supplyCost > 0) {
                         const Expense = require('../models/expenseModel');
                         const shortId = currentBooking.batchId || id.toString().slice(-6);
+
+                        // Get the ingredients breakdown for the expense record
+                        const { getIngredientsForBooking } = require('./serviceRecipeController');
+                        const ingredientsUsed = await getIngredientsForBooking({
+                            serviceTypes,
+                            vehicleType: newVehicle
+                        });
+
                         await Expense.create({
                             title: `Supplies used — Booking #${shortId}`,
                             category: 'Supplies',
                             amount: supplyCost,
                             description: `Auto-deducted per service recipe for ${serviceTypes.join(', ')} (${newVehicle})`,
+                            ingredients: ingredientsUsed
                         });
                     }
                 } catch (recipeErr) {
