@@ -23,7 +23,7 @@ exports.updateInventoryItem = async (req, res) => {
         const updates = {};
         allowed.forEach(field => { if (req.body[field] !== undefined) updates[field] = req.body[field]; });
         if (updates.currentStock !== undefined) updates.lastRestocked = Date.now();
-        const item = await Inventory.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
+        const item = await Inventory.findByIdAndUpdate(id, updates, { returnDocument: 'after', runValidators: true });
         res.status(200).json(item);
     } catch (err) { res.status(500).json({ error: err.message }); }
 };

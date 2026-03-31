@@ -55,6 +55,11 @@ const bookingSchema = new Schema({
         type: String,
         default: ''
     },
+    assignedTo: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'employee',
+        default: null
+    },
     commission: {
         type: Number,
         default: 0
@@ -63,7 +68,30 @@ const bookingSchema = new Schema({
         type: String,
         enum: ['Unpaid', 'Paid'],
         default: 'Unpaid'
-    }
+    },
+    smcId: {
+        type: String,
+        default: null
+    },
+    discountAmount: {
+        type: Number,
+        default: 0
+    },
+    promoCode: {
+        type: String,
+        default: null
+    },
+    promoDiscount: {
+        type: Number,
+        default: 0
+    },
+    purchasedProducts: [{
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+        productName: String,
+        category: String,
+        quantity: Number,
+        price: Number
+    }]
 }, { timestamps: true });
 const Booking = mongoose.model('booking', bookingSchema);
 

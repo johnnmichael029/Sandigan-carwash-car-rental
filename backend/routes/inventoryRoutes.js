@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const requireAuth = require('../middleware/requireAuth');
+const adminOnly = require('../middleware/adminOnly');
 const { getInventory, addInventoryItem, updateInventoryItem, deleteInventoryItem } = require('../controllers/inventoryController');
 
-// All inventory routes require admin auth
-router.get('/', requireAuth, getInventory);
-router.post('/', requireAuth, addInventoryItem);
-router.patch('/:id', requireAuth, updateInventoryItem);
-router.delete('/:id', requireAuth, deleteInventoryItem);
+// Admin-only management routes
+router.get('/', requireAuth, getInventory); // GET (view stock) is open to all staff for POS/Bookings
+router.post('/', requireAuth, adminOnly, addInventoryItem);
+router.patch('/:id', requireAuth, adminOnly, updateInventoryItem);
+router.delete('/:id', requireAuth, adminOnly, deleteInventoryItem);
 
 module.exports = router;

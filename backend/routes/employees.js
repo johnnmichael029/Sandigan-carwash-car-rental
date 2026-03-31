@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const requireAuth = require('../middleware/requireAuth');
+const adminOnly = require('../middleware/adminOnly');
 
 // Import controller functions
 const {
@@ -51,21 +52,21 @@ router.post('/login', loginEmployee);
 // Employee logout (clears the auth cookie)
 router.post('/logout', logoutEmployee);
 
-// Create a new employee (sign up - keep public or restrict to admin later)
-router.post('/signup', createEmployee);
+// Create a new employee (sign up - restrict to admin)
+router.post('/signup', requireAuth, adminOnly, createEmployee);
 
 // --- PROTECTED ROUTES (require valid JWT) ---
 
-// Get all employees — sensitive, protect it
+// Get all employees — staff need this for detailer selection
 router.get('/', requireAuth, getEmployees);
 
 // Get a single employee
 router.get('/:id', requireAuth, getEmployee);
 
-// Update employee
-router.patch('/:id', requireAuth, updateEmployee);
+// Update employee (Admin only)
+router.patch('/:id', requireAuth, adminOnly, updateEmployee);
 
-// Delete employee
-router.delete('/:id', requireAuth, deleteEmployee);
+// Delete employee (Admin only)
+router.delete('/:id', requireAuth, adminOnly, deleteEmployee);
 
 module.exports = router;

@@ -17,7 +17,7 @@ const updateSetting = async (req, res) => {
         const setting = await Setting.findOneAndUpdate(
             { key },
             { value },
-            { new: true, upsert: true }
+            { returnDocument: 'after', upsert: true }
         );
         res.status(200).json(setting);
     } catch (err) {

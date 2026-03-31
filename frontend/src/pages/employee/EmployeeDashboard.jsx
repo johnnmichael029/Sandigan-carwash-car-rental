@@ -22,6 +22,7 @@ import completedBooking from '../../assets/icon/completed-booking-brand.png';
 import editBooking from '../../assets/icon/edit-book.png';
 import bookDuration from '../../assets/icon/duration.png';
 import inProgressBooking from '../../assets/icon/in-progress.png';
+import inventoryIcon from '../../assets/icon/inventory.png';
 import { API_BASE, authHeaders } from '../../api/config';
 import { io } from 'socket.io-client';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -139,7 +140,7 @@ const TopHeader = ({ employee, title, subtitle, onNavigate }) => {
 };
 
 // Sub-tabs that belong under the "Services" dropdown
-const SERVICE_ITEMS = ['bookings', 'car-rent'];
+const SERVICE_ITEMS = ['bookings', 'car-rent', 'retail'];
 
 /* ─────────────────────────────────────────────
    MAIN COMPONENT
@@ -155,6 +156,40 @@ const EmployeeDashboard = () => {
     const [isServicesOpen, setIsServicesOpen] = useState(
         SERVICE_ITEMS.includes('dashboard') // false on init; opens when child selected
     );
+
+    // SMCCard Global Management
+    const [isSMCModalOpen, setIsSMCModalOpen] = useState(false);
+    const [smcData, setSMCData] = useState(null);
+
+    const handleShowSMC = (bookingId) => {
+        axios.get(`${API_BASE}/crm/booking/${bookingId}/smc`, {
+            headers: authHeaders(),
+            withCredentials: true
+        })
+            .then(res => {
+                setSMCData(res.data);
+                setIsSMCModalOpen(true);
+            })
+            .catch(err => {
+                Swal.fire('Error', 'Membership card not found in CRM database.', 'error');
+                console.error(err);
+            });
+    };
+
+    const handleFetchSMCById = (smcId) => {
+        axios.get(`${API_BASE}/crm/card/${smcId}`, {
+            headers: authHeaders(),
+            withCredentials: true
+        })
+            .then(res => {
+                setSMCData(res.data);
+                setIsSMCModalOpen(true);
+            })
+            .catch(err => {
+                Swal.fire('Error', 'Card ID not found in database.', 'error');
+                console.error(err);
+            });
+    };
 
     /* ── Rehydrate employee from localStorage on mount ── */
     useEffect(() => {
@@ -264,9 +299,11 @@ const EmployeeDashboard = () => {
             case 'dashboard':
                 return <DashboardOverview employee={employee} onNavigate={setToggleActive} />;
             case 'bookings':
-                return <BookingManagement employee={employee} />;
+                return <BookingManagement employee={employee} onShowSMC={handleShowSMC} />;
             case 'car-rent':
                 return <CarRentManagement employee={employee} />;
+            case 'retail':
+                return <RetailManagement employee={employee} onSMCRequest={handleFetchSMCById} />;
             default:
                 return <DashboardOverview employee={employee} onNavigate={setToggleActive} />;
         }
@@ -360,6 +397,16 @@ const EmployeeDashboard = () => {
                                             Car Rent
                                         </button>
                                     </li>
+                                    <li className="nav-item w-100">
+                                        <button
+                                            id="nav-retail"
+                                            className={`nav-link ps-5 w-100 d-flex align-items-center gap-2 ${toggleActive === 'retail' ? 'active' : ''}`}
+                                            onClick={() => setToggleActive('retail')}
+                                        >
+
+                                            Retail Store
+                                        </button>
+                                    </li>
                                 </ul>
                             </li>
                         )}
@@ -403,6 +450,17 @@ const EmployeeDashboard = () => {
                     {renderContent()}
                 </main>
 
+                {/* Shared Membership Modal */}
+                {isSMCModalOpen && smcData && (
+                    <SMCCardModal
+                        data={smcData}
+                        onClose={() => {
+                            setIsSMCModalOpen(false);
+                            setSMCData(null);
+                        }}
+                    />
+                )}
+
             </div>
         </div>
     );
@@ -415,6 +473,12 @@ const DashboardOverview = ({ employee, onNavigate }) => {
     const [bookings, setBookings] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [chartFilter, setChartFilter] = useState('daily');
+
+    // Attendance State
+    const [attendanceStatus, setAttendanceStatus] = useState('Not Clocked In');
+    const [clockInTime, setClockInTime] = useState(null);
+    const [clockOutTime, setClockOutTime] = useState(null);
+    const [isClocking, setIsClocking] = useState(false);
 
     // Fetch all bookings for analytics
     useEffect(() => {
@@ -430,6 +494,20 @@ const DashboardOverview = ({ employee, onNavigate }) => {
         };
         fetchBookings();
 
+        const fetchAttendance = async () => {
+            try {
+                const res = await axios.get(`${API_BASE}/attendance/today`, { headers: authHeaders(), withCredentials: true });
+                setAttendanceStatus(res.data.status);
+                if (res.data.status === 'Clocked In') {
+                    setClockInTime(res.data.time);
+                } else if (res.data.status === 'Clocked Out') {
+                    setClockInTime(res.data.inTime);
+                    setClockOutTime(res.data.outTime);
+                }
+            } catch (err) { console.error('Error fetching attendance', err); }
+        };
+        fetchAttendance();
+
         const socket = io(API_BASE.replace('/api', ''));
         socket.on('new_booking', (newBooking) => {
             setBookings(prev => [newBooking, ...prev]);
@@ -444,6 +522,35 @@ const DashboardOverview = ({ employee, onNavigate }) => {
             socket.disconnect();
         };
     }, []);
+
+    const handleClockToggle = async () => {
+        setIsClocking(true);
+        try {
+            const res = await axios.post(`${API_BASE}/attendance/clock`, {}, { headers: authHeaders(), withCredentials: true });
+
+            Swal.fire({
+                title: res.data.message,
+                icon: 'success',
+                toast: true,
+                position: 'top-end',
+                timer: 3000,
+                showConfirmButton: false,
+                background: '#002525',
+                color: '#FAFAFA'
+            });
+
+            setAttendanceStatus(res.data.status);
+            if (res.data.status === 'Clocked In') {
+                setClockInTime(res.data.record.clockInTime);
+            } else if (res.data.status === 'Clocked Out') {
+                setClockOutTime(res.data.record.clockOutTime);
+            }
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'Failed to clock time.', 'error');
+        } finally {
+            setIsClocking(false);
+        }
+    };
 
     // Calculate Real-Time Metrics
     const metrics = useMemo(() => {
@@ -583,6 +690,39 @@ const DashboardOverview = ({ employee, onNavigate }) => {
                 subtitle={todayDate}
                 onNavigate={onNavigate}
             />
+
+            {/* ATTENDANCE WIDGET */}
+            <div className="card border-0 shadow-sm rounded-4 mb-4" style={{ background: 'linear-gradient(135deg, #0d1b1b, #153232)' }}>
+                <div className="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div className="d-flex align-items-center gap-3">
+                        <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px', background: 'rgba(35,160,206,0.15)', color: '#23A0CE' }}>
+                            {employee?.fullName?.charAt(0)?.toUpperCase() ?? 'J'}
+                        </div>
+                        <div>
+                            <h5 className="mb-1 text-white fw-bold">Daily Attendance</h5>
+                            <p className="mb-0 text-white-50" style={{ fontSize: '0.9rem' }}>
+                                Status: <strong style={{ color: attendanceStatus === 'Clocked In' ? '#22c55e' : attendanceStatus === 'Not Clocked In' ? '#f59e0b' : '#9ca3af' }}>{attendanceStatus}</strong>
+                                {clockInTime && ` • In: ${new Date(clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                                {clockOutTime && ` • Out: ${new Date(clockOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                            </p>
+                        </div>
+                    </div>
+                    <div>
+                        <button
+                            className="btn rounded-pill px-4 fw-bold"
+                            style={{
+                                background: attendanceStatus === 'Not Clocked In' ? '#22c55e' : attendanceStatus === 'Clocked In' ? '#ef4444' : '#374151',
+                                color: '#fff',
+                                boxShadow: attendanceStatus === 'Clocked Out' ? 'none' : '0 4px 12px rgba(0,0,0,0.2)'
+                            }}
+                            onClick={handleClockToggle}
+                            disabled={isClocking || attendanceStatus === 'Clocked Out'}
+                        >
+                            {isClocking ? <span className="spinner-border spinner-border-sm" /> : attendanceStatus === 'Not Clocked In' ? 'Clock In' : attendanceStatus === 'Clocked In' ? 'Clock Out' : 'Shift Completed'}
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             {/* KPI Cards */}
             <div className="row g-3 mb-4">
@@ -739,9 +879,10 @@ const DashboardOverview = ({ employee, onNavigate }) => {
 /* ─────────────────────────────────────────────
    BOOKING MODAL (View / Edit)
 ───────────────────────────────────────────── */
-const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
+const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC }) => {
     const [editMode, setEditMode] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [detailers, setDetailers] = useState([]);
     const [formData, setFormData] = useState({
         firstName: booking.firstName || '',
         lastName: booking.lastName || '',
@@ -751,27 +892,126 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
         serviceType: Array.isArray(booking.serviceType) ? booking.serviceType : (booking.serviceType ? booking.serviceType.split(',').map(s => s.trim()) : []),
         bookingTime: booking.bookingTime || '',
         detailer: booking.detailer || '',
+        assignedTo: booking.assignedTo || '',
+        smcId: booking.smcId || '',
+        promoCode: booking.promoCode || '',
+        discountAmount: booking.discountAmount || 0,
+        purchasedProducts: booking.purchasedProducts || [],
     });
+
+    const [smcDiscountInfo, setSmcDiscountInfo] = useState({ isValid: !!booking.smcId, percentage: 0, error: '' });
+    const [promoInfo, setPromoInfo] = useState({ isValid: !!booking.promoCode, discount: booking.promoDiscount || 0, type: 'Flat', error: '', code: booking.promoCode || '' });
+    const [isVerifyingSMC, setIsVerifyingSMC] = useState(false);
+    const [isVerifyingPromo, setIsVerifyingPromo] = useState(false);
+
+    const handleSMCVerification = async (silent = false) => {
+        if (!formData.smcId || formData.smcId.length < 5) {
+            setSmcDiscountInfo({ isValid: false, percentage: 0, error: 'Enter a valid ID' });
+            return;
+        }
+        setIsVerifyingSMC(true);
+        try {
+            const cleanSmcId = encodeURIComponent(formData.smcId.replace(/\s+/g, '').toUpperCase());
+            const res = await axios.get(`${API_BASE}/crm/validate-smc/${cleanSmcId}`, { headers: authHeaders(), withCredentials: true });
+            if (res.data.isValid) {
+                setSmcDiscountInfo({ isValid: true, percentage: res.data.discountPercentage, error: '' });
+                if (!silent) showToast(`SMC Applied: ${res.data.discountPercentage}% Discount Active!`);
+            } else {
+                setSmcDiscountInfo({ isValid: false, percentage: 0, error: res.data.message || 'Invalid Card' });
+            }
+        } catch (err) {
+            setSmcDiscountInfo({ isValid: false, percentage: 0, error: 'Validation failed' });
+        } finally {
+            setIsVerifyingSMC(false);
+        }
+    };
+
+    const handlePromoVerification = async (silent = false) => {
+        if (!formData.promoCode) return;
+        setIsVerifyingPromo(true);
+        try {
+            const res = await axios.post(`${API_BASE}/promotions/validate`, {
+                code: formData.promoCode.trim().toUpperCase(),
+                totalPrice: computedSubtotal,
+                customerEmail: formData.emailAddress
+            }, { headers: authHeaders(), withCredentials: true });
+
+            if (res.data.valid) {
+                const discount = res.data.discountType === 'Percentage'
+                    ? (computedSubtotal * (res.data.discountValue / 100))
+                    : res.data.discountValue;
+
+                setPromoInfo({ isValid: true, discount, type: res.data.discountType, error: '', code: formData.promoCode.toUpperCase() });
+                if (!silent) showToast(`Promo Applied! Saved ₱${discount.toLocaleString()}`);
+            } else {
+                setPromoInfo({ ...promoInfo, isValid: false, error: res.data.message });
+            }
+        } catch (err) {
+            setPromoInfo({ ...promoInfo, isValid: false, error: 'Invalid or expired promo code' });
+        } finally {
+            setIsVerifyingPromo(false);
+        }
+    };
 
     const [availability, setAvailability] = useState({});
     const [dynamicPricingData, setDynamicPricingData] = useState([]);
+    const [products, setProducts] = useState([]);
+    const [inventoryItems, setInventoryItems] = useState([]);
 
-    // Fetch availability and pricing when edit mode opens
+    // Fetch detailers once on mount
+    useEffect(() => {
+        axios.get(`${API_BASE}/employees`, { headers: authHeaders(), withCredentials: true })
+            .then(res => setDetailers(res.data.filter(e => e.role === 'detailer')))
+            .catch(err => console.error('Failed to fetch detailers', err));
+    }, []);
+
+    // Fetch availability, pricing, products & inventory when edit mode opens
     useEffect(() => {
         if (editMode) {
             Promise.all([
                 axios.get(`${API_BASE}/booking/availability`, { headers: authHeaders(), withCredentials: true }),
-                axios.get(`${API_BASE}/pricing`)
+                axios.get(`${API_BASE}/pricing`),
+                axios.get(`${API_BASE}/products`, { headers: authHeaders(), withCredentials: true }),
+                axios.get(`${API_BASE}/inventory`, { headers: authHeaders(), withCredentials: true })
             ])
-                .then(([availRes, pricingRes]) => {
+                .then(([availRes, pricingRes, prodRes, invRes]) => {
                     setAvailability(availRes.data);
                     if (pricingRes.data && pricingRes.data.dynamicPricing) {
                         setDynamicPricingData(pricingRes.data.dynamicPricing);
+                    }
+                    if (prodRes && prodRes.data) {
+                        setProducts(prodRes.data.filter(p => p.isActive !== false));
+                    }
+                    if (invRes && invRes.data) {
+                        setInventoryItems(invRes.data);
                     }
                 })
                 .catch(err => console.error("Failed to fetch edit mode data", err));
         }
     }, [editMode]);
+
+    // Helper: get available stock for a product by matching its name to inventory items
+    const getProductStock = (prod) => {
+        if (!prod || !inventoryItems || !inventoryItems.length) return null;
+
+        // Strategy 1: Match by Category Tag (Recommended)
+        if (prod.category && prod.category !== 'General') {
+            const catMatch = inventoryItems.find(i =>
+                i.category?.trim().toLowerCase() === prod.category.trim().toLowerCase()
+            );
+            if (catMatch) return Math.floor(catMatch.currentStock);
+        }
+
+        // Strategy 2: Fallback to Robust Name Matching
+        const search = prod.name?.trim().toLowerCase();
+        const nameMatch = inventoryItems.find(item =>
+            item.name?.trim().toLowerCase() === search ||
+            item.name?.toLowerCase().includes(search) ||
+            search.includes(item.name?.toLowerCase())
+        );
+
+        return nameMatch ? Math.floor(nameMatch.currentStock) : null;
+    };
 
     const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
 
@@ -826,14 +1066,66 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
         });
     };
 
+    const addRetailProduct = () => {
+        const sel = document.getElementById('retailSelect');
+        const qtyInput = document.getElementById('retailQty');
+        const qty = parseInt(qtyInput?.value) || 1;
+        if (!sel || !sel.value) return;
+
+        const prodMatch = products.find(p => p._id === sel.value);
+        if (prodMatch) {
+            const availableStock = getProductStock(prodMatch);
+            const currentTotalInCart = formData.purchasedProducts
+                .filter(p => p.productId === prodMatch._id || p.productName === prodMatch.name)
+                .reduce((s, p) => s + p.quantity, 0);
+
+            if (availableStock !== null && (currentTotalInCart + qty) > availableStock) {
+                Swal.fire({
+                    title: 'Insufficient Stock',
+                    text: `Cannot add ${qty}. You already have ${currentTotalInCart} in cart. Total exceeds available ${availableStock} units of ${prodMatch.name}.`,
+                    icon: 'error',
+                    confirmButtonColor: '#23A0CE'
+                });
+                return;
+            }
+
+            setFormData(prev => ({
+                ...prev,
+                purchasedProducts: [...prev.purchasedProducts, { productId: prodMatch._id, productName: prodMatch.name, category: prodMatch.category, quantity: qty, price: prodMatch.basePrice }]
+            }));
+            sel.value = "";
+            if (qtyInput) qtyInput.value = "1";
+        }
+    };
+
+    const removeRetailProduct = (idx) => {
+        setFormData(prev => ({
+            ...prev,
+            purchasedProducts: prev.purchasedProducts.filter((_, i) => i !== idx)
+        }));
+    };
+
     const handleSave = async () => {
         setIsSaving(true);
+        if (!formData.assignedTo || !formData.detailer) {
+            Swal.fire('Incomplete', 'Please assign a detailer.', 'warning');
+            setIsSaving(false);
+            return;
+        }
         try {
-            await axios.patch(`${API_BASE}/booking/${booking._id}`, formData, { headers: authHeaders(), withCredentials: true });
+            const payload = {
+                ...formData,
+                discountAmount: liveSMCDiscount,
+                promoCode: promoInfo.isValid ? promoInfo.code : null,
+                promoDiscount: promoInfo.isValid ? promoInfo.discount : 0,
+                assignedTo: (!formData.assignedTo || formData.assignedTo === '') ? null : formData.assignedTo,
+                detailer: (!formData.assignedTo || formData.assignedTo === '') ? null : formData.detailer
+            };
+            await axios.patch(`${API_BASE}/booking/${booking._id}`, payload, { headers: authHeaders(), withCredentials: true });
             showToast('Booking details updated successfully.');
             onSave(); // Re-fetch data and close
         } catch (err) {
-            Swal.fire('Error', 'Failed to update booking details.', 'error');
+            Swal.fire('Error', err.response?.data?.error || 'Failed to update booking details.', 'error');
         } finally {
             setIsSaving(false);
         }
@@ -861,16 +1153,39 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
     }, [dynamicPricingData, formData.vehicleType]);
 
     // Compute live price based on current formData (updates as employee edits)
-    const liveTotalPrice = useMemo(() => {
-        if (!activeVehicleData) return 0;
-        return formData.serviceType.reduce((sum, name) => {
-            const serv = activeVehicleData.services?.find(s => s.name === name);
-            const add = activeVehicleData.addons?.find(a => a.name === name);
-            if (serv) return sum + serv.price;
-            if (add) return sum + add.price;
-            return sum;
-        }, 0);
-    }, [activeVehicleData, formData.serviceType]);
+    const computedSubtotal = useMemo(() => {
+        let sum = 0;
+        if (activeVehicleData) {
+            sum += formData.serviceType.reduce((s, name) => {
+                const serv = activeVehicleData.services?.find(x => x.name === name);
+                const add = activeVehicleData.addons?.find(a => a.name === name);
+                if (serv) return s + serv.price;
+                if (add) return s + add.price;
+                return s;
+            }, 0);
+        }
+        if (formData.purchasedProducts && formData.purchasedProducts.length > 0) {
+            sum += formData.purchasedProducts.reduce((s, p) => s + (p.price * p.quantity), 0);
+        }
+        return sum;
+    }, [activeVehicleData, formData.serviceType, formData.purchasedProducts]);
+
+    const liveSMCDiscount = smcDiscountInfo.isValid && smcDiscountInfo.percentage > 0
+        ? computedSubtotal * (smcDiscountInfo.percentage / 100)
+        : (booking.discountAmount || 0);
+
+    const livePromoDiscount = promoInfo.isValid ? promoInfo.discount : 0;
+    const liveTotalPrice = Math.max(0, computedSubtotal - liveSMCDiscount - livePromoDiscount);
+
+    useEffect(() => {
+        if (booking.smcId && !smcDiscountInfo.percentage && !smcDiscountInfo.error) {
+            handleSMCVerification(true);
+        }
+        if (booking.promoCode && !promoInfo.error) {
+            // No need to verify promo on every open as it recalculates, but we could if we wanted.
+            // But let's just use the stored discount for now unless edited.
+        }
+    }, [booking.smcId, booking.promoCode]);
 
     // Original stored price for reference
     const storedTotalPrice = booking.totalPrice || 0;
@@ -942,6 +1257,32 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
                                             <input type="text" name="vehicleType" className="form-control form-control-sm shadow-none" value={formData.vehicleType} onChange={handleChange} disabled={!editMode} />
                                         )}
                                     </div>
+                                    <div className="col-12 col-sm-6 text-start">
+                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Sandigan Membership Card (SMC)</label>
+                                        <div className="d-flex gap-2">
+                                            <input type="text" name="smcId" className="form-control form-control-sm shadow-none font-monospace text-uppercase" placeholder="Scan SMC ID" value={formData.smcId} onChange={handleChange} disabled={!editMode} />
+                                            {editMode && (
+                                                <button type="button" className="btn btn-sm btn-outline-primary shadow-none px-2" onClick={() => handleSMCVerification()} disabled={isVerifyingSMC || !formData.smcId}>
+                                                    {isVerifyingSMC ? '...' : 'Verify'}
+                                                </button>
+                                            )}
+                                        </div>
+                                        {smcDiscountInfo.isValid && <small className="text-success d-block mt-1 fw-bold" style={{ fontSize: '0.7rem' }}>SMC Active: {smcDiscountInfo.percentage}% Off</small>}
+                                        {smcDiscountInfo.error && <small className="text-danger d-block mt-1" style={{ fontSize: '0.7rem' }}>{smcDiscountInfo.error}</small>}
+                                    </div>
+                                    <div className="col-12 col-sm-6 text-start">
+                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Promo Code</label>
+                                        <div className="d-flex gap-2">
+                                            <input type="text" name="promoCode" className="form-control form-control-sm shadow-none font-monospace text-uppercase" placeholder="Enter Code" value={formData.promoCode} onChange={handleChange} disabled={!editMode} />
+                                            {editMode && (
+                                                <button type="button" className="btn btn-sm btn-outline-primary shadow-none px-2" onClick={() => handlePromoVerification()} disabled={isVerifyingPromo || !formData.promoCode}>
+                                                    {isVerifyingPromo ? '...' : 'Apply'}
+                                                </button>
+                                            )}
+                                        </div>
+                                        {promoInfo.isValid && <small className="text-success d-block mt-1 fw-bold" style={{ fontSize: '0.7rem' }}>Promo Active: -₱{promoInfo.discount.toLocaleString()}</small>}
+                                        {promoInfo.error && <small className="text-danger d-block mt-1" style={{ fontSize: '0.7rem' }}>{promoInfo.error}</small>}
+                                    </div>
                                     <div className="col-12">
                                         <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Services Requested</label>
                                         {(!editMode && !activeVehicleData) ? (
@@ -994,6 +1335,50 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
                                             </>
                                         )}
                                     </div>
+                                    {/* Purchased Retail Products — always visible */}
+                                    <div className="col-12">
+                                        <label className="form-label brand-primary mb-1 mt-1" style={{ fontSize: '0.8rem' }}>Retail / Products Bought</label>
+                                        <div className="d-flex flex-column gap-2">
+                                            {formData.purchasedProducts.length === 0 && !editMode && (
+                                                <span className="text-muted" style={{ fontSize: '0.75rem' }}>None</span>
+                                            )}
+                                            {formData.purchasedProducts.map((p, idx) => (
+                                                <div key={idx} className="d-flex align-items-center justify-content-between p-2 rounded-3" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <span className="badge bg-secondary text-truncate" style={{ maxWidth: '130px' }}>{p.productName}</span>
+                                                        <span className="text-dark" style={{ fontSize: '0.75rem', fontWeight: 500 }}>x{p.quantity} (₱{(p.price * p.quantity).toLocaleString()})</span>
+                                                    </div>
+                                                    {editMode && <button type="button" className="btn btn-sm text-danger p-0 border-0 shadow-none" onClick={() => removeRetailProduct(idx)}>✖</button>}
+                                                </div>
+                                            ))}
+                                            {editMode && products.length > 0 && (
+                                                <div className="d-flex gap-2 align-items-center mt-1">
+                                                    <select className="form-select form-select-sm shadow-none w-auto flex-grow-1" id="retailSelect" style={{ fontSize: '0.75rem' }}>
+                                                        <option value="">-- Add Retail Item --</option>
+                                                        {products.map(prod => {
+                                                            const stock = getProductStock(prod);
+                                                            const outOfStock = stock !== null && stock <= 0;
+                                                            return (
+                                                                <option key={prod._id} value={prod._id} disabled={outOfStock}>
+                                                                    {prod.name} (₱{prod.basePrice}){stock !== null ? ` — Stock: ${stock}` : ''}{outOfStock ? ' [Out of Stock]' : ''}
+                                                                </option>
+                                                            );
+                                                        })}
+                                                    </select>
+                                                    <input
+                                                        type="number"
+                                                        id="retailQty"
+                                                        className="form-control form-control-sm shadow-none text-center"
+                                                        style={{ width: '55px', fontSize: '0.75rem' }}
+                                                        defaultValue="1"
+                                                        min="1"
+                                                        max={99}
+                                                    />
+                                                    <button type="button" className="btn btn-sm btn-outline-primary" style={{ fontSize: '0.75rem' }} onClick={addRetailProduct}>Add</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                     <div className="col-12 col-sm-6">
                                         <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Time Slot</label>
                                         <select name="bookingTime" className="form-select form-select-sm shadow-none" value={formData.bookingTime} onChange={handleChange} disabled={!editMode}>
@@ -1007,18 +1392,27 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
                                     <div className="col-12 col-sm-6">
                                         <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Assigned Detailer</label>
                                         <select
-                                            name="detailer"
+                                            name="assignedTo"
                                             className="form-select form-select-sm shadow-none"
-                                            value={formData.detailer}
-                                            onChange={handleChange}
+                                            value={formData.assignedTo}
+                                            onChange={e => {
+                                                const selected = detailers.find(d => d._id === e.target.value);
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    assignedTo: e.target.value,
+                                                    detailer: selected ? selected.fullName : ''
+                                                }));
+                                            }}
                                             disabled={!editMode}
                                         >
-                                            <option value="">Unassigned</option>
-                                            {/* Currently empty pending future Detailer employee registry build */}
-                                            {formData.detailer && formData.detailer !== '' && (
-                                                <option value={formData.detailer}>{formData.detailer}</option>
-                                            )}
+                                            <option value="">—- Unassigned -—</option>
+                                            {detailers.map(d => (
+                                                <option key={d._id} value={d._id}>{d.fullName}</option>
+                                            ))}
                                         </select>
+                                        {!editMode && !formData.assignedTo && (
+                                            <small className="text-warning d-block mt-1" style={{ fontSize: '0.72rem' }}>⚠ No detailer assigned</small>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1096,11 +1490,13 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint }) => {
                         )}
 
                         {booking.status === 'Completed' && (
-                            <button className="btn btn-receipt btn-outline-primary rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2"
-                                style={{ fontSize: '0.85rem', borderColor: '#23A0CE', color: 'var(--text-secondary)', backgroundColor: 'var(--brand-primary)' }}
-                                onClick={() => onPrint(booking)}>
-                                Generate Receipt
-                            </button>
+                            <div className="d-flex gap-2">
+                                <button className="btn btn-receipt btn-outline-primary rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2"
+                                    style={{ fontSize: '0.85rem', borderColor: '#23A0CE', color: 'var(--text-secondary)', backgroundColor: 'var(--brand-primary)' }}
+                                    onClick={() => onPrint(booking)}>
+                                    Generate Receipt
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -1124,20 +1520,115 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
         serviceType: [],
         bookingTime: '',
         detailer: '',
+        assignedTo: '',
+        smcId: '',
+        promoCode: '',
+        purchasedProducts: [],
     });
+
+    const [smcDiscountInfo, setSmcDiscountInfo] = useState({ isValid: false, percentage: 0, error: '' });
+    const [promoInfo, setPromoInfo] = useState({ isValid: false, discount: 0, type: 'Flat', error: '', code: '' });
+    const [isVerifyingSMC, setIsVerifyingSMC] = useState(false);
+    const [isVerifyingPromo, setIsVerifyingPromo] = useState(false);
+
+    const handleSMCVerification = async () => {
+        if (!formData.smcId || formData.smcId.length < 5) {
+            setSmcDiscountInfo({ isValid: false, percentage: 0, error: 'Enter a valid ID' });
+            return;
+        }
+        setIsVerifyingSMC(true);
+        try {
+            const cleanSmcId = encodeURIComponent(formData.smcId.replace(/\s+/g, '').toUpperCase());
+            const res = await axios.get(`${API_BASE}/crm/validate-smc/${cleanSmcId}`, { headers: authHeaders(), withCredentials: true });
+            if (res.data.isValid) {
+                setSmcDiscountInfo({ isValid: true, percentage: res.data.discountPercentage, error: '' });
+                showToast(`SMC Applied: ${res.data.discountPercentage}% Discount Active!`);
+            } else {
+                setSmcDiscountInfo({ isValid: false, percentage: 0, error: res.data.message || 'Invalid Card' });
+            }
+        } catch (err) {
+            setSmcDiscountInfo({ isValid: false, percentage: 0, error: 'Validation failed' });
+        } finally {
+            setIsVerifyingSMC(false);
+        }
+    };
+
+    const handlePromoVerification = async () => {
+        if (!formData.promoCode) return;
+        setIsVerifyingPromo(true);
+        try {
+            const res = await axios.post(`${API_BASE}/promotions/validate`, {
+                code: formData.promoCode.trim().toUpperCase(),
+                totalPrice: computedSubtotal,
+                customerEmail: formData.emailAddress
+            }, { headers: authHeaders(), withCredentials: true });
+
+            if (res.data.valid) {
+                const discount = res.data.discountType === 'Percentage'
+                    ? (computedSubtotal * (res.data.discountValue / 100))
+                    : res.data.discountValue;
+
+                setPromoInfo({ isValid: true, discount, type: res.data.discountType, error: '', code: formData.promoCode.toUpperCase() });
+                showToast(`Promo Applied! Saved ₱${discount.toLocaleString()}`);
+            } else {
+                setPromoInfo({ ...promoInfo, isValid: false, error: res.data.message });
+            }
+        } catch (err) {
+            setPromoInfo({ ...promoInfo, isValid: false, error: 'Invalid or expired promo code' });
+        } finally {
+            setIsVerifyingPromo(false);
+        }
+    };
 
     const [availability, setAvailability] = useState({});
     const [dynamicPricingData, setDynamicPricingData] = useState([]);
+    const [detailers, setDetailers] = useState([]);
+    const [products, setProducts] = useState([]);
+    const [inventory, setInventory] = useState([]);
+
+    const getProductStock = (prod) => {
+        if (!prod || !inventory || !inventory.length) return null;
+
+        // Strategy 1: Match by Category Tag
+        if (prod.category && prod.category !== 'General') {
+            const catMatch = inventory.find(i =>
+                i.category?.trim().toLowerCase() === prod.category.trim().toLowerCase()
+            );
+            if (catMatch) return Math.floor(catMatch.currentStock);
+        }
+
+        // Strategy 2: Fallback to Robust Name Matching
+        const search = prod.name?.trim().toLowerCase();
+        const item = inventory.find(i =>
+            i.name?.trim().toLowerCase() === search ||
+            i.name?.toLowerCase().includes(search) ||
+            search.includes(i.name?.toLowerCase())
+        );
+
+        return item ? item.currentStock : null;
+    };
 
     useEffect(() => {
         Promise.all([
             axios.get(`${API_BASE}/booking/availability`, { headers: authHeaders(), withCredentials: true }),
-            axios.get(`${API_BASE}/pricing`)
+            axios.get(`${API_BASE}/pricing`),
+            axios.get(`${API_BASE}/employees`, { headers: authHeaders(), withCredentials: true }),
+            axios.get(`${API_BASE}/products`, { headers: authHeaders(), withCredentials: true }),
+            axios.get(`${API_BASE}/inventory`, { headers: authHeaders(), withCredentials: true })
         ])
-            .then(([availRes, pricingRes]) => {
+            .then(([availRes, pricingRes, empRes, prodRes, invRes]) => {
                 setAvailability(availRes.data);
                 if (pricingRes.data && pricingRes.data.dynamicPricing) {
                     setDynamicPricingData(pricingRes.data.dynamicPricing);
+                }
+                if (empRes && empRes.data) {
+                    setDetailers(empRes.data.filter(e => e.role === 'detailer'));
+                }
+                if (prodRes && prodRes.data) {
+                    setProducts(prodRes.data.filter(p => p.isActive !== false));
+                }
+                if (invRes && invRes.data) {
+                    setInventory(invRes.data);
                 }
             })
             .catch(err => console.error("Failed to fetch create mode data", err));
@@ -1179,15 +1670,54 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
         });
     };
 
+    const addRetailProduct = () => {
+        const sel = document.getElementById('createRetailSelect');
+        const qtyInput = document.getElementById('createRetailQty');
+        const qty = parseInt(qtyInput?.value) || 1;
+        if (!sel || !sel.value) return;
+
+        const prodMatch = products.find(p => p._id === sel.value);
+        if (prodMatch) {
+            const availableStock = getProductStock(prodMatch);
+            const currentTotalInCart = formData.purchasedProducts
+                .filter(p => p.productId === prodMatch._id || p.productName === prodMatch.name)
+                .reduce((s, p) => s + p.quantity, 0);
+
+            if (availableStock !== null && (currentTotalInCart + qty) > availableStock) {
+                Swal.fire({
+                    title: 'Insufficient Stock',
+                    text: `Cannot add ${qty}. You already have ${currentTotalInCart} in cart. Total exceeds available ${availableStock} units of ${prodMatch.name}.`,
+                    icon: 'error',
+                    confirmButtonColor: '#23A0CE'
+                });
+                return;
+            }
+
+            setFormData(prev => ({
+                ...prev,
+                purchasedProducts: [...prev.purchasedProducts, { productId: prodMatch._id, productName: prodMatch.name, category: prodMatch.category, quantity: qty, price: prodMatch.basePrice }]
+            }));
+            sel.value = '';
+            if (qtyInput) qtyInput.value = '1';
+        }
+    };
+
+    const removeRetailProduct = (idx) => {
+        setFormData(prev => ({
+            ...prev,
+            purchasedProducts: prev.purchasedProducts.filter((_, i) => i !== idx)
+        }));
+    };
+
     const handleSave = async () => {
         // Validation logic
         if (isQuickMode) {
-            if (!formData.vehicleType || formData.serviceType.length === 0 || !formData.bookingTime) {
-                Swal.fire('Incomplete', 'Please fill in vehicle, services, and time.', 'warning');
+            if (!formData.vehicleType || formData.serviceType.length === 0 || !formData.bookingTime || !formData.assignedTo) {
+                Swal.fire('Incomplete', 'Please fill in vehicle, services, detailer, and time.', 'warning');
                 return;
             }
         } else {
-            if (!formData.firstName || !formData.lastName || !formData.vehicleType || formData.serviceType.length === 0 || !formData.bookingTime) {
+            if (!formData.firstName || !formData.lastName || !formData.vehicleType || formData.serviceType.length === 0 || !formData.bookingTime || !formData.assignedTo) {
                 Swal.fire('Incomplete', 'Please fill in all required fields.', 'warning');
                 return;
             }
@@ -1201,7 +1731,13 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
                 firstName: isQuickMode ? "Walk-in" : formData.firstName,
                 lastName: isQuickMode ? "Customer" : formData.lastName,
                 emailAddress: isQuickMode ? "walkin@example.com" : (formData.emailAddress || "walkin@example.com"),
-                phoneNumber: isQuickMode ? "00000000000" : (formData.phoneNumber || "00000000000")
+                phoneNumber: isQuickMode ? "00000000000" : (formData.phoneNumber || "00000000000"),
+                discountAmount: liveSMCDiscount,
+                smcId: smcDiscountInfo.isValid ? formData.smcId : null,
+                promoCode: promoInfo.isValid ? promoInfo.code : null,
+                promoDiscount: livePromoDiscount,
+                assignedTo: (!formData.assignedTo || formData.assignedTo === '') ? null : formData.assignedTo,
+                detailer: (!formData.assignedTo || formData.assignedTo === '') ? null : formData.detailer
             };
 
             await axios.post(`${API_BASE}/booking`, submissionData, { headers: authHeaders(), withCredentials: true });
@@ -1218,16 +1754,26 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
         return dynamicPricingData.find(v => v.vehicleType === formData.vehicleType) || null;
     }, [dynamicPricingData, formData.vehicleType]);
 
-    const liveTotalPrice = useMemo(() => {
-        if (!activeVehicleData) return 0;
-        return formData.serviceType.reduce((sum, name) => {
-            const serv = activeVehicleData.services?.find(s => s.name === name);
-            const add = activeVehicleData.addons?.find(a => a.name === name);
-            if (serv) return sum + serv.price;
-            if (add) return sum + add.price;
-            return sum;
-        }, 0);
-    }, [activeVehicleData, formData.serviceType]);
+    const computedSubtotal = useMemo(() => {
+        let sum = 0;
+        if (activeVehicleData) {
+            sum += formData.serviceType.reduce((s, name) => {
+                const serv = activeVehicleData.services?.find(x => x.name === name);
+                const add = activeVehicleData.addons?.find(a => a.name === name);
+                if (serv) return s + serv.price;
+                if (add) return s + add.price;
+                return s;
+            }, 0);
+        }
+        if (formData.purchasedProducts && formData.purchasedProducts.length > 0) {
+            sum += formData.purchasedProducts.reduce((s, p) => s + (p.price * p.quantity), 0);
+        }
+        return sum;
+    }, [activeVehicleData, formData.serviceType, formData.purchasedProducts]);
+
+    const liveSMCDiscount = smcDiscountInfo.isValid ? computedSubtotal * (smcDiscountInfo.percentage / 100) : 0;
+    const livePromoDiscount = promoInfo.isValid ? promoInfo.discount : 0;
+    const liveTotalPrice = Math.max(0, computedSubtotal - liveSMCDiscount - livePromoDiscount);
 
     return (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1060 }}>
@@ -1305,18 +1851,48 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
                                         </select>
                                     </div>
                                     <div className="col-12 col-sm-6 text-start">
+                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Sandigan Membership Card (SMC)</label>
+                                        <div className="d-flex gap-2">
+                                            <input type="text" name="smcId" className="form-control form-control-sm shadow-none font-monospace text-uppercase" placeholder="Scan or type SMC-XXXXXX" value={formData.smcId} onChange={handleChange} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSMCVerification(); } }} />
+                                            <button type="button" className="btn btn-sm btn-outline-primary shadow-none px-3" onClick={handleSMCVerification} disabled={isVerifyingSMC || !formData.smcId}>
+                                                {isVerifyingSMC ? '...' : 'Verify'}
+                                            </button>
+                                        </div>
+                                        {smcDiscountInfo.isValid && <small className="text-success d-block mt-1 fw-medium" style={{ fontSize: '0.75rem' }}>Valid SMC — {smcDiscountInfo.percentage}% Discount Applied</small>}
+                                        {smcDiscountInfo.error && <small className="text-danger d-block mt-1" style={{ fontSize: '0.75rem' }}>{smcDiscountInfo.error}</small>}
+                                    </div>
+                                    <div className="col-12 col-sm-6 text-start">
+                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Promo Code</label>
+                                        <div className="d-flex gap-2">
+                                            <input type="text" name="promoCode" className="form-control form-control-sm shadow-none font-monospace text-uppercase" placeholder="Enter Code" value={formData.promoCode} onChange={handleChange} />
+                                            <button type="button" className="btn btn-sm btn-outline-primary shadow-none px-3" onClick={handlePromoVerification} disabled={isVerifyingPromo || !formData.promoCode}>
+                                                {isVerifyingPromo ? '...' : 'Apply'}
+                                            </button>
+                                        </div>
+                                        {promoInfo.isValid && <small className="text-success d-block mt-1 fw-bold" style={{ fontSize: '0.7rem' }}>Promo Active: -₱{promoInfo.discount.toLocaleString()}</small>}
+                                        {promoInfo.error && <small className="text-danger d-block mt-1" style={{ fontSize: '0.7rem' }}>{promoInfo.error}</small>}
+                                    </div>
+                                    <div className="col-12 col-sm-6 text-start">
                                         <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Assigned Detailer</label>
                                         <select
                                             name="detailer"
                                             className="form-select form-select-sm shadow-none"
-                                            value={formData.detailer}
-                                            onChange={handleChange}
+                                            value={formData.assignedTo}
+                                            onChange={e => {
+                                                const selected = detailers.find(d => d._id === e.target.value);
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    assignedTo: e.target.value,
+                                                    detailer: selected ? selected.fullName : ''
+                                                }));
+                                            }}
+                                            style={{ fontSize: '0.8rem' }}
                                         >
-                                            <option value="">Unassigned</option>
-                                            {/* Currently empty pending future Detailer employee registry build */}
-                                            {formData.detailer && formData.detailer !== '' && (
-                                                <option value={formData.detailer}>{formData.detailer}</option>
-                                            )}
+                                            <option value="">—- Unassigned -—</option>
+                                            {detailers.map(d => (
+                                                <option key={d._id} value={d._id}>{d.fullName}</option>
+                                            ))}
+
                                         </select>
                                     </div>
                                     <div className="col-12 text-start">
@@ -1350,6 +1926,49 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
                                                 })}
                                             </div>
                                         )}
+
+                                        {/* Retail / Products Section */}
+                                        <label className="form-label brand-primary mt-3 mb-1" style={{ fontSize: '0.8rem' }}>Retail / Products</label>
+                                        <div className="d-flex flex-column gap-2">
+                                            {formData.purchasedProducts.length === 0 && (
+                                                <span className="text-muted" style={{ fontSize: '0.75rem' }}>No retail items added yet.</span>
+                                            )}
+                                            {formData.purchasedProducts.map((p, idx) => (
+                                                <div key={idx} className="d-flex align-items-center justify-content-between p-2 rounded-3" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <span className="badge" style={{ background: '#23A0CE' }}>{p.productName}</span>
+                                                        <span className="text-dark" style={{ fontSize: '0.75rem', fontWeight: 500 }}>x{p.quantity} (₱{(p.price * p.quantity).toLocaleString()})</span>
+                                                    </div>
+                                                    <button type="button" className="btn btn-sm text-danger p-0 border-0 shadow-none" onClick={() => removeRetailProduct(idx)}>✖</button>
+                                                </div>
+                                            ))}
+                                            {products.length > 0 && (
+                                                <div className="d-flex gap-2 align-items-center mt-1">
+                                                    <select id="createRetailSelect" className="form-select form-select-sm shadow-none flex-grow-1" style={{ fontSize: '0.75rem' }}>
+                                                        <option value="">-- Select Product --</option>
+                                                        {products.map(prod => {
+                                                            const stock = getProductStock(prod);
+                                                            const outOfStock = stock !== null && stock <= 0;
+                                                            return (
+                                                                <option key={prod._id} value={prod._id} disabled={outOfStock}>
+                                                                    {prod.name} (₱{prod.basePrice}){stock !== null ? ` — Stock: ${stock}` : ''}{outOfStock ? ' [Out of Stock]' : ''}
+                                                                </option>
+                                                            );
+                                                        })}
+                                                    </select>
+                                                    <input
+                                                        type="number"
+                                                        id="createRetailQty"
+                                                        className="form-control form-control-sm shadow-none text-center"
+                                                        style={{ width: '55px', fontSize: '0.75rem' }}
+                                                        defaultValue="1"
+                                                        min="1"
+                                                        max={99}
+                                                    />
+                                                    <button type="button" className="btn btn-sm btn-outline-primary shadow-none" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }} onClick={addRetailProduct}>+ Add</button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1376,6 +1995,7 @@ const ReceiptModal = ({ booking, onClose }) => {
     const [dynamicPricingData, setDynamicPricingData] = useState([]);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
+    // Fetch dynamic pricing data
     useEffect(() => {
         axios.get(`${API_BASE}/pricing`)
             .then(res => {
@@ -1454,7 +2074,7 @@ const ReceiptModal = ({ booking, onClose }) => {
                             </div>
 
                             <div className="d-flex justify-content-between mb-2" style={{ borderTop: '1px dashed #ccc', paddingTop: '10px' }}>
-                                <span style={{ fontSize: '0.75rem' }}>RECEIPT #: {booking.batchId?.substring(0, 8).toUpperCase()}</span>
+                                <span style={{ fontSize: '0.75rem' }}>RECEIPT #: {booking.batchId}</span>
                                 <span style={{ fontSize: '0.75rem' }}>{new Date().toLocaleDateString()}</span>
                             </div>
 
@@ -1462,6 +2082,7 @@ const ReceiptModal = ({ booking, onClose }) => {
                                 <p className="mb-1" style={{ fontSize: '0.8rem' }}><strong>Customer:</strong> {booking.firstName} {booking.lastName}</p>
                                 <p className="mb-1" style={{ fontSize: '0.8rem' }}><strong>Vehicle:</strong> {booking.vehicleType}</p>
                                 <p className="mb-0" style={{ fontSize: '0.8rem' }}><strong>Detailer:</strong> {booking.detailer || 'Management'}</p>
+
                             </div>
 
                             <div className="mb-3">
@@ -1478,9 +2099,35 @@ const ReceiptModal = ({ booking, onClose }) => {
                                         </div>
                                     );
                                 })}
+                                {booking.purchasedProducts && booking.purchasedProducts.length > 0 && (
+                                    <>
+                                        <div className="d-flex justify-content-between fw-bold border-bottom pb-1 mt-2 mb-2" style={{ fontSize: '0.8rem' }}>
+                                            <span>RETAIL ITEMS</span>
+
+                                        </div>
+                                        {booking.purchasedProducts.map((prod, idx) => (
+                                            <div key={idx} className="d-flex justify-content-between mb-1" style={{ fontSize: '0.75rem' }}>
+                                                <span>{prod.productName} x{prod.quantity}</span>
+                                                <span>₱{(prod.price * prod.quantity).toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                    </>
+                                )}
                             </div>
 
                             <div className="pt-2 border-top" style={{ borderTop: '2px solid #333 !important' }}>
+                                {booking.discountAmount > 0 && (
+                                    <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.8rem' }}>
+                                        <span>SMC DISCOUNT</span>
+                                        <span>-₱{booking.discountAmount.toLocaleString()}</span>
+                                    </div>
+                                )}
+                                {booking.promoDiscount > 0 && (
+                                    <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.8rem' }}>
+                                        <span>PROMO DISCOUNT</span>
+                                        <span>-₱{booking.promoDiscount.toLocaleString()}</span>
+                                    </div>
+                                )}
                                 <div className="d-flex justify-content-between fw-bold" style={{ fontSize: '1.1rem' }}>
                                     <span>TOTAL</span>
                                     <span>₱{booking.totalPrice?.toLocaleString()}</span>
@@ -1510,10 +2157,10 @@ const ReceiptModal = ({ booking, onClose }) => {
 
                     <div className="modal-footer border-top-0 p-4 pt-2 no-print flex-column gap-2">
                         <button className="btn brand-primary rounded-pill px-4 shadow-sm w-100 font-poppins" style={{ fontSize: '0.85rem' }} onClick={handlePrint}>
-                            <span className="me-2">🖨️</span> Print Receipt
+                            <span className="me-2"></span> Print Receipt
                         </button>
                         <button className="btn btn-outline-success rounded-pill px-4 shadow-sm w-100 font-poppins" style={{ fontSize: '0.85rem' }} onClick={handleDownloadPdf} disabled={isGeneratingPdf}>
-                            <span className="me-2">📥</span> {isGeneratingPdf ? 'Generating PDF...' : 'Download as PDF'}
+                            <span className="me-2"></span> {isGeneratingPdf ? 'Generating PDF...' : 'Download as PDF'}
                         </button>
                         <button className="btn btn-light rounded-pill px-4 shadow-sm w-100 font-poppins" style={{ fontSize: '0.85rem' }} onClick={onClose}>Close</button>
                     </div>
@@ -1572,9 +2219,168 @@ const ReceiptModal = ({ booking, onClose }) => {
 
 
 /* ─────────────────────────────────────────────
+   SMC CARD MODAL  
+───────────────────────────────────────────── */
+const SMCCardModal = ({ data, onClose }) => {
+    const cardRef = useRef();
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [config, setConfig] = useState(null);
+
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const res = await axios.get(`${API_BASE}/crm/config/smc`, {
+                    headers: authHeaders(),
+                    withCredentials: true
+                });
+                setConfig(res.data);
+            } catch (err) {
+                console.error("Failed to fetch SMC config", err);
+                // Fallback to standard design to prevent infinite loading
+                setConfig({
+                    cardName: 'Sandigan Membership',
+                    cardColor: '#0f172a',
+                    abbreviation: 'SMC',
+                    validityMonths: 12
+                });
+            }
+        };
+        fetchConfig();
+    }, []);
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+    const handleDownloadPdf = async () => {
+        if (!config || !cardRef.current) {
+            Swal.fire('Wait', 'Card design is still loading. Please try again in a moment.', 'info');
+            return;
+        }
+
+        setIsGeneratingPdf(true);
+        try {
+            // Give a tiny moment for QR & Fonts to settle
+            await new Promise(r => setTimeout(r, 100));
+
+            const canvas = await html2canvas(cardRef.current, {
+                scale: 3,
+                useCORS: true,
+                backgroundColor: null,
+                logging: false
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [85.6, 54] });
+            pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 54);
+            pdf.save(`Sandigan_SMC_${data.smcId}.pdf`);
+        } catch (error) {
+            console.error("PDF Generation failed", error);
+            Swal.fire('Error', 'Could not generate card PDF. Please try printing instead or refresh the page.', 'error');
+        }
+        setIsGeneratingPdf(false);
+    };
+
+    const qrLink = `https://sandigan-carwash.com/validate/${data.smcId}`;
+
+    return (
+        <div className="modal show d-block no-print-backdrop" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1060 }}>
+            <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content rounded-4 shadow border-0 overflow-hidden bg-white">
+                    <div className="modal-header border-bottom-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center no-print">
+                        <h5 className="modal-title font-poppins fw-bold text-dark-secondary">Membership Card Preview</h5>
+                        <button type="button" className="btn-close shadow-none" onClick={onClose}></button>
+                    </div>
+
+                    <div className="modal-body py-4">
+                        {!config ? (
+                            <div className="text-center py-4">
+                                <div className="spinner-border text-primary spinner-border-sm" role="status"></div>
+                                <p className="small text-muted mt-2">Loading card design...</p>
+                            </div>
+                        ) : (
+                            <div id="smc-card-content" ref={cardRef} className="mx-auto" style={{
+                                width: '400px',
+                                height: '240px',
+                                borderRadius: '16px',
+                                background: `linear-gradient(135deg, ${config.cardColor || '#0f172a'} 0%, #1e3a8a 100%)`,
+                                color: 'white',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+                                fontFamily: 'Poppins, sans-serif'
+                            }}>
+                                {/* Decorative Patterns */}
+                                <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', borderRadius: '100px', background: 'rgba(255,255,255,0.05)' }}></div>
+                                <div style={{ position: 'absolute', bottom: '-40px', left: '-40px', width: '150px', height: '150px', borderRadius: '75px', background: 'rgba(255,255,255,0.03)' }}></div>
+
+                                <div className="p-4 h-100 d-flex flex-column justify-content-between">
+                                    <div className="d-flex justify-content-between align-items-start">
+                                        <div className="d-flex align-items-center gap-2">
+                                            <img src={sandiganLogo} alt="Logo" style={{ height: '35px' }} />
+                                            <span style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '1px' }}>{config.cardName?.toUpperCase() || 'SANDIGAN'}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="d-flex justify-content-between align-items-end mt-2">
+                                        <div>
+                                            <p className="mb-0 font-monospace fw-bold" style={{ fontSize: '1.3rem', letterSpacing: '4px' }}>{data.smcId}</p>
+                                            <p className="mb-0 opacity-75 mt-1" style={{ fontSize: '0.65rem', fontWeight: 500, letterSpacing: '1px' }}>
+                                                {data.smcExpiryDate || data.expiryDate ?
+                                                    `VALID UNTIL: ${new Date(data.smcExpiryDate || data.expiryDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}`
+                                                    : 'LIFETIME ACCESS'}
+                                            </p>
+                                        </div>
+                                        <div className="bg-white p-1 rounded-3 shadow-sm">
+                                            <QRCodeCanvas value={qrLink} size={60} level={"H"} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="modal-footer border-top-0 p-4 pt-2 no-print flex-column gap-2">
+                        <button className="btn brand-primary rounded-pill px-4 shadow-sm w-100 font-poppins" style={{ fontSize: '0.85rem' }} onClick={handlePrint} disabled={!config}>
+                            Print Membership Card
+                        </button>
+                        <button className="btn btn-outline-primary rounded-pill px-4 shadow-sm w-100 font-poppins" style={{ fontSize: '0.85rem' }} onClick={handleDownloadPdf} disabled={isGeneratingPdf || !config}>
+                            {isGeneratingPdf ? 'Generating...' : 'Download for Customer'}
+                        </button>
+                        <button className="btn btn-light rounded-pill px-4 shadow-sm w-100 font-poppins" style={{ fontSize: '0.85rem' }} onClick={onClose}>Close</button>
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                {`
+                @media print {
+                    body * { display: none !important; }
+                    .no-print-backdrop, #smc-card-content, #smc-card-content * {
+                        display: block !important;
+                        visibility: visible !important;
+                    }
+                    .no-print-backdrop {
+                        background: none !important;
+                        position: absolute !important;
+                        top: 0; left: 0;
+                    }
+                    #smc-card-content {
+                        border-radius: 0 !important;
+                        box-shadow: none !important;
+                        margin: 20px auto !important;
+                    }
+                }
+                `}
+            </style>
+        </div>
+    );
+};
+
+
+/* ─────────────────────────────────────────────
    BOOKING MANAGEMENT
 ───────────────────────────────────────────── */
-const BookingManagement = ({ employee }) => {
+const BookingManagement = ({ employee, onShowSMC }) => {
     // 1. Create state to store all bookings and loading status
     const [bookings, setBookings] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -1583,6 +2389,38 @@ const BookingManagement = ({ employee }) => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
     const [receiptBooking, setReceiptBooking] = useState(null);
+    const [isSMCModalOpen, setIsSMCModalOpen] = useState(false);
+    const [smcData, setSMCData] = useState(null);
+
+    const handleShowSMC = (bookingId) => {
+        axios.get(`${API_BASE}/crm/booking/${bookingId}/smc`, {
+            headers: authHeaders(),
+            withCredentials: true
+        })
+            .then(res => {
+                setSMCData(res.data);
+                setIsSMCModalOpen(true);
+            })
+            .catch(err => {
+                Swal.fire('Error', 'Membership card not found in CRM database.', 'error');
+                console.error(err);
+            });
+    };
+
+    const handleFetchSMCById = (smcId) => {
+        axios.get(`${API_BASE}/crm/card/${smcId}`, {
+            headers: authHeaders(),
+            withCredentials: true
+        })
+            .then(res => {
+                setSMCData(res.data);
+                setIsSMCModalOpen(true);
+            })
+            .catch(err => {
+                Swal.fire('Error', 'Card ID not found in database.', 'error');
+                console.error(err);
+            });
+    };
 
     // Custom Toast Launcher
     const showToast = (message) => {
@@ -1730,7 +2568,7 @@ const BookingManagement = ({ employee }) => {
                     </div>
                 ) : bookings.length === 0 ? (
                     <div className="text-center py-5 text-dark-gray400">
-                        📋 No bookings found.
+                        No bookings found.
                     </div>
                 ) : (
                     <div className="table-responsive">
@@ -1778,7 +2616,9 @@ const BookingManagement = ({ employee }) => {
                                             </select>
                                         </td>
                                         <td>
-                                            <button className="btn btn-action btn-sm border-outline-primary brand-primary" onClick={() => setSelectedBooking(booking)}>View / Edit</button>
+                                            <div className="d-flex gap-2 justify-content-center">
+                                                <button className="btn btn-action btn-sm border-outline-primary brand-primary" onClick={() => setSelectedBooking(booking)}>View / Edit</button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -1796,6 +2636,7 @@ const BookingManagement = ({ employee }) => {
                         setReceiptBooking(b);
                         setIsReceiptModalOpen(true);
                     }}
+                    onSMC={(bookingId) => handleShowSMC(bookingId)}
                     onSave={() => {
                         setSelectedBooking(null);
                         fetchBookings(); // Refresh data to get newly saved logs
@@ -1809,6 +2650,16 @@ const BookingManagement = ({ employee }) => {
                     onClose={() => {
                         setIsReceiptModalOpen(false);
                         setReceiptBooking(null);
+                    }}
+                />
+            )}
+
+            {isSMCModalOpen && smcData && (
+                <SMCCardModal
+                    data={smcData}
+                    onClose={() => {
+                        setIsSMCModalOpen(false);
+                        setSMCData(null);
                     }}
                 />
             )}
@@ -1854,6 +2705,273 @@ const BookingManagement = ({ employee }) => {
 /* ─────────────────────────────────────────────
    CAR RENT MANAGEMENT
 ───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────
+   RETAIL MANAGEMENT (POS)
+───────────────────────────────────────────── */
+const RetailManagement = ({ employee, onSMCRequest }) => {
+    const [products, setProducts] = useState([]);
+    const [sales, setSales] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [cart, setCart] = useState([]);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [localQuantities, setLocalQuantities] = useState({});
+
+    const fetchData = async () => {
+        try {
+            const [prodRes, saleRes] = await Promise.all([
+                axios.get(`${API_BASE}/products`, { headers: authHeaders(), withCredentials: true }),
+                axios.get(`${API_BASE}/retail`, { headers: authHeaders(), withCredentials: true })
+            ]);
+            setProducts(prodRes.data);
+            setSales(saleRes.data);
+
+            // Initialize local quantities
+            const initialQtys = {};
+            prodRes.data.forEach(p => {
+                initialQtys[p._id] = p.stock > 0 ? 1 : 0;
+            });
+            setLocalQuantities(initialQtys);
+
+            setIsLoading(false);
+        } catch (err) {
+            console.error('POS fetch error:', err);
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const handleLocalQtyChange = (id, val, stock) => {
+        const num = Math.max(1, Math.min(stock, parseInt(val) || 1));
+        setLocalQuantities(prev => ({ ...prev, [id]: num }));
+    };
+
+    const addToCart = (product) => {
+        const requestedQty = localQuantities[product._id] || 1;
+        const currentInCart = cart.find(item => item._id === product._id)?.qty || 0;
+        const totalAfterAdding = currentInCart + requestedQty;
+
+        if (totalAfterAdding > product.stock) {
+            Swal.fire({
+                title: 'Stock Limit Reached',
+                text: `Only ${product.stock} units available. You already have ${currentInCart} in your cart.`,
+                icon: 'warning',
+                confirmButtonColor: '#23A0CE'
+            });
+            return;
+        }
+
+        setCart(prev => {
+            const exists = prev.find(item => item._id === product._id);
+            if (exists) {
+                return prev.map(item => item._id === product._id ? { ...item, qty: item.qty + requestedQty } : item);
+            }
+            return [...prev, { ...product, qty: requestedQty }];
+        });
+
+        // Reset local qty to 1 (if stock permits)
+        setLocalQuantities(prev => ({ ...prev, [product._id]: product.stock > 0 ? 1 : 0 }));
+    };
+
+    const removeFromCart = (id) => setCart(prev => prev.filter(i => i._id !== id));
+
+    const handleCheckout = async () => {
+        if (cart.length === 0) return;
+        setIsProcessing(true);
+        try {
+            // Process each item in cart as a sale
+            for (const item of cart) {
+                await axios.post(`${API_BASE}/retail/buy`, {
+                    productId: item._id,
+                    quantity: item.qty
+                }, { headers: authHeaders(), withCredentials: true });
+            }
+
+            Swal.fire({ title: 'Purchase Successful!', text: 'Stock and revenue have been updated.', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
+
+            setCart([]);
+            fetchData();
+        } catch (err) {
+            Swal.fire('Checkout Failed', err.response?.data?.error || 'Error processing sale.', 'error');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const cartTotal = cart.reduce((sum, item) => sum + (item.basePrice * item.qty), 0);
+
+    return (
+        <div>
+            <TopHeader
+                employee={employee}
+                title="Retail Store"
+                subtitle="Direct product sales and membership issuance"
+            />
+
+            <div className="row g-4">
+                {/* Product Catalog */}
+                <div className="col-lg-8">
+                    <div className="rounded-4 p-4 shadow-sm h-100" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)' }}>
+                        <h6 className="fw-bold mb-4 font-poppins text-dark-secondary">PRODUCT CATALOG</h6>
+                        {isLoading ? (
+                            <div className="text-center py-5"><div className="spinner-border text-primary" /></div>
+                        ) : (
+                            <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+                                {products.map(p => (
+                                    <div className="col" key={p._id}>
+                                        <div className="p-3 border rounded-3 h-100 d-flex flex-column justify-content-between hover-shadow transition-all position-relative" style={{ minHeight: '220px' }}>
+                                            <div className="mb-3">
+                                                <div className="d-flex justify-content-between align-items-start mb-2">
+                                                    <div className="d-flex flex-column gap-1">
+                                                        <span className="badge bg-light text-dark border align-self-start" style={{ fontSize: '0.6rem' }}>{p.category}</span>
+                                                        <span className={`fw-bold ${p.stock > 0 ? 'text-success' : 'text-danger'}`} style={{ fontSize: '0.7rem' }}>
+                                                            {p.stock > 0 ? `Stock: ${p.stock}` : 'Out of Stock'}
+                                                        </span>
+                                                    </div>
+                                                    <span className="fw-bold brand-primary" style={{ fontSize: '0.9rem' }}>₱{p.basePrice}</span>
+                                                </div>
+                                                <h6 className="mb-1 fw-bold text-dark-secondary" style={{ fontSize: '0.9rem' }}>{p.name}</h6>
+                                                <p className="text-muted mb-0" style={{ fontSize: '0.72rem', lineHeight: '1.4' }}>{p.description || 'No description'}</p>
+                                            </div>
+
+                                            <div>
+                                                {p.stock > 0 && (
+                                                    <div className="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                                        <small className="text-muted font-poppins" style={{ fontSize: '0.7rem' }}>Qty:</small>
+                                                        <div className="input-group input-group-sm flex-nowrap" style={{ width: '90px' }}>
+                                                            <button className="btn btn-outline-secondary py-0" onClick={() => handleLocalQtyChange(p._id, (localQuantities[p._id] || 1) - 1, p.stock)}>-</button>
+                                                            <input
+                                                                type="text"
+                                                                className="form-control text-center py-0 shadow-none border-secondary-subtle"
+                                                                value={localQuantities[p._id] || 0}
+                                                                onChange={(e) => handleLocalQtyChange(p._id, e.target.value, p.stock)}
+                                                                style={{ fontSize: '0.75rem' }}
+                                                            />
+                                                            <button className="btn btn-outline-secondary py-0" onClick={() => handleLocalQtyChange(p._id, (localQuantities[p._id] || 1) + 1, p.stock)}>+</button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <button
+                                                    className="btn btn-sm btn-outline-primary w-100 rounded-pill shadow-none fw-bold"
+                                                    style={{ fontSize: '0.75rem' }}
+                                                    disabled={p.stock === 0}
+                                                    onClick={() => addToCart(p)}
+                                                >
+                                                    {p.stock === 0 ? 'Unavailable' : 'Add to Cart'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Shopping Cart */}
+                <div className="col-lg-4">
+                    <div className="rounded-4 p-4 shadow-sm sticky-top" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)', top: '100px' }}>
+                        <h6 className="fw-bold mb-4 font-poppins text-dark-secondary">CURRENT ORDER</h6>
+                        <div className="mb-4" style={{ minHeight: '200px' }}>
+                            {cart.length === 0 ? (
+                                <div className="text-center py-5 text-muted">
+                                    <p style={{ fontSize: '0.85rem' }}>Your cart is empty</p>
+                                </div>
+                            ) : (
+                                <div className="d-flex flex-column gap-2">
+                                    {cart.map(item => (
+                                        <div key={item._id} className="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
+                                            <div style={{ flex: 1 }}>
+                                                <p className="mb-0 fw-bold text-dark-secondary" style={{ fontSize: '0.8rem' }}>{item.name}</p>
+                                                <small className="text-muted">₱{item.basePrice} x {item.qty}</small>
+                                            </div>
+                                            <div className="d-flex align-items-center gap-2">
+                                                <span className="fw-bold brand-primary" style={{ fontSize: '0.8rem' }}>₱{(item.basePrice * item.qty).toLocaleString()}</span>
+                                                <button className="btn btn-sm text-danger p-0 border-0" onClick={() => removeFromCart(item._id)}>✖</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="border-top pt-3">
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                <span className="text-muted font-poppins">Total Amount</span>
+                                <h4 className="mb-0 fw-bold text-dark-secondary">₱{cartTotal.toLocaleString()}</h4>
+                            </div>
+                            <button
+                                className="btn btn-save w-100 py-3 rounded-4 fw-bold shadow-sm"
+                                disabled={cart.length === 0 || isProcessing}
+                                onClick={handleCheckout}
+                            >
+                                {isProcessing ? 'Processing...' : 'Complete Payment'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Recent Transactions */}
+                <div className="col-12 mt-4">
+                    <div className="rounded-4 p-4 shadow-sm" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)' }}>
+                        <h6 className="fw-bold mb-4 font-poppins text-dark-secondary">RECENT POS TRANSACTIONS</h6>
+                        <div className="table-responsive">
+                            <table className="table table-hover align-middle">
+                                <thead className="table-light">
+                                    <tr style={{ fontSize: '0.85rem' }}>
+                                        <th>Transaction ID</th>
+                                        <th>Product</th>
+                                        <th>Qty</th>
+                                        <th>Total</th>
+                                        <th>Ref</th>
+                                        <th>Date & Time</th>
+                                        <th>SMC Linked</th>
+                                        <th className="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sales.map(s => (
+                                        <tr key={s._id} style={{ fontSize: '0.85rem' }}>
+                                            <td className="font-monospace text-uppercase fw-bold text-dark-secondary">{s.transactionId}</td>
+                                            <td>{s.productName}</td>
+                                            <td>{s.quantity}</td>
+                                            <td className="fw-bold text-dark">₱{s.totalPrice.toLocaleString()}</td>
+                                            <td>
+                                                <span className={`badge rounded-pill ${s.customerId ? 'bg-info-subtle text-info border border-info' : 'bg-light text-muted border'}`} style={{ fontSize: '0.65rem' }}>
+                                                    {s.customerId ? 'CRM' : 'POS'}
+                                                </span>
+                                            </td>
+                                            <td className="text-muted">{new Date(s.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                            <td>
+                                                {s.smcId ? (
+                                                    <span className="badge rounded-pill bg-success-subtle text-success px-3 border border-success" style={{ fontFamily: 'monospace' }}>{s.smcId}</span>
+                                                ) : <span className="text-muted">—</span>}
+                                            </td>
+                                            <td className="text-end">
+                                                {(s.smcId || s.productName?.toLowerCase().includes('smc')) && (
+                                                    <button
+                                                        className="btn btn-sm btn-smc-card rounded-pill px-3 py-1 fw-bold"
+                                                        onClick={() => onSMCRequest(s.smcId || s.transactionId)}
+                                                        style={{ fontSize: '0.75rem' }}
+                                                    >
+                                                        Print Card
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const CarRentManagement = ({ employee }) => (
     <div>
         <TopHeader

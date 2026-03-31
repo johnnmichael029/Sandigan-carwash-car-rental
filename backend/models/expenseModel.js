@@ -9,7 +9,7 @@ const expenseSchema = new Schema({
     category: {
         type: String,
         required: true,
-        enum: ['Supplies', 'Utilities', 'Rent', 'Marketing', 'Maintenance', 'Salaries', 'Other']
+        // No longer using strict enum to allow for unique inventory tags (e.g., 'SMC', 'Tumbler', etc.)
     },
     amount: {
         type: Number,

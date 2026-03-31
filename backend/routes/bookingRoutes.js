@@ -6,7 +6,8 @@ const {
     createBooking,
     deleteBooking,
     updateBooking,
-    getAvailableTimeSlots
+    getAvailableTimeSlots,
+    getEmployeeHistory
 } = require('../controllers/bookingController');
 const router = express.Router();
 
@@ -19,6 +20,9 @@ router.get('/availability', getAvailableTimeSlots);
 router.post('/', createBooking);
 
 // --- PROTECTED ROUTES (employee or admin only) ---
+
+// Performance history — employees only
+router.get('/employee-history/:id', requireAuth, getEmployeeHistory);
 
 // Get all bookings — employees only
 router.get('/', requireAuth, getBookings);

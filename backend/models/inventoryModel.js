@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const inventorySchema = new mongoose.Schema({
     name: { type: String, required: true },
-    category: { type: String, enum: ['Chemicals', 'Supplies', 'Tools', 'Equipment', 'Other'], default: 'Chemicals' },
+    category: { type: String, default: 'Uncategorized' },
     currentStock: { type: Number, default: 0 },
     unit: { type: String, default: 'ml' }, // ml, L, pcs, kg
     reorderPoint: { type: Number, default: 500 }, // Notify admin when stock is below this

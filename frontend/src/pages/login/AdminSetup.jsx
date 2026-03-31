@@ -87,7 +87,7 @@ const AdminSetup = () => {
 
             await Swal.fire({
                 icon: 'success',
-                title: '🎉 Admin Account Created!',
+                title: 'Admin Account Created!',
                 html: `<p style="color:#9ca3af;font-size:0.9rem">Welcome, <b style="color:#FAFAFA">${form.fullName}</b>!<br>Your admin account is ready. Please log in to continue.</p>`,
                 confirmButtonColor: '#23A0CE',
                 confirmButtonText: 'Go to Login',
@@ -131,14 +131,14 @@ const AdminSetup = () => {
                             <span style={{ width: '6px', height: '6px', background: '#23A0CE', borderRadius: '50%', display: 'inline-block' }} />
                             <small style={{ color: '#23A0CE', fontWeight: 600, fontSize: '0.72rem', letterSpacing: '0.5px', textTransform: 'uppercase' }}>First-Time Setup</small>
                         </div>
-                        <h5 className="fw-bold mb-1" style={{ color: '#0d2626' }}>Create Your Admin Account</h5>
-                        <p className="text-muted mb-0" style={{ fontSize: '0.82rem' }}>This page will be permanently locked once completed.</p>
+                        <h5 className="fw-bold mb-1 brand-primary" >Create Your Admin Account</h5>
+                        <p className="text-light-gray200 mb-0" style={{ fontSize: '0.82rem' }}>This page will be permanently locked once completed.</p>
                     </div>
 
                     <form onSubmit={handleSubmit}>
                         {/* Full Name */}
                         <div className="mb-3">
-                            <label className="form-label fw-semibold" style={{ fontSize: '0.82rem', color: '#374151' }}>Full Name</label>
+                            <label className="form-label fw-light text-light-gray200" style={{ fontSize: '0.82rem' }}>Full Name</label>
                             <input
                                 type="text"
                                 name="fullName"
@@ -153,7 +153,7 @@ const AdminSetup = () => {
 
                         {/* Email */}
                         <div className="mb-3">
-                            <label className="form-label fw-semibold" style={{ fontSize: '0.82rem', color: '#374151' }}>Email Address</label>
+                            <label className="form-label fw-light text-light-gray200" style={{ fontSize: '0.82rem' }}>Email Address</label>
                             <input
                                 type="email"
                                 name="email"
@@ -168,7 +168,7 @@ const AdminSetup = () => {
 
                         {/* Password */}
                         <div className="mb-2">
-                            <label className="form-label fw-semibold" style={{ fontSize: '0.82rem', color: '#374151' }}>Password</label>
+                            <label className="form-label fw-light text-light-gray200" style={{ fontSize: '0.82rem' }}>Password</label>
                             <div className="input-group">
                                 <input
                                     type={showPassword ? 'text' : 'password'}
@@ -214,7 +214,7 @@ const AdminSetup = () => {
 
                         {/* Confirm Password */}
                         <div className="mb-4">
-                            <label className="form-label fw-semibold" style={{ fontSize: '0.82rem', color: '#374151' }}>Confirm Password</label>
+                            <label className="form-label fw-light text-light-gray200" style={{ fontSize: '0.82rem' }}>Confirm Password</label>
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 name="confirmPassword"
@@ -244,7 +244,7 @@ const AdminSetup = () => {
                         <button
                             id="btn-setup-submit"
                             type="submit"
-                            className="btn btn-primary w-100 py-2 rounded-3 fw-bold"
+                            className="btn btn-primary w-100 py-2 rounded-3 fw-semibold"
                             disabled={isLoading}
                         >
                             {isLoading ? (
@@ -255,13 +255,13 @@ const AdminSetup = () => {
                             ) : 'Create Admin Account & Lock Setup'}
                         </button>
 
-                        <p className="text-center text-muted mt-3 mb-0" style={{ fontSize: '0.75rem' }}>
-                            🔒 This setup page will be permanently locked after submission.
+                        <p className="text-center text-light-gray200 mt-3 mb-0" style={{ fontSize: '0.75rem' }}>
+                            This setup page will be permanently locked after submission.
                         </p>
                     </form>
                 </div>
             </div>
-        </section>
+        </section >
     );
 };
 

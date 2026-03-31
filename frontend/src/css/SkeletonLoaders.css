@@ -1,0 +1,58 @@
+/* Custom Skeleton Loading Animations */
+.skeleton-wrapper {
+    animation: fade-in 0.5s ease;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.skeleton-text {
+    background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
+    background-size: 200% 100%;
+    animation: 1.5s skeleton-pulse linear infinite;
+    border-radius: 4px;
+}
+
+.skeleton-title {
+    background: linear-gradient(110deg, #e2e8f0 8%, #cbd5e1 18%, #e2e8f0 33%);
+    background-size: 200% 100%;
+    animation: 1.5s skeleton-pulse linear infinite;
+}
+
+.skeleton-btn {
+    background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
+    background-size: 200% 100%;
+    animation: 1.5s skeleton-pulse linear infinite;
+}
+
+.skeleton-card {
+    background: #ffffff;
+    border: 1px solid #f8fafc;
+}
+
+.skeleton-icon {
+    background: linear-gradient(110deg, #e2e8f0 8%, #f1f5f9 18%, #e2e8f0 33%);
+    background-size: 200% 100%;
+    animation: 1.5s skeleton-pulse linear infinite;
+}
+
+.skeleton-chart-bar {
+    background: linear-gradient(180deg, #e2e8f0 0%, #f8fafc 100%);
+    background-size: 100% 200%;
+    animation: 1.5s skeleton-pulse-vertical linear infinite;
+    border-radius: 4px 4px 0 0;
+}
+
+@keyframes skeleton-pulse {
+    to {
+        background-position-x: -200%;
+    }
+}
+
+@keyframes skeleton-pulse-vertical {
+    to {
+        background-position-y: -200%;
+    }
+}

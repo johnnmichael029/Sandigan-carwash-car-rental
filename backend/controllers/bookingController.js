@@ -5,11 +5,19 @@ const { createLog } = require('./activityLogController');
 
 const secretKey = process.env.RECAPTCHA_SECRET_KEY; // Use variable, not the raw key!
 const axios = require('axios');
+const jwt = require('jsonwebtoken');
+const Promotion = require('../models/promotionModel');
+const Customer = require('../models/customerModel');
+const Employee = require('../models/employeeModel');
 
 // Get all bookings
 const getBookings = async (req, res) => {
     try {
-        const bookings = await Booking.find().sort({ createdAt: -1 });
+        let filter = {};
+        if (req.query.smcOnly === 'true') filter.smcId = { $ne: null };
+        if (req.query.promoOnly === 'true') filter.promoCode = { $ne: null };
+
+        const bookings = await Booking.find(filter).sort({ createdAt: -1 });
         res.status(200).json(bookings);
     }
     catch (err) {
@@ -37,7 +45,8 @@ const getBooking = async (req, res) => {
 
 // Create a new booking
 const createBooking = async (req, res) => {
-    const { captchaToken, firstName, lastName, phoneNumber, emailAddress, vehicleType, serviceType, bookingTime } = req.body;
+    const { firstName, lastName, phoneNumber, emailAddress, vehicleType, serviceType, bookingTime, captchaToken, promoCode, promoDiscount } = req.body;
+
     try {
         // Skip captcha for internal staff (check for valid session cookie)
         const jwt = require('jsonwebtoken');
@@ -52,13 +61,13 @@ const createBooking = async (req, res) => {
 
         if (!skipCaptcha) {
             if (!captchaToken) {
-                return res.status(400).json({ error: "Captcha token is required for public bookings." });
+                return res.status(400).json({ error: "Please solve the security captcha first." });
             }
             const verificationUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
             const response = await axios.post(verificationUrl);
             if (!response.data.success) {
                 return res.status(400).json({
-                    error: "Captcha verification failed.",
+                    error: "Captcha verification failed. Please try again.",
                     details: response.data['error-codes']
                 });
             }
@@ -67,7 +76,16 @@ const createBooking = async (req, res) => {
         const formattedPhoneNumber = `0${phoneNumber}`; // Prepend 0 if phone number exists, else set to null
         // Generate the Batch ID before saving
         const generatedBatchID = await generateBatchID(bookingTime);
-        const totalPrice = await calculateTotalFromDb(vehicleType, serviceType);
+        const basePrice = await calculateTotalFromDb(vehicleType, serviceType);
+        const discountAmount = req.body.discountAmount || 0;
+        const promoDiscountVal = promoDiscount || 0;
+
+        // Compute retail total from purchasedProducts, if any
+        const purchasedProducts = Array.isArray(req.body.purchasedProducts) ? req.body.purchasedProducts : [];
+        const retailTotal = purchasedProducts.reduce((sum, p) => sum + (Number(p.price) * Number(p.quantity)), 0);
+
+        const totalPrice = Math.max(0, basePrice + retailTotal - discountAmount - promoDiscountVal);
+
         const booking = await Booking.create({
             firstName,
             lastName,
@@ -77,7 +95,14 @@ const createBooking = async (req, res) => {
             serviceType,
             bookingTime,
             batchId: generatedBatchID,
-            totalPrice
+            totalPrice,
+            smcId: req.body.smcId || null,
+            discountAmount,
+            promoCode: promoCode || null,
+            promoDiscount: promoDiscountVal,
+            purchasedProducts,
+            assignedTo: req.body.assignedTo || null,
+            detailer: req.body.detailer || null
         });
 
         // Create a notification for this booking
@@ -92,15 +117,13 @@ const createBooking = async (req, res) => {
         let actorName = 'Public Customer';
         let actorId = null;
         let actorRole = 'public';
-        const jwtForLog = require('jsonwebtoken');
         const tokenForLog = req.cookies?.token;
         if (tokenForLog) {
             try {
-                const decoded = jwtForLog.verify(tokenForLog, process.env.JWT_SECRET);
+                const decoded = jwt.verify(tokenForLog, process.env.JWT_SECRET);
                 actorId = decoded.id;
                 actorRole = decoded.role || 'employee';
                 // Fetch name
-                const Employee = require('../models/employeeModel');
                 const emp = await Employee.findById(decoded.id).lean();
                 if (emp) actorName = emp.fullName;
             } catch (_) { /* public booking */ }
@@ -153,14 +176,12 @@ const deleteBooking = async (req, res) => {
         let actorName = 'Unknown Staff';
         let actorId = null;
         let actorRole = 'employee';
-        const jwt = require('jsonwebtoken');
         const token = req.cookies?.token;
         if (token) {
             try {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 actorId = decoded.id;
                 actorRole = decoded.role;
-                const Employee = require('../models/employeeModel');
                 const emp = await Employee.findById(decoded.id).lean();
                 if (emp) actorName = emp.fullName;
             } catch (_) { }
@@ -210,11 +231,31 @@ const updateBooking = async (req, res) => {
             }
         }
 
-        // If vehicle or services changed, recalculate total price
+        // If vehicle, services, or SMC changed, recalculate total price
         const newVehicle = req.body.vehicleType || currentBooking.vehicleType;
         const newServices = req.body.serviceType || currentBooking.serviceType;
-        if (req.body.vehicleType || req.body.serviceType) {
-            updateQuery.$set.totalPrice = await calculateTotalFromDb(newVehicle, newServices);
+
+        const newPurchasedProducts = req.body.purchasedProducts !== undefined ? req.body.purchasedProducts : (currentBooking.purchasedProducts || []);
+        let retailTotal = 0;
+        if (newPurchasedProducts.length > 0) {
+            newPurchasedProducts.forEach(p => {
+                // Parse correctly just in case
+                retailTotal += (Number(p.price) * Number(p.quantity));
+            });
+            updateQuery.$set.purchasedProducts = newPurchasedProducts;
+        }
+
+        if (req.body.vehicleType || req.body.serviceType || req.body.discountAmount !== undefined || req.body.promoDiscount !== undefined || req.body.purchasedProducts !== undefined) {
+            const basePrice = await calculateTotalFromDb(newVehicle, newServices);
+            const smcDiscount = req.body.discountAmount !== undefined ? req.body.discountAmount : (currentBooking.discountAmount || 0);
+            const promoDiscount = req.body.promoDiscount !== undefined ? req.body.promoDiscount : (currentBooking.promoDiscount || 0);
+
+            updateQuery.$set.totalPrice = Math.max(0, basePrice + retailTotal - smcDiscount - promoDiscount);
+            updateQuery.$set.discountAmount = smcDiscount;
+            updateQuery.$set.promoDiscount = promoDiscount;
+
+            if (req.body.smcId !== undefined) updateQuery.$set.smcId = req.body.smcId;
+            if (req.body.promoCode !== undefined) updateQuery.$set.promoCode = req.body.promoCode;
         }
 
         // --- ERP Phase 2: Handle Detailer Commission ---
@@ -229,16 +270,57 @@ const updateBooking = async (req, res) => {
             const { getSettingValue } = require('./settingController');
             const commissionRate = await getSettingValue('commission_rate', 0.30);
 
-            updateQuery.$set.commission = finalPrice * commissionRate;
+            // Calculate commission only on the service portion (Total Price minus Products)
+            const commissionablePrice = Math.max(0, finalPrice - retailTotal);
+            updateQuery.$set.commission = commissionablePrice * commissionRate;
             if (statusJustCompleted) updateQuery.$set.commissionStatus = 'Unpaid';
 
-            // ERP Phase 3: Auto-deduct inventory stock & record supply cost as expense
+            // ERP Phase 3+: On first completion — deduct inventory, record expenses, revenue, update CRM
             if (statusJustCompleted) {
+                // Record Promo Usage in DB if code was used
+                const usedPromo = req.body.promoCode || currentBooking.promoCode;
+                if (usedPromo) {
+                    const cust = await Customer.findOne({ email: currentBooking.emailAddress });
+                    if (cust) {
+                        await Promotion.findOneAndUpdate(
+                            { code: usedPromo.toUpperCase().trim() },
+                            { $inc: { usageCount: 1 }, $addToSet: { usedBy: cust._id } }
+                        );
+                    }
+                }
+
+                // Hoist serviceTypes so it's available in all sub-blocks below
+                const serviceTypes = Array.isArray(currentBooking.serviceType)
+                    ? currentBooking.serviceType
+                    : [currentBooking.serviceType].filter(Boolean);
+
+                // ── Auto-upsert CRM Customer Record & Capture SMC ID ──
+                let finalSMCId = currentBooking.smcId;
                 try {
-                    const { deductStockForBooking } = require('./serviceRecipeController');
-                    const serviceTypes = Array.isArray(currentBooking.serviceType)
-                        ? currentBooking.serviceType
-                        : [currentBooking.serviceType].filter(Boolean);
+                    const { upsertCustomerFromBooking } = require('./crmController');
+                    const syncResult = await upsertCustomerFromBooking({
+                        firstName: currentBooking.firstName,
+                        lastName: currentBooking.lastName,
+                        email: currentBooking.emailAddress,
+                        phone: currentBooking.phoneNumber,
+                        vehicleType: newVehicle,
+                        totalPrice: updateQuery.$set.totalPrice ?? currentBooking.totalPrice,
+                        completedAt: new Date(),
+                        purchasedProducts: newPurchasedProducts,
+                        smcId: currentBooking.smcId,
+                    });
+
+                    if (syncResult && syncResult.smcId) {
+                        finalSMCId = syncResult.smcId;
+                        updateQuery.$set.smcId = syncResult.smcId;
+                    }
+                } catch (crmErr) {
+                    console.error('[CRM] Failed to upsert customer from booking:', crmErr.message);
+                }
+
+                // Auto-deduct inventory stock & record supply cost as expense
+                try {
+                    const { deductStockForBooking, getIngredientsForBooking } = require('./serviceRecipeController');
 
                     const supplyCost = await deductStockForBooking({
                         serviceTypes,
@@ -249,8 +331,6 @@ const updateBooking = async (req, res) => {
                         const Expense = require('../models/expenseModel');
                         const shortId = currentBooking.batchId || id.toString().slice(-6);
 
-                        // Get the ingredients breakdown for the expense record
-                        const { getIngredientsForBooking } = require('./serviceRecipeController');
                         const ingredientsUsed = await getIngredientsForBooking({
                             serviceTypes,
                             vehicleType: newVehicle
@@ -264,9 +344,79 @@ const updateBooking = async (req, res) => {
                             ingredients: ingredientsUsed
                         });
                     }
+
+                    // Retail Products: Inventory Deduction & Expense Logging & POS Sync
+                    if (newPurchasedProducts && newPurchasedProducts.length > 0) {
+                        const { deductStockForProduct } = require('./serviceRecipeController');
+                        const { generateTransactionId } = require('./retailController');
+                        const RetailSale = require('../models/retailSaleModel');
+                        const Expense = require('../models/expenseModel');
+                        const Customer = require('../models/customerModel');
+
+                        const shortId = currentBooking.batchId || id.toString().slice(-6);
+
+                        // Find customer for linking if possible
+                        const customer = await Customer.findOne({ email: currentBooking.emailAddress });
+
+                        for (const product of newPurchasedProducts) {
+                            // 1. Deduct Stock
+                            const { totalCost, category } = await deductStockForProduct(product, product.quantity);
+
+                            // 2. Log COGS Expense
+                            if (totalCost > 0) {
+                                await Expense.create({
+                                    title: `Retail COGS — ${product.productName} (x${product.quantity})`,
+                                    category: category || 'Retail',
+                                    amount: totalCost,
+                                    description: `Cost of goods sold during Booking #${shortId}`
+                                });
+                            }
+
+                            // 3. AUTO-SYNC: Create POS Transaction record
+                            const txId = await generateTransactionId({ name: product.productName, category: category || 'Retail' });
+                            const isSMC = product.productName?.toLowerCase().includes('smc');
+
+                            await RetailSale.create({
+                                transactionId: txId,
+                                productId: product.productId || null,
+                                productName: product.productName,
+                                quantity: product.quantity,
+                                totalPrice: (Number(product.price) * Number(product.quantity)),
+                                paymentMethod: 'Cash', // Default for auto-sync
+                                isSMCBuy: isSMC,
+                                smcId: isSMC ? finalSMCId : null, // LINK THE SMC ID HERE!
+                                customerId: customer?._id || null,
+                                customerType: (currentBooking.emailAddress === 'walkin@example.com') ? 'Walk-in' : 'Regular'
+                            });
+                        }
+                    }
                 } catch (recipeErr) {
-                    // Non-fatal: log the error but don't block the booking update
-                    console.error('[Recipe] Failed to deduct stock:', recipeErr.message);
+                    console.error('[Recipe/POS Sync] Failed to process retail:', recipeErr.message);
+                }
+
+                // Auto-record Revenue in Finance ERP
+                try {
+                    const { recordRevenue } = require('./revenueController');
+                    const { resolveRevenueCategory } = require('./retailController');
+                    const finalBookingPrice = updateQuery.$set.totalPrice ?? currentBooking.totalPrice;
+                    const retailMeta = newPurchasedProducts.length > 0 ? ` + Retail (${newPurchasedProducts.map(p => p.productName).join(', ')})` : '';
+
+                    // Decide the base category logic: If it contains products, it's a "Mixed" transaction, else it's a "Service"
+                    let baseToResolve = (newPurchasedProducts && newPurchasedProducts.length > 0) ? "Mixed" : "Service";
+
+                    const revCategory = await resolveRevenueCategory(baseToResolve);
+
+                    await recordRevenue({
+                        title: `Car Wash — ${currentBooking.firstName} ${currentBooking.lastName}`,
+                        amount: finalBookingPrice,
+                        category: revCategory,
+                        source: 'Booking',
+                        referenceId: currentBooking.batchId || id,
+                        notes: `${serviceTypes.join(', ')} | ${newVehicle}${retailMeta}`,
+                        recordedBy: null,
+                    });
+                } catch (revErr) {
+                    console.error('[Revenue] Failed to auto-record booking revenue:', revErr.message);
                 }
             }
         }
@@ -347,9 +497,16 @@ const generateBatchID = async (requestedHour) => {
         throw new Error(`The ${requestedHour}:00 slot is full. Please pick another time.`);
     }
 
-    // 3. Format: Hour-Sequence (e.g., 10-01)
+    // 3. Current Date formatting for the ID (MMDDYY)
+    const todayStr = new Date();
+    const month = (todayStr.getMonth() + 1).toString();
+    const day = todayStr.getDate().toString();
+    const year = todayStr.getFullYear().toString().slice(-2);
+    const dateFormatted = `${month}${day}${year}`;
+
+    // 4. Format: DatePrefix-Hour-Sequence (e.g., 33026-10-01)
     const sequence = (existingCount + 1).toString().padStart(2, '0');
-    return `${requestedHour}-${sequence}`;
+    return `${dateFormatted}-${requestedHour}${sequence}`;
 };
 
 const getAvailableTimeSlots = async (req, res) => {
@@ -377,11 +534,42 @@ const getAvailableTimeSlots = async (req, res) => {
     }
 };
 
+// ── EMPLOYEE PERFORMANCE LOGS ──
+const getEmployeeHistory = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Fetch all COMPLETED bookings where this employee is assigned
+        const bookings = await Booking.find({
+            assignedTo: id,
+            status: 'Completed'
+        })
+            .sort({ createdAt: -1 })
+            .select('batchId firstName lastName vehicleType serviceType totalPrice createdAt');
+
+        // Calculate summary stats
+        const totalCompleted = bookings.length;
+        const totalRevenue = bookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+
+        res.status(200).json({
+            summary: {
+                totalCompleted,
+                totalRevenue,
+            },
+            history: bookings
+        });
+    } catch (err) {
+        console.error('Error fetching employee history:', err);
+        res.status(500).json({ error: 'Failed to fetch employee history.' });
+    }
+};
+
 module.exports = {
     getBookings,
     getBooking,
     createBooking,
     deleteBooking,
     updateBooking,
-    getAvailableTimeSlots
+    getAvailableTimeSlots,
+    getEmployeeHistory
 };

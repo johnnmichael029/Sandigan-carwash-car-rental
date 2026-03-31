@@ -24,7 +24,13 @@ const activityLogRoutes = require('./routes/activityLogRoutes');
 const financeRoutes = require('./routes/financeRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const serviceRecipeRoutes = require('./routes/serviceRecipeRoutes');
+const productRoutes = require('./routes/productRoutes');
 const recurringBillRoutes = require('./routes/recurringBillRoutes');
+const crmRoutes = require('./routes/crmRoutes');
+const promotionRoutes = require('./routes/promotionRoutes');
+const revenueRoutes = require('./routes/revenueRoutes');
+const inventoryCategoryRoutes = require('./routes/inventoryCategoryRoutes');
+const retailRoutes = require('./routes/retailRoutes');
 
 const path = require('path');
 
@@ -137,8 +143,18 @@ app.use('/api/pricing', pricingRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/inventory-categories', inventoryCategoryRoutes);
+app.use('/api/crm', crmRoutes);
 app.use('/api/service-recipes', serviceRecipeRoutes);
+app.use('/api/products', productRoutes);
 app.use('/api/recurring-bills', recurringBillRoutes);
+app.use('/api/promotions', promotionRoutes);
+app.use('/api/revenue', revenueRoutes);
+app.use('/api/payroll', require('./routes/payrollRoutes'));
+app.use('/api/attendance', require('./routes/attendanceRoutes'));
+app.use('/api/retail', retailRoutes);
+app.use('/api/settings', require('./routes/settingRoutes'));
+app.use('/api/revenue-categories', require('./routes/revenueCategoryRoutes'));
 
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {

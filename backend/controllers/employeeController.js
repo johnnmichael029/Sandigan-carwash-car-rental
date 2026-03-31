@@ -28,7 +28,12 @@ const getEmployees = async (req, res) => {
 
 // Create employee
 const createEmployee = async (req, res) => {
-    const { fullName, email, password, role } = req.body;
+    let { fullName, email, password, role, age, address, phone, baseSalary, salaryFrequency, status } = req.body;
+
+    if (role === 'detailer') {
+        if (!email || email.trim() === '') email = `detailer_${Date.now()}@sandigan.local`;
+        if (!password || password.trim() === '') password = `detailer_${Date.now()}!`;
+    }
 
     try {
         // Check if email already exists
@@ -45,11 +50,20 @@ const createEmployee = async (req, res) => {
             fullName,
             email,
             password: hashedPassword,
-            role: role || 'employee'
+            role: role || 'employee',
+            age: age ? Number(age) : undefined,
+            address,
+            contactNumber: phone,
+            baseSalary: baseSalary ? Number(baseSalary) : 0,
+            salaryFrequency: salaryFrequency || 'Monthly',
+            status: status || 'Active'
         });
 
         res.status(201).json({ message: 'Employee created successfully' });
     } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ message: 'The email address you entered is already in use by another account.' });
+        }
         res.status(400).json({ error: error.message });
     }
 };
@@ -59,15 +73,38 @@ const createEmployee = async (req, res) => {
 // Update employee
 const updateEmployee = async (req, res) => {
     const { id } = req.params;
-    const { fullname, email } = req.body;
+    const { fullName, email, role, password, age, address, phone, baseSalary, salaryFrequency, status } = req.body;
+
+    // // Safety: prevent admin from demoting their own account
+    if (req.employeeId && req.employeeId.toString() === id && role && role !== 'admin') {
+        return res.status(400).json({ message: 'You cannot change your own admin role.' });
+    }
 
     try {
-        const employee = await Employee.findByIdAndUpdate(id, { fullname, email }, { returnDocument: 'after' });
+        const updateFields = {};
+        if (fullName) updateFields.fullName = fullName;
+        if (email) updateFields.email = email;
+        if (role) updateFields.role = role;
+        if (password && password.trim().length > 0) {
+            const salt = await bcrypt.genSalt(10);
+            updateFields.password = await bcrypt.hash(password, salt);
+        }
+        if (age !== undefined) updateFields.age = age ? Number(age) : null;
+        if (address !== undefined) updateFields.address = address;
+        if (phone !== undefined) updateFields.contactNumber = phone;
+        if (baseSalary !== undefined) updateFields.baseSalary = baseSalary ? Number(baseSalary) : 0;
+        if (salaryFrequency !== undefined) updateFields.salaryFrequency = salaryFrequency;
+        if (status !== undefined) updateFields.status = status;
+
+        const employee = await Employee.findByIdAndUpdate(id, updateFields, { returnDocument: 'after' });
         if (!employee) {
             return res.status(404).json({ message: 'Employee not found' });
         }
-        res.json(employee);
+        res.json({ message: 'Employee updated successfully', employee });
     } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ message: 'The email address you entered is already in use by another account.' });
+        }
         res.status(500).json({ message: error.message });
     }
 };
@@ -132,7 +169,7 @@ const loginEmployee = async (req, res) => {
             action: 'staff_logged_in',
             message: `${employee.fullName} logged into the system`,
             meta: { role: employee.role }
-        }).catch(() => {});
+        }).catch(() => { });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

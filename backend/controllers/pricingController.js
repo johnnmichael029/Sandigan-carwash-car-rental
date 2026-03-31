@@ -15,7 +15,6 @@ const seedPricingIfNotExists = async () => {
     try {
         const count = await Pricing.countDocuments();
         if (count === 0) {
-            console.log("Seeding Pricing Database with generic structure...");
             const seedData = Object.entries(PRICE_LIST).map(([vehicleType, s]) => {
                 const services = [];
                 const addons = [...NEW_ADDONS];
@@ -36,12 +35,10 @@ const seedPricingIfNotExists = async () => {
                 };
             });
             await Pricing.insertMany(seedData);
-            console.log("Pricing Seeding Complete.");
         } else {
             // Migrate legacy docs if they don't have arrays yet
             const legacyDocs = await Pricing.find({ 'services.0': { $exists: false }, Wash: { $exists: true } });
             if (legacyDocs.length > 0) {
-                console.log(`Migrating ${legacyDocs.length} legacy pricing docs to dynamic structure...`);
                 for (let doc of legacyDocs) {
                     const services = [];
                     const addons = [...NEW_ADDONS];

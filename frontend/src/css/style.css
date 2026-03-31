@@ -579,6 +579,16 @@ label {
     color: var(--text-primary);
 }
 
+.btn-call {
+    background-color: var(--brand-active);
+    color: var(--text-dark-secondary);
+}
+
+.btn-call:hover {
+    background-color: var(--brand-dark);
+    color: var(--text-primary);
+}
+
 .btn-record-expenses:hover,
 .btn-register-item:hover,
 .btn-save:hover {
@@ -603,6 +613,20 @@ label {
     background-color: var(--brand-dark);
     font-weight: 500;
     color: var(--text-primary);
+}
+
+.category-tags:hover {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+}
+
+.btn-smc-card {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    color: var(--text-primary);
+}
+
+.btn-smc-card:hover {
+    background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+    color: var(--text-in-progress);
 }
 
 

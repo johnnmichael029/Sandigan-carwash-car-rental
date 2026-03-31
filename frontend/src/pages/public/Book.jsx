@@ -156,70 +156,60 @@ const Book = () => {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(`Error: ${response.status} ${response.statusText}`);
+                // If the server sends an error (like "Captcha required"), show that specifically
+                throw new Error(data.error || `Server Error: ${response.status}`);
             }
 
-            if (response.ok) {
-                setFirstName('');
-                setLastName('');
-                setEmail('');
-                setPhoneNumber('');
-                setVehicleType('');
-                setServiceType('');
-                setPrivacyChecked(false);
-                setError(null);
-                setSuccess(true);
-                setStep(1);
+            // If we reach here, it's successful (response.ok is true)
+            setFirstName('');
+            setLastName('');
+            setEmail('');
+            setPhoneNumber('');
+            setVehicleType('');
+            setServiceType([]);
+            setPrivacyChecked(false);
+            setError(null);
+            setSuccess(true);
+            setStep(1);
 
-                // Get the batchID from the server response
-                const bookIdFromTheServer = data.batchId;
+            // Get the batchID from the server response
+            const finalDisplayId = data.batchId;
 
-                const today = new Date();
-                const dateStr = `${today.getMonth() + 1}${today.getDate()}${today.getFullYear().toString().slice(-2)}`;
-                const finalDisplayId = `${dateStr}-${bookIdFromTheServer}`;
-                // Trigger SweetAlert
-                Swal.fire({
-                    title: 'Booking Successful!',
-                    html: `Your BookID is: <b>${finalDisplayId}</b><br>Staff will contact you shortly.`,
-                    icon: 'success',
-                    showDenyButton: true,
-                    showConfirmButton: false, // Hides the default Okay button
-                    denyButtonText: 'Download PDF',
-                    denyButtonColor: '#23A0CE', // Matching your light blue theme
-                    background: '#111',
-                    bordeer: '1px solid rgba(255, 255, 255, 0.2)',
-                    color: '#FAFAFA',
-                    customClass: {
-                        popup: 'rounded-5'
-                    }
-                }).then((result) => {
-                    if (result.isDenied) {
-                        // 1. Trigger Download
-                        generatePDF(bookIdFromTheServer);
 
-                        // 2. Show the "Download Started" alert with the final Okay button
-                        Swal.fire({
-                            title: 'Download Started!',
-                            html: 'Your receipt is ready to download. Click <b>Save</b> to finish.',
-                            icon: 'info',
-                            confirmButtonText: 'Back to Home',
-                            confirmButtonColor: '#23A0CE',
-                            background: '#111',
-                            color: '#FAFAFA',
-                        }).then(() => {
-                            navigate('/'); // Only goes home AFTER they click Okay
-                        });
-                    } else if (result.isConfirmed) {
-                        navigate('/'); // Goes home immediately
-                    }
-                });
-
-            } else {
-                setError(data.error);
-                setSuccess(false);
-            }
+            // Trigger SweetAlert
+            Swal.fire({
+                title: 'Booking Successful!',
+                html: `Your BookID is: <b>${finalDisplayId}</b><br>Staff will contact you shortly.`,
+                icon: 'success',
+                showDenyButton: true,
+                showConfirmButton: false,
+                denyButtonText: 'Download PDF',
+                denyButtonColor: '#23A0CE',
+                background: '#111',
+                color: '#FAFAFA',
+                customClass: { popup: 'rounded-5' }
+            }).then((result) => {
+                if (result.isDenied) {
+                    generatePDF(finalDisplayId);
+                    Swal.fire({
+                        title: 'Download Started!',
+                        html: 'Your receipt is ready to download.',
+                        icon: 'info',
+                        confirmButtonText: 'Back to Home',
+                        confirmButtonColor: '#23A0CE',
+                        background: '#111',
+                        color: '#FAFAFA',
+                    }).then(() => {
+                        navigate('/');
+                    });
+                } else {
+                    navigate('/');
+                }
+            });
         } catch (err) {
-            setError("Server connection failed.");
+            // Show the actual message (e.g., "Please solve the captcha first.")
+            setError(err.message || "Server connection failed. Please try again.");
+            setSuccess(false);
         } finally {
             setIsLoading(false);
         }
@@ -238,16 +228,12 @@ const Book = () => {
     };
 
     // Generate PDF Receipt
-    const generatePDF = (bookId) => {
+    const generatePDF = (finalId) => {
         const doc = new jsPDF({
             unit: "mm",
             format: [80, 100]
         });
 
-        const today = new Date();
-        // 32126 format
-        const dateStr = `${today.getMonth() + 1}${today.getDate()}${today.getFullYear().toString().slice(-2)}`;
-        const finalId = `${dateStr}-${bookId}`;
 
         // Header
         doc.setFont("courier", "bold");
@@ -648,7 +634,7 @@ const Book = () => {
                                                 </div>
                                                 <button
                                                     type="submit"
-                                                    disabled={isLoading} // Prevents duplicate clicks while loading
+                                                    disabled={isLoading || !captchaToken} // Requires captcha to be solved
                                                     className="btn btn-primary w-100 btn-lg d-flex align-items-center justify-content-center text-white"
                                                 >
                                                     {isLoading ? (

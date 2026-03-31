@@ -6,12 +6,18 @@ const ingredientSchema = new mongoose.Schema({
 }, { _id: false });
 
 const serviceRecipeSchema = new mongoose.Schema({
-    serviceType: { type: String, required: true }, // e.g. 'Wash', 'Wax', 'Engine'
-    vehicleType:  { type: String, default: 'All' }, // 'All', 'Sedan', 'SUV', etc.
+    // 'Service' = car wash/add-on | 'Product' = SMC card, physical goods, etc.
+    category: {
+        type: String,
+        enum: ['Service', 'Product'],
+        default: 'Service'
+    },
+    serviceType: { type: String, required: true }, // e.g. 'Wash', 'Wax', 'SMC Card'
+    vehicleType:  { type: String, default: 'All' }, // 'All', 'Sedan', 'SUV', 'N/A' (products use 'N/A')
     ingredients: [ingredientSchema],
 }, { timestamps: true });
 
-// One recipe per service + vehicle combination
-serviceRecipeSchema.index({ serviceType: 1, vehicleType: 1 }, { unique: true });
+// Unique per category + service + vehicle combo
+serviceRecipeSchema.index({ category: 1, serviceType: 1, vehicleType: 1 }, { unique: true });
 
 module.exports = mongoose.model('ServiceRecipe', serviceRecipeSchema);
