@@ -44,13 +44,12 @@ const deleteAllLogs = async (req, res) => {
     }
 };
 
-/* ── Helper: create a log entry (called internally from controllers) ── */
-const createLog = async ({ actorId, actorName, actorRole, action, message, bookingId, meta }) => {
+/* ── Helper: create a log entry ── */
+const createLog = async ({ actorId, actorName, actorRole, module = 'SYSTEM', action, message, meta = {} }) => {
     try {
-        const log = await ActivityLog.create({ actorId, actorName, actorRole, action, message, bookingId, meta });
+        const log = await ActivityLog.create({ actorId, actorName, actorRole, module, action, message, meta });
         return log;
     } catch (err) {
-        // Non-fatal — never block the main operation
         console.error('ActivityLog createLog error:', err.message);
         return null;
     }

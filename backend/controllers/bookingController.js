@@ -134,6 +134,7 @@ const createBooking = async (req, res) => {
             actorId,
             actorName,
             actorRole,
+            module: 'BOOKING',
             action: 'booking_created',
             message: `${actorName} created a booking for ${firstName} ${lastName} (${serviceName})`,
             bookingId: booking._id,
@@ -314,6 +315,9 @@ const updateBooking = async (req, res) => {
                         finalSMCId = syncResult.smcId;
                         updateQuery.$set.smcId = syncResult.smcId;
                     }
+                    if (syncResult && syncResult.customerId) {
+                        updateQuery.$set.customerId = syncResult.customerId;
+                    }
                 } catch (crmErr) {
                     console.error('[CRM] Failed to upsert customer from booking:', crmErr.message);
                 }
@@ -444,6 +448,7 @@ const updateBooking = async (req, res) => {
         if (req.body.status && req.body.status !== currentBooking.status) {
             const log = await createLog({
                 actorId, actorName, actorRole,
+                module: 'BOOKING',
                 action: 'booking_status_changed',
                 message: `${actorName} changed booking #${booking.batchId} status from ${currentBooking.status} → ${req.body.status}`,
                 bookingId: booking._id,
@@ -457,10 +462,11 @@ const updateBooking = async (req, res) => {
         } else {
             const log = await createLog({
                 actorId, actorName, actorRole,
+                module: 'BOOKING',
                 action: 'booking_updated',
                 message: `${actorName} updated booking details for ${booking.firstName} ${booking.lastName}`,
                 bookingId: booking._id,
-                meta: { customer: `${booking.firstName} ${booking.lastName}` }
+                meta: { customer: `${firstName} ${lastName}` }
             });
             const io = req.app.get('io');
             if (io) {
@@ -545,18 +551,50 @@ const getEmployeeHistory = async (req, res) => {
             status: 'Completed'
         })
             .sort({ createdAt: -1 })
-            .select('batchId firstName lastName vehicleType serviceType totalPrice createdAt');
+            .select('batchId firstName lastName vehicleType serviceType totalPrice commission purchasedProducts createdAt');
 
-        // Calculate summary stats
-        const totalCompleted = bookings.length;
+        const { getSettingValue } = require('./settingController');
+        const commissionRate = await getSettingValue('commission_rate', 0.30);
+
+        // 1. Total Completed
+        const bookingCount = bookings.length;
+
+        // 2. Total Revenue Generated (Gross Price)
         const totalRevenue = bookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+
+        // 3. Total Earnings (Commission)
+        // We use the same calculation as getPayrollSummary for consistency
+        const totalEarnings = bookings.reduce((sum, b) => {
+            const retailTotal = (b.purchasedProducts || []).reduce((s, p) => s + (Number(p.price || 0) * Number(p.quantity || 0)), 0);
+            const commissionablePrice = Math.max(0, (b.totalPrice || 0) - retailTotal);
+            return sum + (commissionablePrice * commissionRate);
+        }, 0);
+
+        // Map to frontend expectations
+        const mappedHistory = bookings.map(b => {
+             const retailTotal = (b.purchasedProducts || []).reduce((s, p) => s + (Number(p.price || 0) * Number(p.quantity || 0)), 0);
+             const commissionablePrice = Math.max(0, (b.totalPrice || 0) - retailTotal);
+             const currentComm = commissionablePrice * commissionRate;
+
+             return {
+                _id: b._id,
+                createdAt: b.createdAt,
+                bookingId: b.batchId || b._id.toString().slice(-6).toUpperCase(),
+                customerName: `${b.firstName} ${b.lastName}`,
+                vehicleType: b.vehicleType,
+                commission: currentComm,
+                price: b.totalPrice || 0,
+                isAttendance: false
+             };
+        });
 
         res.status(200).json({
             summary: {
-                totalCompleted,
+                bookingCount,
                 totalRevenue,
+                totalEarnings
             },
-            history: bookings
+            history: mappedHistory
         });
     } catch (err) {
         console.error('Error fetching employee history:', err);

@@ -20,6 +20,31 @@ const attendanceSchema = new mongoose.Schema({
     durationMinutes: {
         type: Number,
         default: 0
+    },
+    overtimeMinutes: {
+        type: Number,
+        default: 0
+    },
+    isOTApproved: {
+        type: Boolean,
+        default: false
+    },
+    approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'employee'
+    },
+    holidayType: {
+        type: String,
+        enum: ['Regular', 'Special', 'None'],
+        default: 'None'
+    },
+    holidayName: {
+        type: String,
+        default: ''
+    },
+    wasPresentYesterday: {
+        type: Boolean,
+        default: false
     }
 }, { timestamps: true });
 

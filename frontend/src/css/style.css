@@ -516,9 +516,10 @@ label {
 .sidebar-container {
     background-color: var(--background-light-secondary);
     border-right: var(--border);
-    max-width: 100%;
     width: 250px;
+    flex-shrink: 0;
     background: var(--background-brand-linear);
+    transition: all 0.3s ease;
 }
 
 .nav-item {

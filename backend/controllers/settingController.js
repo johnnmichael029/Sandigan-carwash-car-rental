@@ -1,4 +1,5 @@
 const Setting = require('../models/settingModel');
+const { createLog } = require('./activityLogController');
 
 // Get all settings
 const getSettings = async (req, res) => {
@@ -17,8 +18,20 @@ const updateSetting = async (req, res) => {
         const setting = await Setting.findOneAndUpdate(
             { key },
             { value },
-            { returnDocument: 'after', upsert: true }
+            { returnDocument: 'after', upsert: true, runValidators: true }
         );
+
+        // Activity Log
+        await createLog({
+            actorId: req.user._id,
+            actorName: req.user.fullName,
+            actorRole: req.user.role,
+            module: 'SETTINGS',
+            action: 'setting_updated',
+            message: `Updated system setting: ${key} to ${JSON.stringify(value)}`,
+            meta: { key, value }
+        });
+
         res.status(200).json(setting);
     } catch (err) {
         res.status(500).json({ error: err.message });

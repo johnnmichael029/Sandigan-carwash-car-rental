@@ -1,7 +1,24 @@
+const mongoose = require('mongoose');
 const Customer = require('../models/customerModel');
 const Booking = require('../models/bookingModel');
 const CrmTag = require('../models/crmTagModel');
 const Expense = require('../models/expenseModel');
+const { createLog } = require('./activityLogController');
+
+// --- SELF-HEALING: Clear legacy unique email index ---
+mongoose.connection.once('connected', async () => {
+    try {
+        const collections = await mongoose.connection.db.listCollections({ name: 'customers' }).toArray();
+        if (collections.length > 0) {
+            // Drop legacy unique index if it exists to fix the common E11000 null constraint
+            await Customer.collection.dropIndex('email_1');
+            console.log('[CRM] Cleared legacy unique email index. Non-unique sparse index will be recreated.');
+        }
+    } catch (err) {
+        // Index handles non-existence gracefully
+    }
+});
+// -----------------------------------------------------
 
 // --- INTERNAL HELPERS ---
 const getResolvedSMCConfig = async () => {
@@ -15,11 +32,12 @@ const getResolvedSMCConfig = async () => {
             validityMonths: val.validityMonths !== undefined ? parseInt(val.validityMonths) : 12,
             abbreviation: val.abbreviation || 'SMC',
             price: val.price || 500,
-            discountPercentage: val.discountPercentage || 0
+            renewalPrice: val.renewalPrice || 350, // Default renewal price
+            discountPercentage: val.discountPercentage || 10
         };
     } catch (err) {
         console.error('[SMC-CONFIG] Error resolving config:', err.message);
-        return { cardName: "Sandigan Membership Card", cardColor: "#0f172a", validityMonths: 12, abbreviation: 'SMC', price: 500, discountPercentage: 0 };
+        return { cardName: "Sandigan Membership Card", cardColor: "#0f172a", validityMonths: 12, abbreviation: 'SMC', price: 500, renewalPrice: 350, discountPercentage: 10 };
     }
 };
 
@@ -71,8 +89,32 @@ const getCustomerStats = async (req, res) => {
         const customer = await Customer.findById(req.params.id);
         if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
-        // Get their booking history
-        const bookings = await Booking.find({ emailAddress: customer.email }).sort({ createdAt: -1 });
+        const currentSMC = customer.smcId && customer.smcId !== null ? customer.smcId : '---NONE---';
+
+        // Get their booking history using robust linking (customerId > smcId > email fallback)
+        const bookings = await Booking.find({
+            $or: [
+                { customerId: customer._id }, // Priority: Explicit link
+                { smcId: currentSMC }, // Priority: Legacy SMC match
+                {
+                    $and: [
+                        { emailAddress: customer.email }, // Fallback: Email match
+                        { customerId: { $in: [null, customer._id] } }, // NOT explicitly owned by someone else
+                        { smcId: { $in: [null, (customer.smcId || null)] } } // NOT linked to someone else's SMC ID
+                    ]
+                }
+            ]
+        }).sort({ createdAt: -1 });
+
+        // HEAL: If dynamic metrics (visits/spend) differ from stored ones, update them
+        const actualVisitCount = bookings.length;
+        const actualSpend = bookings.reduce((sum, b) => sum + (parseFloat(b.totalPrice) || 0), 0);
+
+        if (actualVisitCount !== customer.totalVisits || Math.abs(actualSpend - (customer.lifetimeSpend || 0)) > 0.01) {
+            customer.totalVisits = actualVisitCount;
+            customer.lifetimeSpend = actualSpend;
+            await customer.save();
+        }
 
         res.json({ customer, history: bookings });
     } catch (err) {
@@ -97,13 +139,27 @@ const updateCustomerCRM = async (req, res) => {
         if (firstName !== undefined) updateFields.firstName = firstName;
         if (lastName !== undefined) updateFields.lastName = lastName;
         if (email !== undefined) updateFields.email = email.toLowerCase().trim();
-        if (phone !== undefined) updateFields.phone = phone;
+        if (phone !== undefined) updateFields.phone = phone || '00000000000';
         if (vehicles !== undefined) updateFields.vehicles = vehicles;
         if (notes !== undefined) updateFields.notes = notes;
         if (tags !== undefined) updateFields.tags = tags;
 
         const updated = await Customer.findByIdAndUpdate(req.params.id, updateFields, { returnDocument: 'after', runValidators: true });
         if (!updated) return res.status(404).json({ error: 'Customer not found.' });
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'CRM',
+                action: 'customer_updated',
+                message: `Updated profile for client: ${updated.firstName} ${updated.lastName}`,
+                meta: { id: updated._id, email: updated.email }
+            });
+        }
+
         res.json(updated);
     } catch (err) {
         if (err.code === 11000) {
@@ -117,8 +173,24 @@ const updateCustomerCRM = async (req, res) => {
 // 5. Delete a Customer profile
 const deleteCustomer = async (req, res) => {
     try {
-        const deleted = await Customer.findByIdAndDelete(req.params.id);
-        if (!deleted) return res.status(404).json({ error: 'Customer not found.' });
+        const customer = await Customer.findById(req.params.id);
+        if (!customer) return res.status(404).json({ error: 'Customer not found.' });
+
+        await Customer.findByIdAndDelete(req.params.id);
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'CRM',
+                action: 'customer_deleted',
+                message: `Deleted customer profile: ${customer.firstName} ${customer.lastName}`,
+                meta: { id: customer._id, email: customer.email }
+            });
+        }
+
         res.json({ message: 'Client profile deleted successfully.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -140,11 +212,24 @@ const createCustomer = async (req, res) => {
             firstName,
             lastName,
             email: email.toLowerCase().trim(),
-            phone,
+            phone: phone || '00000000000',
             vehicles: vehicles ? vehicles.split(',').map(v => v.trim()).filter(Boolean) : [],
             notes: notes || '',
             tags: ['New Customer']
         });
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'CRM',
+                action: 'customer_created',
+                message: `Registered new client: ${customer.firstName} ${customer.lastName}`,
+                meta: { id: customer._id, email: customer.email }
+            });
+        }
 
         res.status(201).json(customer);
     } catch (err) {
@@ -157,7 +242,6 @@ const createCustomer = async (req, res) => {
 };
 
 // 4. Synchronization Engine: Convert Historical Bookings into Customers 
-// (For ERP Phase 2 migration)
 const syncBookingsToCRM = async (req, res) => {
     try {
         const bookings = await Booking.find({ status: 'Completed' });
@@ -319,6 +403,19 @@ const issueSMC = async (req, res) => {
 
         await customer.save();
 
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'CRM',
+                action: 'smc_issued',
+                message: `Issued status card (${newSmcId}) to ${customer.firstName} ${customer.lastName}`,
+                meta: { id: customer._id, smcId: newSmcId }
+            });
+        }
+
         // ── FINANCE ENGINE: Deduct SMC Card from Inventory ──────────────
         try {
             const { deductStockForProduct } = require('./serviceRecipeController');
@@ -362,34 +459,63 @@ const issueSMC = async (req, res) => {
     }
 };
 
-// 7. Validate SMC (Used by Checkout Scanner)
+// 7. Validate SMC (Used by Checkout / Booking Form)
 const validateSMC = async (req, res) => {
     try {
         const { smcId } = req.params;
-        const normalizedId = smcId.replace(/\s+/g, '').toUpperCase();
-        const customer = await Customer.findOne({ smcId: normalizedId, hasSMC: true });
+        const normalizedId = smcId?.trim().toUpperCase();
+        if (!normalizedId) return res.status(400).json({ error: 'Please enter a valid card ID.' });
 
-        if (!customer) {
+        let target = null;
+        let isAssigned = false;
+        let targetExpiryDate = null;
+
+        // A. Check for registered CRM customer first
+        const customer = await Customer.findOne({ smcId: normalizedId });
+
+        if (customer) {
+            target = customer;
+            isAssigned = true;
+            targetExpiryDate = customer.smcExpiryDate;
+        } else {
+            // B. Fallback to Membership log (covers anonymous walk-in cards)
+            const Membership = require('../models/membershipModel');
+            const log = await Membership.findOne({ cardId: normalizedId });
+            if (log) {
+                target = log;
+                isAssigned = false;
+                targetExpiryDate = log.expiryDate;
+            }
+        }
+
+        if (!target) {
             return res.status(404).json({ error: 'Invalid or Unknown ID.' });
         }
 
-        if (customer.smcExpiryDate && new Date() > customer.smcExpiryDate) {
+        // Check if membership is expired (if expiry date exists)
+        if (targetExpiryDate && new Date() > new Date(targetExpiryDate)) {
             return res.status(400).json({ error: 'Membership Expired. Please renew.' });
         }
 
-        // Fetch current global discount
+        // Fetch current global discount configuration from settings
         const Setting = require('../models/settingModel');
         const setting = await Setting.findOne({ key: 'smc_config' });
-        const discountPercentage = setting && setting.value ? setting.value.discountPercentage : 10; // Default 10%
+        const discountPercentage = setting && setting.value ? setting.value.discountPercentage : 10;
 
         res.json({
             isValid: true,
-            customer: {
-                id: customer._id,
-                firstName: customer.firstName,
-                lastName: customer.lastName,
-                email: customer.email,
-                smcId: customer.smcId
+            customer: isAssigned ? {
+                id: target._id,
+                firstName: target.firstName,
+                lastName: target.lastName,
+                email: target.email,
+                smcId: target.smcId
+            } : {
+                id: null,
+                firstName: 'Walk-in',
+                lastName: 'Customer',
+                email: 'walkin@example.com',
+                smcId: target.cardId
             },
             discountPercentage
         });
@@ -400,8 +526,8 @@ const validateSMC = async (req, res) => {
 
 /**
  * Upserts a CRM Customer record from a completed booking.
- * Highly robust logic: Prioritizes Name matching followed by Contact info.
- * Avoids dumping everything into 'Walk-in Customer' if a name is provided.
+ * Highly robust logic: Prioritizes SMC ID matching to find existing profiles correctly.
+ * Returns the object with BOTH smcId and customerId.
  */
 const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, vehicleType, totalPrice, completedAt, purchasedProducts = [], smcId }) => {
     // 1. Preparation & Normalization
@@ -418,7 +544,7 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
     let existing = null;
     let finalSMCId = smcId?.toUpperCase().trim() || null;
 
-    // A. Priority 0: SMC ID Match (The most accurate way to find anonymous members)
+    // A. Priority 0: SMC ID Match (The most accurate way to find owners, even for anonymous bookings)
     if (finalSMCId) {
         existing = await Customer.findOne({ smcId: finalSMCId });
     }
@@ -460,31 +586,39 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
 
     // 3. Execution (Update or Create)
     if (existing) {
-        const newVisits = (existing.totalVisits || 0) + 1;
         const newSpend = (existing.lifetimeSpend || 0) + (totalPrice || 0);
         const vehiclesSet = new Set(existing.vehicles || []);
         if (vehicleType) vehiclesSet.add(vehicleType);
 
-        existing.totalVisits = newVisits;
         existing.lifetimeSpend = newSpend;
         existing.lastVisitDate = completedAt || new Date();
         existing.vehicles = Array.from(vehiclesSet);
 
+        // SYNC: We re-calculate totalVisits based on actual Booking records to keep count 100% accurate
+        const totalVisits = await Booking.countDocuments({
+            $or: [
+                { customerId: existing._id },
+                { emailAddress: existing.email }
+            ],
+            status: 'Completed'
+        }) + 1; // +1 because the current booking is about to be marked as completed
+
+        existing.totalVisits = totalVisits;
+
         // Update tags
         const tagSet = new Set(existing.tags || []);
-        if (newVisits > 1) {
+        if (totalVisits > 1) {
             tagSet.delete('New Customer');
             tagSet.add('Regular');
         }
-        if (smcId || purchasedProducts.some(p => p.productName?.toLowerCase().includes('smc'))) tagSet.add('SMC');
+        if (finalSMCId || purchasedProducts.some(p => p.productName?.toLowerCase().includes('smc'))) tagSet.add('SMC');
         existing.tags = Array.from(tagSet);
 
         // --- SPECIAL PROTECTION FOR SHARED WALK-IN PROFILE ---
-        const isSharedWalkIn = (normalizedEmail === 'walkin@example.com');
+        const isSharedWalkIn = (normalizedEmail === 'walkin@example.com' || existing.email === 'walkin@example.com');
         if (isSharedWalkIn) {
             if (!existing.tags.includes('Walk-in')) existing.tags.push('Walk-in');
-            // Remove 'SMC' from tags list of the shared profile to avoid confusing the UI (the cards are unique)
-            existing.tags = existing.tags.filter(t => t !== 'SMC'); 
+            existing.tags = existing.tags.filter(t => t !== 'SMC');
         }
 
         // Auto-Issue SMC if purchased
@@ -495,25 +629,21 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
                 let newId = `${config.abbreviation}-`;
                 for (let i = 0; i < 6; i++) newId += chars.charAt(Math.floor(Math.random() * chars.length));
 
-                // If not shared-profile, we update the customer record directly
                 if (!isSharedWalkIn) {
                     existing.hasSMC = true;
                     existing.smcId = newId;
                     existing.smcIssuedDate = new Date();
-
                     const months = parseInt(config.validityMonths) || 12;
                     const expiry = new Date();
                     expiry.setMonth(expiry.getMonth() + months);
                     existing.smcExpiryDate = expiry;
-                    
                     if (!existing.tags.includes('SMC')) existing.tags.push('SMC');
                 }
 
-                // ALWAYS create a Membership record for the scanner and transaction
                 const Membership = require('../models/membershipModel');
                 const expiry = new Date();
                 expiry.setMonth(expiry.getMonth() + (config.validityMonths || 12));
-                
+
                 await Membership.create({
                     cardId: newId,
                     customerName: isSharedWalkIn ? 'Walk-in Customer' : `${normalizedFirst} ${normalizedLast}`,
@@ -522,30 +652,24 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
                 });
 
                 finalSMCId = newId;
-            } catch (smcErr) {
-                console.error('[CRM] Auto-SMC generation failed:', smcErr.message);
-            }
+            } catch (smcErr) { console.error('[CRM] Auto-SMC failed:', smcErr.message); }
         } else if (existing.hasSMC) {
-            // Keep track of the existing ID if it's a real person
             finalSMCId = existing.smcId;
         }
 
         // Populate missing contact info
-        if (normalizedEmail && normalizedEmail !== 'walkin@example.com' && !existing.email) {
-            existing.email = normalizedEmail;
-        }
-        if (normalizedPhone && normalizedPhone !== '00000000000' && (!existing.phone || existing.phone === '00000000000')) {
-            existing.phone = normalizedPhone;
-        }
-        console.log("Existing customer updated:", existing);
+        if (normalizedEmail && normalizedEmail !== 'walkin@example.com' && !existing.email) existing.email = normalizedEmail;
+        if (normalizedPhone && normalizedPhone !== '00000000000' && (!existing.phone || existing.phone === '00000000000')) existing.phone = normalizedPhone;
+
         await existing.save();
+        return { smcId: finalSMCId, customerId: existing._id };
     } else {
         // Create new profile for REAL customers ONLY
         if (!isGenericWalkIn) {
-            const newProfile = {
+            const newProfileData = {
                 firstName: normalizedFirst,
                 lastName: normalizedLast,
-                email: (normalizedEmail === 'walkin@example.com' || normalizedEmail === 'walkin1@example.com') ? '' : normalizedEmail,
+                email: (normalizedEmail === 'walkin@example.com' || !normalizedEmail) ? undefined : normalizedEmail,
                 phone: normalizedPhone,
                 totalVisits: 1,
                 lifetimeSpend: totalPrice || 0,
@@ -554,7 +678,6 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
                 tags: ['New Customer']
             };
 
-            // If a named customer buys or uses SMC, we bind it
             if (smcId || purchasedProducts.some(p => p.productName?.toLowerCase().includes('smc'))) {
                 try {
                     const config = await getResolvedSMCConfig();
@@ -562,19 +685,16 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
                     let gId = `${config.abbreviation}-`;
                     for (let i = 0; i < 6; i++) gId += chars.charAt(Math.floor(Math.random() * chars.length));
 
-                    newProfile.hasSMC = true;
-                    newProfile.smcId = gId;
-                    newProfile.smcIssuedDate = new Date();
-
+                    newProfileData.hasSMC = true;
+                    newProfileData.smcId = gId;
+                    newProfileData.smcIssuedDate = new Date();
                     const months = parseInt(config.validityMonths) || 12;
                     const expiry = new Date();
                     expiry.setMonth(expiry.getMonth() + months);
-                    newProfile.smcExpiryDate = expiry;
-                    
-                    newProfile.tags.push('SMC');
+                    newProfileData.smcExpiryDate = expiry;
+                    newProfileData.tags.push('SMC');
                     finalSMCId = gId;
 
-                    // Also create a Membership record for the scanner/tracking
                     const Membership = require('../models/membershipModel');
                     await Membership.create({
                         cardId: gId,
@@ -582,28 +702,24 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
                         expiryDate: expiry,
                         isAssigned: true
                     });
-                } catch (err) {
-                    console.error('[CRM] SMC creation failed:', err.message);
-                }
+                } catch (err) { console.error('[CRM] SMC creation failed:', err.message); }
             }
 
-            await Customer.create(newProfile);
+            const created = await Customer.create(newProfileData);
+            return { smcId: finalSMCId, customerId: created._id };
         } else {
-            // It was a generic walk-in but 'existing' was null (extremely rare if setup correct)
-            // If they bought an SMC here, we still need to generate the ID for the booking record
+            // Purchases SMC with a completely generic walk-in name
             if (purchasedProducts.some(p => p.productName?.toLowerCase().includes('smc'))) {
                 const config = await getResolvedSMCConfig();
                 const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-                let gId = `W-${config.abbreviation}-`; // Prefix with W for Walk-in cards
+                let gId = `W-${config.abbreviation}-`;
                 for (let i = 0; i < 6; i++) gId += chars.charAt(Math.floor(Math.random() * chars.length));
-                
-                finalSMCId = gId;
 
+                finalSMCId = gId;
                 const months = parseInt(config.validityMonths) || 12;
                 const expiry = new Date();
                 expiry.setMonth(expiry.getMonth() + months);
 
-                // Create anonymous membership record
                 const Membership = require('../models/membershipModel');
                 await Membership.create({
                     cardId: gId,
@@ -615,7 +731,42 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
         }
     }
 
-    return { smcId: finalSMCId };
+    return { smcId: finalSMCId, customerId: null };
+};
+
+const getSMCByCardId = async (req, res) => {
+    try {
+        const { smcId } = req.params;
+        const normalizedId = smcId.trim().toUpperCase();
+
+        const customer = await Customer.findOne({ smcId: normalizedId });
+
+        if (!customer) {
+            const Membership = require('../models/membershipModel');
+            const log = await Membership.findOne({ cardId: normalizedId });
+            if (!log) return res.status(404).json({ error: 'Card not found.' });
+
+            return res.json({
+                smcId: log.cardId,
+                firstName: 'Anonymous',
+                lastName: 'Customer',
+                smcExpiryDate: log.expiryDate,
+                isAssigned: false
+            });
+        }
+
+        res.json({
+            smcId: customer.smcId,
+            firstName: customer.firstName,
+            lastName: customer.lastName,
+            email: customer.email,
+            phone: customer.phone,
+            smcExpiryDate: customer.smcExpiryDate,
+            isAssigned: true
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 };
 
 const getSMCForBooking = async (req, res) => {
@@ -693,24 +844,131 @@ const getSMCConfig = async (req, res) => {
     }
 };
 
-const getSMCByCardId = async (req, res) => {
+const getAllMemberships = async (req, res) => {
+    try {
+        const Membership = require('../models/membershipModel');
+        const memberships = await Membership.find().sort({ expiryDate: 1 });
+        res.json(memberships);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+const renewSMC = async (req, res) => {
     try {
         const { smcId } = req.params;
-        const Membership = require('../models/membershipModel');
-        const card = await Membership.findOne({ cardId: smcId });
+        const { firstName, lastName, phone, email, isRegistering } = req.body;
 
-        if (!card) {
-            return res.status(404).json({ error: 'Membership card not found' });
+        const Membership = require('../models/membershipModel');
+        const config = await getResolvedSMCConfig();
+
+        // 1. Find the card
+        const card = await Membership.findOne({ cardId: smcId.toUpperCase().trim() });
+        if (!card) return res.status(404).json({ error: 'Membership card not found' });
+
+        // 2. Calculate New Expiry (STACKED LOGIC)
+        const now = new Date();
+        let currentExpiry = new Date(card.expiryDate);
+        let newExpiry = new Date();
+
+        if (currentExpiry > now) {
+            // Still active: Add to the end of current expiry
+            newExpiry = new Date(currentExpiry);
+            newExpiry.setMonth(newExpiry.getMonth() + (config.validityMonths || 12));
+        } else {
+            // Expired: Start from today
+            newExpiry.setMonth(newExpiry.getMonth() + (config.validityMonths || 12));
         }
 
+        // 3. Update Membership Record
+        card.expiryDate = newExpiry;
+        card.status = 'Active';
+
+        // 4. Personalization / Registration Logic
+        let customerLinked = null;
+        if (isRegistering && firstName && lastName) {
+            const cleanEmail = (email && email.trim()) ? email.toLowerCase().trim() : '___none___';
+
+            // Find existing CRM profile with smart logic:
+            // 1. Same membership card ID
+            // 2. OR same email address
+            // 3. OR same first/last name BUT NOT if they already have a different SMC ID. 
+            //    This prevents one person's card from hijacking another person with the same name.
+            const existingCust = await Customer.findOne({
+                $or: [
+                    { smcId: card.cardId },
+                    { email: cleanEmail },
+                    {
+                        firstName: firstName.trim(),
+                        lastName: lastName.trim(),
+                        $or: [
+                            { smcId: { $in: [null, card.cardId] } },
+                            { smcId: { $exists: false } }
+                        ]
+                    }
+                ]
+            });
+
+            if (existingCust) {
+                existingCust.hasSMC = true;
+                existingCust.smcId = card.cardId;
+                existingCust.smcExpiryDate = newExpiry;
+                existingCust.firstName = firstName.trim();
+                existingCust.lastName = lastName.trim();
+                if (phone) existingCust.phone = phone;
+                if (email && email.trim()) existingCust.email = email.toLowerCase().trim();
+                else existingCust.email = undefined;
+                if (!existingCust.tags.includes('SMC')) existingCust.tags.push('SMC');
+                await existingCust.save();
+                customerLinked = existingCust;
+            } else {
+                customerLinked = await Customer.create({
+                    firstName: firstName.trim(),
+                    lastName: lastName.trim(),
+                    email: (email && email.trim()) ? email.toLowerCase().trim() : undefined,
+                    phone: phone || '00000000000',
+                    hasSMC: true,
+                    smcId: card.cardId,
+                    smcExpiryDate: newExpiry,
+                    smcIssuedDate: card.issuedDate || new Date(),
+                    tags: ['SMC', 'Regular']
+                });
+            }
+            card.customerName = `${firstName} ${lastName}`;
+            card.customerId = customerLinked._id;
+            card.isAssigned = true;
+        } else {
+            // If already linked to a customer, update that customer's expiry date too
+            const linkedCust = await Customer.findOne({ smcId: card.cardId });
+            if (linkedCust) {
+                linkedCust.smcExpiryDate = newExpiry;
+                await linkedCust.save();
+            }
+        }
+
+        await card.save();
+
+        // 5. Financial Recording
+        try {
+            const { recordRevenue } = require('./revenueController');
+            await recordRevenue({
+                title: `SMC Renewal — ${card.customerName}`,
+                amount: config.renewalPrice || 0,
+                category: 'Membership',
+                source: 'SMC',
+                referenceId: card.cardId,
+                notes: `Membership renewed until ${newExpiry.toLocaleDateString()}. Registering: ${isRegistering}`,
+            });
+        } catch (revErr) { console.error('[Revenue] Renewal logic skipped revenue recording:', revErr.message); }
+
         res.json({
-            smcId: card.cardId,
-            firstName: card.customerName?.split(' ')[0] || 'Member',
-            lastName: card.customerName?.split(' ').slice(1).join(' ') || '',
-            smcExpiryDate: card.expiryDate,
-            hasSMC: true
+            message: 'Membership renewed successfully!',
+            newExpiry,
+            customerName: card.customerName,
+            isAssigned: card.isAssigned
         });
     } catch (err) {
+        console.error('[SMC-Renewal] Error:', err.message);
         res.status(500).json({ error: err.message });
     }
 };
@@ -731,5 +989,7 @@ module.exports = {
     upsertCustomerFromBooking,
     getSMCByCardId,
     getSMCForBooking,
-    getSMCConfig
+    getSMCConfig,
+    getAllMemberships,
+    renewSMC
 };

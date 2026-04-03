@@ -1,4 +1,5 @@
 const Revenue = require('../models/revenueModel');
+const { createLog } = require('./activityLogController');
 
 // ── GET all revenue records ──────────────────────────────────────
 const getRevenues = async (req, res) => {
@@ -46,6 +47,19 @@ const createRevenue = async (req, res) => {
             recordedBy
         });
 
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'FINANCE',
+                action: 'revenue_recorded',
+                message: `Recorded income: ${title} (₱${amount.toLocaleString()})`,
+                meta: { id: revenue._id, category, amount, source: source || 'Manual' }
+            });
+        }
+
         res.status(201).json(revenue);
     } catch (err) {
         res.status(400).json({ error: err.message });
@@ -55,7 +69,25 @@ const createRevenue = async (req, res) => {
 // ── DELETE a revenue entry ────────────────────────────────────────
 const deleteRevenue = async (req, res) => {
     try {
-        await Revenue.findByIdAndDelete(req.params.id);
+        const { id } = req.params;
+        const revenue = await Revenue.findById(id);
+        if (!revenue) return res.status(404).json({ error: 'Revenue not found' });
+
+        await Revenue.findByIdAndDelete(id);
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'FINANCE',
+                action: 'revenue_deleted',
+                message: `Deleted income record: ${revenue.title} (₱${revenue.amount.toLocaleString()})`,
+                meta: { id, title: revenue.title, amount: revenue.amount }
+            });
+        }
+
         res.status(200).json({ message: 'Revenue record deleted.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -74,6 +106,18 @@ const recordRevenue = async ({ title, amount, category, source, referenceId, not
             notes: notes || '',
             recordedBy: recordedBy || null,
         });
+
+        // Background Audit Log (Non-blocking)
+        createLog({
+            actorId: recordedBy || null,
+            actorName: 'System/Auto',
+            actorRole: source || 'system',
+            module: 'FINANCE',
+            action: 'income_auto_recorded',
+            message: `Automated Income: ${title} (₱${amount.toLocaleString()}) via ${source || 'System'}`,
+            meta: { id: revenue._id, source: source || 'Booking', amount }
+        });
+
         return revenue;
     } catch (err) {
         console.error('Failed to auto-record revenue:', err.message);

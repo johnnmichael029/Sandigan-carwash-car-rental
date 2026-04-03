@@ -1,32 +1,32 @@
 const mongoose = require('mongoose');
 
 const activityLogSchema = new mongoose.Schema({
-    // Who performed the action (null for public/system actions)
+    // Who performed the action
     actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'employee', default: null },
     actorName: { type: String, default: 'System' },
     actorRole: { type: String, default: 'system' },
+
+    // Category
+    module: {
+        type: String,
+        required: true,
+        enum: ['BOOKING', 'FINANCE', 'HRIS', 'INVENTORY', 'CRM', 'VENDOR', 'PROMOTIONS', 'SYSTEM'],
+        default: 'SYSTEM'
+    },
 
     // What was done
     action: {
         type: String,
         required: true,
-        enum: [
-            'booking_created',
-            'booking_status_changed',
-            'booking_updated',
-            'booking_deleted',
-            'staff_logged_in',
-            'staff_logged_out',
-        ]
+        // (Note: Enums removed to allow future dynamic features without schema updates, 
+        // but modules are still enforced for filtering stability)
     },
 
-    // Human-readable message shown in Activity Log
+    // Human-readable message
     message: { type: String, required: true },
 
-    // Context for linking / drilling down
-    bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
-    meta: { type: Object, default: {} }, // e.g. { fromStatus: 'Pending', toStatus: 'In-progress' }
-
+    // Context
+    meta: { type: Object, default: {} },
     isRead: { type: Boolean, default: false },
 }, { timestamps: true });
 

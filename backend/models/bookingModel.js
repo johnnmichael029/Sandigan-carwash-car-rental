@@ -91,7 +91,12 @@ const bookingSchema = new Schema({
         category: String,
         quantity: Number,
         price: Number
-    }]
+    }],
+    customerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'customer',
+        default: null
+    }
 }, { timestamps: true });
 const Booking = mongoose.model('booking', bookingSchema);
 

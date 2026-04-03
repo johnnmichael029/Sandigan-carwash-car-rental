@@ -1,11 +1,25 @@
 const Promotion = require('../models/promotionModel');
 const Customer = require('../models/customerModel');
+const { createLog } = require('./activityLogController');
 
 // 1. Create Promotion
 const createPromotion = async (req, res) => {
     try {
-        const promotion = new Promotion(req.body);
-        await promotion.save();
+        const promotion = await Promotion.create(req.body);
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'PROMOTIONS',
+                action: 'promotion_created',
+                message: `Created new promotion: ${promotion.name} (${promotion.code})`,
+                meta: { id: promotion._id, code: promotion.code }
+            });
+        }
+
         res.status(201).json(promotion);
     } catch (err) {
         if (err.code === 11000) {
@@ -28,7 +42,38 @@ const getAllPromotions = async (req, res) => {
 // 3. Update Promotion
 const updatePromotion = async (req, res) => {
     try {
-        const promotion = await Promotion.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const { name, code, discountType, discountValue, minSpend, validFrom, validUntil, isActive, useType, maxUsage, usageCount, usedBy } = req.body;
+        const promotion = await Promotion.findByIdAndUpdate(req.params.id,
+            {
+                name,
+                code,
+                discountType,
+                discountValue,
+                minSpend,
+                validFrom,
+                validUntil,
+                isActive,
+                useType,
+                maxUsage,
+                usageCount,
+                usedBy
+            }, { returnDocument: 'after', runValidators: true });
+        
+        if (!promotion) return res.status(404).json({ error: 'Promotion not found' });
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'PROMOTIONS',
+                action: 'promotion_updated',
+                message: `Updated promotion: ${promotion.name}`,
+                meta: { id: promotion._id, code: promotion.code }
+            });
+        }
+
         res.json(promotion);
     } catch (err) {
         if (err.code === 11000) {
@@ -41,7 +86,24 @@ const updatePromotion = async (req, res) => {
 // 4. Delete Promotion
 const deletePromotion = async (req, res) => {
     try {
+        const promotion = await Promotion.findById(req.params.id);
+        if (!promotion) return res.status(404).json({ error: 'Promotion not found' });
+
         await Promotion.findByIdAndDelete(req.params.id);
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'PROMOTIONS',
+                action: 'promotion_deleted',
+                message: `Deleted promotion: ${promotion.name}`,
+                meta: { id: promotion._id, code: promotion.code }
+            });
+        }
+
         res.json({ message: 'Promotion deleted' });
     } catch (err) {
         res.status(400).json({ error: err.message });
@@ -58,13 +120,11 @@ const validatePromoCode = async (req, res) => {
 
         if (!promo) return res.json({ valid: false, message: 'Promo code not found or inactive.' });
 
-        // Check Validity Period
         const now = new Date();
         if (now < promo.validFrom || now > promo.validUntil) {
             return res.json({ valid: false, message: 'This promo has expired or is not yet active.' });
         }
 
-        // Check Min Spend
         const amountToCheck = totalAmount || totalPrice || 0;
         if (amountToCheck < promo.minSpend) {
             return res.json({
@@ -73,7 +133,6 @@ const validatePromoCode = async (req, res) => {
             });
         }
 
-        // Check One-Time Use per Customer
         if (promo.useType === 'One-Time' && customerEmail) {
             const customer = await Customer.findOne({ email: customerEmail });
             if (customer && promo.usedBy.includes(customer._id)) {
@@ -81,7 +140,6 @@ const validatePromoCode = async (req, res) => {
             }
         }
 
-        // Check Limited Use
         if (promo.useType === 'Limited' && promo.usageCount >= promo.maxUsage) {
             return res.json({ valid: false, message: 'This promo has reached its maximum usage limit.' });
         }

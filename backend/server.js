@@ -31,6 +31,12 @@ const promotionRoutes = require('./routes/promotionRoutes');
 const revenueRoutes = require('./routes/revenueRoutes');
 const inventoryCategoryRoutes = require('./routes/inventoryCategoryRoutes');
 const retailRoutes = require('./routes/retailRoutes');
+const vendorRoutes = require('./routes/vendorRoutes');
+const payableRoutes = require('./routes/payableRoutes');
+const billCategoryRoutes = require('./routes/billCategoryRoutes');
+const budgetRoutes = require('./routes/budgetRoutes');
+const forecastRoutes = require('./routes/forecastRoutes');
+const ledgerRoutes = require('./routes/ledgerRoutes');
 
 const path = require('path');
 
@@ -155,6 +161,13 @@ app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/retail', retailRoutes);
 app.use('/api/settings', require('./routes/settingRoutes'));
 app.use('/api/revenue-categories', require('./routes/revenueCategoryRoutes'));
+app.use('/api/vendors', vendorRoutes);
+app.use('/api/payables', payableRoutes);
+app.use('/api/bill-categories', billCategoryRoutes);
+app.use('/api/holidays', require('./routes/holidayRoutes'));
+app.use('/api/budgets', budgetRoutes);
+app.use('/api/forecast', forecastRoutes);
+app.use('/api/ledger', ledgerRoutes);
 
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {
