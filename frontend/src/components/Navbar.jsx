@@ -10,9 +10,11 @@ const Navbar = () => {
   const location = useLocation();
 
   // Close drawer whenever route changes
-  useEffect(() => {
+  const [prevPath, setPrevPath] = useState(location.pathname);
+  if (location.pathname !== prevPath) {
+    setPrevPath(location.pathname);
     setDrawerOpen(false);
-  }, [location.pathname]);
+  }
 
   // Prevent body scroll when drawer is open
   useEffect(() => {

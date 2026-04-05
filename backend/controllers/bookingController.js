@@ -17,7 +17,34 @@ const getBookings = async (req, res) => {
         if (req.query.smcOnly === 'true') filter.smcId = { $ne: null };
         if (req.query.promoOnly === 'true') filter.promoCode = { $ne: null };
 
-        const bookings = await Booking.find(filter).sort({ createdAt: -1 });
+        const search = req.query.search || '';
+        if (search && search.trim()) {
+            const lowTerm = search.trim();
+            const searchRegex = { $regex: lowTerm, $options: 'i' };
+
+            filter = {
+                ...filter,
+                $or: [
+                    { firstName: searchRegex },
+                    { lastName: searchRegex },
+                    { serviceType: searchRegex },
+                    { smcId: searchRegex },
+                    { promoCode: searchRegex },
+                    { batchId: searchRegex },
+                    {
+                        $expr: {
+                            $regexMatch: {
+                                input: { $dateToString: { format: "%m/%d/%Y", date: "$createdAt", timezone: "Asia/Manila" } },
+                                regex: lowTerm,
+                                options: "i"
+                            }
+                        }
+                    }
+                ]
+            };
+        }
+
+        const bookings = await Booking.find(filter).sort({ createdAt: -1 }).limit(200);
         res.status(200).json(bookings);
     }
     catch (err) {

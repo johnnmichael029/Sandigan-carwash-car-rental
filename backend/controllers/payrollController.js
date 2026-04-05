@@ -7,6 +7,115 @@ const { getSettingValue } = require('./settingController');
 const { createLog } = require('./activityLogController');
 const { calculatePhilHealth, calculateHDMF, calculateSSS, calculateWithholdingTax, calculateNightDiffMinutes } = require('../utils/payrollCalculator');
 
+const processPayrollCalculations = (employee, logs) => {
+    let divisor = 26;
+    if (employee.salaryFrequency === 'Bi-Weekly') divisor = 13;
+    else if (employee.salaryFrequency === 'Weekly') divisor = 6;
+    else if (employee.salaryFrequency === 'Daily') divisor = 1;
+
+    const dailyRate = employee.salaryFrequency === 'Daily' ? employee.baseSalary : (employee.baseSalary / divisor);
+    const hourlyRate = dailyRate / 8;
+
+    let totalRegMinutes = 0;
+    let totalOTMinutes = 0;
+    let totalNDMinutes = 0;
+    let holidayPay = 0;
+
+    logs.forEach(log => {
+        if (!log.clockInTime || !log.clockOutTime) return;
+        const clockIn = new Date(log.clockInTime);
+        const clockOut = new Date(log.clockOutTime);
+
+        let shiftEndMarker = new Date(clockIn);
+        if (employee.shiftType === 'Morning') shiftEndMarker.setHours(17, 0, 0, 0);
+        else if (employee.shiftType === 'Night') {
+            shiftEndMarker.setHours(5, 0, 0, 0); // User specified: Starts 8PM, Ends 5AM
+            if (shiftEndMarker < clockIn) shiftEndMarker.setDate(shiftEndMarker.getDate() + 1);
+        }
+
+        let dayRegMins = 0;
+        let dayOTMins = 0;
+
+        if (employee.shiftType === 'Morning' || employee.shiftType === 'Night') {
+            // REGULAR PAY: Always stop counting at the shift end marker
+            if (clockIn < shiftEndMarker) {
+                const regEnd = clockOut < shiftEndMarker ? clockOut : shiftEndMarker;
+                dayRegMins = Math.floor((regEnd - clockIn) / 60000);
+            }
+
+            // OVERTIME PAY: Only count if approved
+            if (log.isOTApproved && clockOut > shiftEndMarker) {
+                const otStart = clockIn > shiftEndMarker ? clockIn : shiftEndMarker;
+                dayOTMins = Math.floor((clockOut - otStart) / 60000);
+            }
+        } else {
+            const duration = log.durationMinutes || Math.floor((clockOut - clockIn) / 60000) || 0;
+            dayRegMins = duration;
+            if (log.isOTApproved) dayOTMins = Math.max(0, duration - 480);
+        }
+
+        // --- NIGHT DIFFERENTIAL ---
+        if (log.isOTApproved || employee.shiftType === 'Night') {
+            totalNDMinutes += calculateNightDiffMinutes(clockIn, clockOut);
+        }
+
+        // --- SMART BREAK DEDUCTION ---
+        if (employee.shiftType === 'Morning') {
+            const noon = new Date(clockIn); noon.setHours(12, 0, 0, 0);
+            const onePM = new Date(clockIn); onePM.setHours(13, 0, 0, 0);
+            if (clockIn < noon && clockOut > onePM) dayRegMins = Math.max(0, dayRegMins - 60);
+        } else if (employee.shiftType === 'Night') {
+            const midnight = new Date(clockIn);
+            midnight.setHours(24, 0, 0, 0);
+            const oneAM = new Date(clockIn);
+            oneAM.setHours(25, 0, 0, 0);
+            if (clockIn < midnight && clockOut > oneAM) {
+                dayRegMins = Math.max(0, dayRegMins - 60);
+                totalNDMinutes = Math.max(0, totalNDMinutes - 60);
+            }
+        }
+
+        dayRegMins = Math.min(dayRegMins, 480);
+
+        totalRegMinutes += dayRegMins;
+        totalOTMinutes += dayOTMins;
+
+        if (log.holidayType && log.holidayType !== 'None' && log.wasPresentYesterday) {
+            if (log.holidayType === 'Regular') holidayPay += ((dayRegMins / 60) * hourlyRate);
+            else if (log.holidayType === 'Special') holidayPay += (((dayRegMins / 60) * hourlyRate) * 0.30);
+        }
+    });
+
+    const otPay = (totalOTMinutes / 60) * hourlyRate * 1.30;
+    const nightDiffPay = (totalNDMinutes / 60) * hourlyRate * 0.10;
+    const accruedBase = (totalRegMinutes / 480) * dailyRate;
+
+    // Automated Deductions
+    const sss = calculateSSS(accruedBase);
+    const ph = calculatePhilHealth(accruedBase);
+    const hdmf = calculateHDMF(accruedBase);
+
+    // Taxable Income Breakdown
+    const grossTaxable = accruedBase + holidayPay + otPay + nightDiffPay;
+    const totalMandatoryEE = sss.employee + ph.employee + hdmf.employee;
+    const withholdingTax = calculateWithholdingTax(grossTaxable - totalMandatoryEE);
+
+    return {
+        accruedBase,
+        totalOTMinutes,
+        otPay,
+        totalNDMinutes,
+        nightDiffPay,
+        holidayPay,
+        sss,
+        ph,
+        hdmf,
+        grossTaxable,
+        totalMandatoryEE,
+        withholdingTax
+    };
+};
+
 /**
  * GET /api/payroll/summary?period=today|week|month
  */
@@ -58,6 +167,7 @@ const getPayrollSummary = async (req, res) => {
             return {
                 detailer: {
                     _id: detailer._id,
+                    employeeId: detailer.employeeId,
                     fullName: detailer.fullName,
                     email: detailer.email,
                     role: detailer.role
@@ -131,7 +241,7 @@ const markCommissionPaid = async (req, res) => {
 
         const detailer = await Employee.findById(detailerId).lean();
         await Expense.create({
-            title: `Payroll (Commission) — ${detailer?.fullName || 'Detailer'} (${period})`,
+            title: `Payroll (Commission) — [${detailer?.employeeId || 'No ID'}] ${detailer?.fullName || 'Detailer'} (${period})`,
             category: 'Salaries',
             amount: totalPaid,
             description: `Commission payout for ${unpaidBookings.length} completed booking(s)`
@@ -208,7 +318,7 @@ const bulkMarkCommissionPaid = async (req, res) => {
 
                 const detailer = await Employee.findById(detailerId).lean();
                 await Expense.create({
-                    title: `Payroll (Commission) — ${detailer?.fullName || 'Detailer'} (${period})`,
+                    title: `Payroll (Commission) — [${detailer?.employeeId || 'No ID'}] ${detailer?.fullName || 'Detailer'} (${period})`,
                     category: 'Salaries',
                     amount: totalPaid,
                     description: `Bulk commission payout for ${unpaidBookings.length} completed booking(s)`
@@ -310,26 +420,34 @@ const getPendingFixedSalary = async (req, res) => {
                 let dayOTMins = 0;
 
                 if (emp.shiftType === 'Morning' || emp.shiftType === 'Night') {
-                    // Regular Phase
+                    // REGULAR PAY: Always stop counting at the shift end marker
                     if (clockIn < shiftEndMarker) {
                         const regEnd = clockOut < shiftEndMarker ? clockOut : shiftEndMarker;
                         dayRegMins = Math.floor((regEnd - clockIn) / 60000);
                     }
-                    // OT Phase
+
+                    // OVERTIME PAY: Only count if approved
                     if (log.isOTApproved && clockOut > shiftEndMarker) {
                         const otStart = clockIn > shiftEndMarker ? clockIn : shiftEndMarker;
                         dayOTMins = Math.floor((clockOut - otStart) / 60000);
                     }
                 } else {
-                    // Default/None: Everything up to 8h is regular
-                    const duration = log.durationMinutes || 0;
-                    dayRegMins = Math.min(duration, 480);
+                    const duration = log.durationMinutes || Math.floor((clockOut - clockIn) / 60000) || 0;
+                    dayRegMins = duration;
                     if (log.isOTApproved) dayOTMins = Math.max(0, duration - 480);
                 }
 
-                // --- NIGHT DIFFERENTIAL ---
-                const ndMins = calculateNightDiffMinutes(clockIn, clockOut);
-                totalNDMinutes += ndMins;
+                // --- NIGHT DIFFERENTIAL (per-log) ---
+                // Cap the payable out-time: if OT not approved, don't count past shift end
+                const payableNDOut = log.isOTApproved ? clockOut : (clockOut < shiftEndMarker ? clockOut : shiftEndMarker);
+
+                // Morning shift: ND only possible if OT is approved (shift ends at 5PM, ND starts 10PM)
+                let dayNDMins = 0;
+                if (emp.shiftType === 'Morning' && !log.isOTApproved) {
+                    dayNDMins = 0; // No ND for unapproved morning OT
+                } else {
+                    dayNDMins = calculateNightDiffMinutes(clockIn, payableNDOut);
+                }
 
                 // --- SMART BREAK DEDUCTION ---
                 // ONLY deduct if they were clocked in BEFORE break start and stayed PAST break end
@@ -338,12 +456,20 @@ const getPendingFixedSalary = async (req, res) => {
                     const onePM = new Date(clockIn); onePM.setHours(13, 0, 0, 0);
                     if (clockIn < noon && clockOut > onePM) dayRegMins = Math.max(0, dayRegMins - 60);
                 } else if (emp.shiftType === 'Night') {
-                    const midnight = new Date(clockIn); 
+                    const midnight = new Date(clockIn);
                     midnight.setHours(24, 0, 0, 0); // 12:00 AM (Next Day)
-                    const oneAM = new Date(clockIn); 
+                    const oneAM = new Date(clockIn);
                     oneAM.setHours(25, 0, 0, 0);    // 1:00 AM (Next Day)
-                    if (clockIn < midnight && clockOut > oneAM) dayRegMins = Math.max(0, dayRegMins - 60);
+
+                    // Check if they worked through the break window
+                    if (clockIn < midnight && payableNDOut > oneAM) {
+                        dayRegMins = Math.max(0, dayRegMins - 60); // Deduct 1hr from regular pay
+                        dayNDMins = Math.max(0, dayNDMins - 60);   // Deduct 1hr from this log's ND
+                    }
                 }
+
+                totalNDMinutes += dayNDMins;
+                dayRegMins = Math.min(dayRegMins, 480); // Strict Cap
 
                 totalRegMinutes += dayRegMins;
                 totalOTMinutes += dayOTMins;
@@ -359,7 +485,7 @@ const getPendingFixedSalary = async (req, res) => {
                         shiftStartDate.setHours(h, m, 0, 0);
                         const graceThreshold = new Date(shiftStartDate.getTime() + 5 * 60000);
                         if (clockIn > graceThreshold) lateCount++;
-                    } catch (e) {}
+                    } catch (e) { }
                 }
 
                 // Holiday logic (on Regular Phase)
@@ -370,7 +496,7 @@ const getPendingFixedSalary = async (req, res) => {
             });
 
             // Calculate Accruals
-            const accruedBase = (totalRegMinutes / 480) * dailyRate; 
+            const accruedBase = (totalRegMinutes / 480) * dailyRate;
             const otPay = (totalOTMinutes / 60) * hourlyRate * 1.30;
             const nightDiffPay = (totalNDMinutes / 60) * hourlyRate * 0.10;
 
@@ -386,11 +512,14 @@ const getPendingFixedSalary = async (req, res) => {
 
             return {
                 _id: emp._id,
+                employeeId: emp.employeeId,
                 fullName: emp.fullName,
                 role: emp.role,
                 baseSalary: emp.baseSalary, // This is the 'Potential' or 'Goal' for the cycle
                 accruedBase,
                 frequency: emp.salaryFrequency,
+                salaryFrequency: emp.salaryFrequency,
+                shiftType: emp.shiftType,
                 lastPaidDate: emp.lastPaidDate,
                 hiredDate: emp.hiredDate,
                 logs: (logs || []).map(l => {
@@ -490,96 +619,15 @@ const payFixedSalary = async (req, res) => {
 
         const logs = await Attendance.find({ employee: employeeId, createdAt: { $gt: startDate } });
 
-        let divisor = 26;
-        if (employee.salaryFrequency === 'Bi-Weekly') divisor = 13;
-        else if (employee.salaryFrequency === 'Weekly') divisor = 6;
-        else if (employee.salaryFrequency === 'Daily') divisor = 1;
-
-        const dailyRate = employee.salaryFrequency === 'Daily' ? employee.baseSalary : (employee.baseSalary / divisor);
-        const hourlyRate = dailyRate / 8;
-
-        let totalRegMinutes = 0;
-        let totalOTMinutes = 0;
-        let totalNDMinutes = 0;
-        let holidayPay = 0;
-        let otPay = 0;
-
-        logs.forEach(log => {
-            if (!log.clockInTime || !log.clockOutTime) return;
-            const clockIn = new Date(log.clockInTime);
-            const clockOut = new Date(log.clockOutTime);
-
-            let shiftEndMarker = new Date(clockIn);
-            if (employee.shiftType === 'Morning') shiftEndMarker.setHours(17, 0, 0, 0);
-            else if (employee.shiftType === 'Night') {
-                shiftEndMarker.setHours(5, 0, 0, 0); // User specified: Starts 8PM, Ends 5AM
-                if (shiftEndMarker < clockIn) shiftEndMarker.setDate(shiftEndMarker.getDate() + 1);
-            }
-
-            let dayRegMins = 0;
-            let dayOTMins = 0;
-
-            if (employee.shiftType === 'Morning' || employee.shiftType === 'Night') {
-                if (clockIn < shiftEndMarker) {
-                    const regEnd = clockOut < shiftEndMarker ? clockOut : shiftEndMarker;
-                    dayRegMins = Math.floor((regEnd - clockIn) / 60000);
-                }
-                if (log.isOTApproved && clockOut > shiftEndMarker) {
-                    const otStart = clockIn > shiftEndMarker ? clockIn : shiftEndMarker;
-                    dayOTMins = Math.floor((clockOut - otStart) / 60000);
-                }
-            } else {
-                const duration = log.durationMinutes || 0;
-                dayRegMins = Math.min(duration, 480);
-                if (log.isOTApproved) dayOTMins = Math.max(0, duration - 480);
-            }
-
-            // --- NIGHT DIFFERENTIAL ---
-            totalNDMinutes += calculateNightDiffMinutes(clockIn, clockOut);
-
-            // --- SMART BREAK DEDUCTION ---
-            if (employee.shiftType === 'Morning') {
-                const noon = new Date(clockIn); noon.setHours(12, 0, 0, 0);
-                const onePM = new Date(clockIn); onePM.setHours(13, 0, 0, 0);
-                if (clockIn < noon && clockOut > onePM) dayRegMins = Math.max(0, dayRegMins - 60);
-            } else if (employee.shiftType === 'Night') {
-                const midnight = new Date(clockIn); 
-                midnight.setHours(24, 0, 0, 0); 
-                const oneAM = new Date(clockIn); 
-                oneAM.setHours(25, 0, 0, 0);
-                if (clockIn < midnight && clockOut > oneAM) dayRegMins = Math.max(0, dayRegMins - 60);
-            }
-
-            totalRegMinutes += dayRegMins;
-            totalOTMinutes += dayOTMins;
-
-            if (log.holidayType && log.holidayType !== 'None' && log.wasPresentYesterday) {
-                if (log.holidayType === 'Regular') holidayPay += ((dayRegMins / 60) * hourlyRate);
-                else if (log.holidayType === 'Special') holidayPay += (((dayRegMins / 60) * hourlyRate) * 0.30);
-            }
-        });
-
-        otPay = (totalOTMinutes / 60) * hourlyRate * 1.30;
-        const nightDiffPay = (totalNDMinutes / 60) * hourlyRate * 0.10;
-        const accruedBase = (totalRegMinutes / 480) * dailyRate; 
-
-
-        // Automated Deductions
-        const sss = calculateSSS(accruedBase);
-        const ph = calculatePhilHealth(accruedBase);
-        const hdmf = calculateHDMF(accruedBase);
-
-        // Taxable Income Breakdown
-        const grossTaxable = accruedBase + holidayPay + otPay + nightDiffPay;
-        const totalMandatoryEE = sss.employee + ph.employee + hdmf.employee;
-        const withholdingTax = calculateWithholdingTax(grossTaxable - totalMandatoryEE);
+        const pStats = processPayrollCalculations(employee, logs);
+        const { accruedBase, totalOTMinutes, otPay, totalNDMinutes, nightDiffPay, holidayPay, sss, ph, hdmf, grossTaxable, totalMandatoryEE, withholdingTax } = pStats;
 
         const grossPay = grossTaxable + Number(bonus) + (employee.nonTaxableAllowance || 0);
         const totalDeductions = totalMandatoryEE + withholdingTax + Number(deductions);
         const netAmount = grossPay - totalDeductions;
 
         await Expense.create({
-            title: `Salary — ${employee.fullName} (${employee.salaryFrequency || 'Monthly'})`,
+            title: `Salary — [${employee.employeeId || 'No ID'}] ${employee.fullName} (${employee.salaryFrequency || 'Monthly'})`,
             category: 'Salaries',
             amount: netAmount,
             description: `Basic: ₱${accruedBase.toFixed(2)} | NT Allowance: ₱${employee.nonTaxableAllowance || 0} | Managed Deductions: ₱${totalDeductions.toFixed(2)}`
@@ -654,87 +702,8 @@ const bulkPayFixedSalary = async (req, res) => {
             const logs = await Attendance.find({ employee: employeeId, createdAt: { $gt: startDate } });
             if (logs.length === 0 && !employee.hiredDate) continue; // Skip if no work and new employee
 
-            let divisor = 26;
-            if (employee.salaryFrequency === 'Bi-Weekly') divisor = 13;
-            else if (employee.salaryFrequency === 'Weekly') divisor = 6;
-            else if (employee.salaryFrequency === 'Daily') divisor = 1;
-
-            const dailyRate = employee.salaryFrequency === 'Daily' ? employee.baseSalary : (employee.baseSalary / divisor);
-            const hourlyRate = dailyRate / 8;
-
-            let totalRegMinutes = 0;
-            let totalOTMinutes = 0;
-            let totalNDMinutes = 0;
-            let holidayPay = 0;
-            let otPay = 0;
-            let nightDiffPay = 0;
-
-            logs.forEach(log => {
-                if (!log.clockInTime || !log.clockOutTime) return;
-                const clockIn = new Date(log.clockInTime);
-                const clockOut = new Date(log.clockOutTime);
-
-                let shiftEndMarker = new Date(clockIn);
-                if (employee.shiftType === 'Morning') shiftEndMarker.setHours(17, 0, 0, 0);
-                else if (employee.shiftType === 'Night') {
-                    shiftEndMarker.setHours(5, 0, 0, 0); // User specified: Starts 8PM, Ends 5AM
-                    if (shiftEndMarker < clockIn) shiftEndMarker.setDate(shiftEndMarker.getDate() + 1);
-                }
-
-                let dayRegMins = 0;
-                let dayOTMins = 0;
-
-                if (employee.shiftType === 'Morning' || employee.shiftType === 'Night') {
-                    if (clockIn < shiftEndMarker) {
-                        const regEnd = clockOut < shiftEndMarker ? clockOut : shiftEndMarker;
-                        dayRegMins = Math.floor((regEnd - clockIn) / 60000);
-                    }
-                    if (log.isOTApproved && clockOut > shiftEndMarker) {
-                        const otStart = clockIn > shiftEndMarker ? clockIn : shiftEndMarker;
-                        dayOTMins = Math.floor((clockOut - otStart) / 60000);
-                    }
-                } else {
-                    const duration = log.durationMinutes || 0;
-                    dayRegMins = Math.min(duration, 480);
-                    if (log.isOTApproved) dayOTMins = Math.max(0, duration - 480);
-                }
-
-                // --- NIGHT DIFFERENTIAL ---
-                totalNDMinutes += calculateNightDiffMinutes(clockIn, clockOut);
-
-                // --- SMART BREAK DEDUCTION ---
-                if (employee.shiftType === 'Morning') {
-                    const noon = new Date(clockIn); noon.setHours(12, 0, 0, 0);
-                    const onePM = new Date(clockIn); onePM.setHours(13, 0, 0, 0);
-                    if (clockIn < noon && clockOut > onePM) dayRegMins = Math.max(0, dayRegMins - 60);
-                } else if (employee.shiftType === 'Night') {
-                    const midnight = new Date(clockIn); 
-                    midnight.setHours(24, 0, 0, 0); 
-                    const oneAM = new Date(clockIn); 
-                    oneAM.setHours(25, 0, 0, 0);
-                    if (clockIn < midnight && clockOut > oneAM) dayRegMins = Math.max(0, dayRegMins - 60);
-                }
-
-                totalRegMinutes += dayRegMins;
-                totalOTMinutes += dayOTMins;
-
-                if (log.holidayType && log.holidayType !== 'None' && log.wasPresentYesterday) {
-                    if (log.holidayType === 'Regular') holidayPay += ((dayRegMins / 60) * hourlyRate);
-                    else if (log.holidayType === 'Special') holidayPay += (((dayRegMins / 60) * hourlyRate) * 0.30);
-                }
-            });
-
-            otPay = (totalOTMinutes / 60) * hourlyRate * 1.30;
-            nightDiffPay = (totalNDMinutes / 60) * hourlyRate * 0.10;
-            const accruedBase = (totalRegMinutes / 480) * dailyRate; 
-
-
-            const sss = calculateSSS(accruedBase);
-            const ph = calculatePhilHealth(accruedBase);
-            const hdmf = calculateHDMF(accruedBase);
-            const grossTaxable = accruedBase + holidayPay + otPay + nightDiffPay;
-            const totalMandatoryEE = sss.employee + ph.employee + hdmf.employee;
-            const withholdingTax = calculateWithholdingTax(grossTaxable - totalMandatoryEE);
+            const pStats = processPayrollCalculations(employee, logs);
+            const { accruedBase, totalOTMinutes, otPay, totalNDMinutes, nightDiffPay, holidayPay, sss, ph, hdmf, grossTaxable, totalMandatoryEE, withholdingTax } = pStats;
 
             const grossPay = grossTaxable + (employee.nonTaxableAllowance || 0);
             const totalDeductions = totalMandatoryEE + withholdingTax;
@@ -743,10 +712,10 @@ const bulkPayFixedSalary = async (req, res) => {
             if (netAmount <= 0 && logs.length === 0) continue; // Defensive skip
 
             await Expense.create({
-                title: `Salary (Bulk) — ${employee.fullName} (${employee.salaryFrequency || 'Monthly'})`,
+                title: `Salary — [${employee.employeeId || 'No ID'}] ${employee.fullName} (${employee.salaryFrequency || 'Monthly'})`,
                 category: 'Salaries',
                 amount: netAmount,
-                description: `Bulk processing recorded via admin dashboard.`
+                description: `Bulk Processing | Basic: ₱${accruedBase.toFixed(2)}`
             });
 
             await Payout.create({
@@ -810,24 +779,38 @@ const getPayoutHistory = async (req, res) => {
 
         // If search provided, we need to filter by recipient/detailer name
         // Since these are IDs, we use $lookup or find matching employee IDs first
+        // If search provided, we need to filter by recipient/detailer name, period, or date
         if (search) {
             const Employee = require('../models/employeeModel');
-            const matchingEmps = await Employee.find({ 
-                fullName: { $regex: search, $options: 'i' } 
+            const matchingEmps = await Employee.find({
+                fullName: { $regex: search, $options: 'i' }
             }).select('_id');
-            
+
             const empIds = matchingEmps.map(e => e._id);
+            const searchRegex = { $regex: search, $options: 'i' };
+
             query = {
                 $or: [
                     { recipient: { $in: empIds } },
-                    { detailer: { $in: empIds } }
+                    { detailer: { $in: empIds } },
+                    { paidBy: { $in: empIds } },
+                    { period: searchRegex },
+                    {
+                        $expr: {
+                            $regexMatch: {
+                                input: { $dateToString: { format: "%m/%d/%Y", date: "$createdAt", timezone: "Asia/Manila" } },
+                                regex: search,
+                                options: "i"
+                            }
+                        }
+                    }
                 ]
             };
         }
 
         const history = await Payout.find(query)
-            .populate('recipient', 'fullName email sssNo tinNo philhealthNo pagibigNo role')
-            .populate('detailer', 'fullName email role')
+            .populate('recipient', 'fullName email sssNo tinNo philhealthNo pagibigNo role employeeId')
+            .populate('detailer', 'fullName email role employeeId')
             .populate('paidBy', 'fullName role')
             .sort({ createdAt: -1 })
             .skip(skip)

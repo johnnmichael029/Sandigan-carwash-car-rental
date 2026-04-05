@@ -1,30 +1,68 @@
-/* Custom Skeleton Loading Animations */
+/* ══════════════════════════════════════════════
+   SANDIGAN — Skeleton Loader System
+   Shimmer wave animation, purpose-built shapes
+   ══════════════════════════════════════════════ */
+
+/* ── Base shimmer ── */
+.sk {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 400% 100%;
+    animation: sk-shimmer 1.4s ease infinite;
+    border-radius: 6px;
+    display: block;
+}
+
+@keyframes sk-shimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+
+/* ── Shapes ── */
+.sk-circle   { border-radius: 50%; }
+.sk-pill     { border-radius: 999px; }
+.sk-rounded  { border-radius: 12px; }
+.sk-sm       { height: 10px; }
+.sk-md       { height: 14px; }
+.sk-lg       { height: 20px; }
+.sk-xl       { height: 28px; }
+.sk-2xl      { height: 40px; }
+.sk-3xl      { height: 56px; }
+
+/* ── Wrapper fade-in ── */
 .skeleton-wrapper {
-    animation: fade-in 0.5s ease;
+    animation: sk-fade-in 0.3s ease;
 }
 
-@keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+@keyframes sk-fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
-.skeleton-text {
-    background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
-    background-size: 200% 100%;
-    animation: 1.5s skeleton-pulse linear infinite;
+/* ── Card shell ── */
+.sk-card {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #f1f5f9;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+
+/* ── Darker variant for chart bars ── */
+.sk-bar {
+    background: linear-gradient(180deg, #e2e8f0 0%, #f8fafc 100%);
+    border-radius: 4px 4px 0 0;
+}
+
+/* ─── Legacy compatibility (keep old class names working) ─── */
+.skeleton-text,
+.skeleton-title,
+.skeleton-btn,
+.skeleton-icon {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 400% 100%;
+    animation: sk-shimmer 1.4s ease infinite;
     border-radius: 4px;
-}
-
-.skeleton-title {
-    background: linear-gradient(110deg, #e2e8f0 8%, #cbd5e1 18%, #e2e8f0 33%);
-    background-size: 200% 100%;
-    animation: 1.5s skeleton-pulse linear infinite;
-}
-
-.skeleton-btn {
-    background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
-    background-size: 200% 100%;
-    animation: 1.5s skeleton-pulse linear infinite;
+    display: block;
 }
 
 .skeleton-card {
@@ -32,27 +70,9 @@
     border: 1px solid #f8fafc;
 }
 
-.skeleton-icon {
-    background: linear-gradient(110deg, #e2e8f0 8%, #f1f5f9 18%, #e2e8f0 33%);
-    background-size: 200% 100%;
-    animation: 1.5s skeleton-pulse linear infinite;
-}
-
 .skeleton-chart-bar {
     background: linear-gradient(180deg, #e2e8f0 0%, #f8fafc 100%);
     background-size: 100% 200%;
-    animation: 1.5s skeleton-pulse-vertical linear infinite;
+    animation: sk-shimmer 1.4s ease infinite;
     border-radius: 4px 4px 0 0;
-}
-
-@keyframes skeleton-pulse {
-    to {
-        background-position-x: -200%;
-    }
-}
-
-@keyframes skeleton-pulse-vertical {
-    to {
-        background-position-y: -200%;
-    }
 }

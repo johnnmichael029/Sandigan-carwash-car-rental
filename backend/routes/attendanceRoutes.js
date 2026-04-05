@@ -24,9 +24,14 @@ router.get('/today', requireAuth, adminOnly, attendanceController.getTodayStatus
 router.get('/all', requireAuth, adminOnly, attendanceController.getAllAttendance);
 
 /**
- * Update holiday status (Admin Only)
+ * Update attendance details (Admin Only)
  */
-router.patch('/:id', requireAuth, adminOnly, attendanceController.updateHolidayStatus);
+router.patch('/:id', requireAuth, adminOnly, attendanceController.updateAttendance);
+
+/**
+ * Delete attendance record (Admin Only)
+ */
+router.delete('/:id', requireAuth, adminOnly, attendanceController.deleteAttendance);
 
 /**
  * Admin Controlled Clocking (For staff without accounts)

@@ -45,6 +45,15 @@ const attendanceSchema = new mongoose.Schema({
     wasPresentYesterday: {
         type: Boolean,
         default: false
+    },
+    // Leave-generated attendance marker
+    isLeave: {
+        type: Boolean,
+        default: false
+    },
+    leaveType: {
+        type: String,
+        default: ''
     }
 }, { timestamps: true });
 

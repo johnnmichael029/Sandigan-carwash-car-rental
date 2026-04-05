@@ -4,7 +4,27 @@ const { createLog } = require('./activityLogController');
 // Get all expenses
 const getExpenses = async (req, res) => {
     try {
-        const expenses = await Expense.find()
+        const { search } = req.query;
+        const filter = {};
+
+        if (search && search.trim()) {
+            const query = search.trim();
+            filter.$or = [
+                { title: { $regex: query, $options: 'i' } },
+                { category: { $regex: query, $options: 'i' } },
+                { description: { $regex: query, $options: 'i' } },
+                // Allow searching by Date string (MM/DD/YYYY)
+                { $expr: { 
+                    $regexMatch: { 
+                        input: { $dateToString: { format: "%m/%d/%Y", date: "$date" } }, 
+                        regex: query, 
+                        options: "i" 
+                    } 
+                } }
+            ];
+        }
+
+        const expenses = await Expense.find(filter)
             .populate('ingredients.inventoryItem', 'name unit')
             .sort({ date: -1 });
         res.status(200).json(expenses);

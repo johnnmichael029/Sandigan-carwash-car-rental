@@ -29,7 +29,7 @@ const calculateHDMF = (basicSalary) => {
     // Standard Pag-IBIG contribution is ₱200 EE / ₱200 ER for salary above 1500
     // Recent 2024 update increased to ₱200 base for most
     if (basicSalary <= 0) return { employee: 0, employer: 0, total: 0 };
-    
+
     return {
         employee: 200,
         employer: 200,
@@ -48,7 +48,7 @@ const calculateSSS = (basicSalary) => {
     // SSS uses a bracket table. For simplicity in this app, we use 
     // the 14% total rate (4.5% EE, 9.5% ER) with a cap at 30k MSC.
     const msc = Math.min(Math.max(Math.ceil(basicSalary / 500) * 500, 4000), 30000);
-    
+
     return {
         employee: Math.round(msc * 0.045 * 100) / 100,
         employer: Math.round(msc * 0.095 * 100) / 100,
@@ -63,23 +63,23 @@ const calculateSSS = (basicSalary) => {
  */
 const calculateWithholdingTax = (taxableIncome) => {
     if (taxableIncome <= 20833) return 0;
-    
+
     if (taxableIncome <= 33332) {
         return (taxableIncome - 20833) * 0.15;
     }
-    
+
     if (taxableIncome <= 66666) {
         return 1875 + (taxableIncome - 33333) * 0.20;
     }
-    
+
     if (taxableIncome <= 166666) {
         return 8541.67 + (taxableIncome - 66667) * 0.25;
     }
-    
+
     if (taxableIncome <= 666666) {
         return 33541.67 + (taxableIncome - 166667) * 0.30;
     }
-    
+
     return 183541.67 + (taxableIncome - 666667) * 0.35;
 };
 

@@ -9,7 +9,8 @@ import commisionIcon from '../../assets/icon/commission.png';
 import operationCostIcon from '../../assets/icon/operation-cost.png';
 import netProfitIcon from '../../assets/icon/net-profit.png';
 import { API_BASE, authHeaders } from '../../api/config';
-import { TableSkeleton } from '../../components/SkeletonLoaders';
+import { TableSkeleton, VendorSkeleton } from '../../components/SkeletonLoaders';
+import AdminModalWrapper from '../../components/admin/shared/AdminModalWrapper';
 
 const VendorPayables = () => {
     const [vendors, setVendors] = useState([]);
@@ -193,7 +194,7 @@ const VendorPayables = () => {
         });
     };
 
-    if (isLoading) return <TableSkeleton />;
+    if (isLoading) return <div className="p-4"><VendorSkeleton /></div>;
 
     return (
         <div className="animate-fade-in">
@@ -272,10 +273,10 @@ const VendorPayables = () => {
             {/* Sub-Tabs */}
             <ul className="nav nav-pills mb-4 gap-2 bg-light p-2 rounded-4 d-inline-flex border shadow-sm">
                 <li className="nav-item">
-                    <button className={`nav-link border-0 rounded-3 px-4 ${activeTab === 'bills' ? 'active brand-primary shadow-sm' : 'text-muted'}`} onClick={() => setActiveTab('bills')}>Unpaid Bills</button>
+                    <button className={`nav-link border-0 rounded-3 px-4 ${activeTab === 'bills' ? 'btn-save text-primary shadow-sm' : 'text-muted'}`} onClick={() => setActiveTab('bills')}>Unpaid Bills</button>
                 </li>
                 <li className="nav-item">
-                    <button className={`nav-link border-0 rounded-3 px-4 ${activeTab === 'vendors' ? 'active brand-primary shadow-sm' : 'text-muted'}`} onClick={() => setActiveTab('vendors')}>Vendor Directory</button>
+                    <button className={`nav-link border-0 rounded-3 px-4 ${activeTab === 'vendors' ? 'btn-save text-primary shadow-sm' : 'text-muted'}`} onClick={() => setActiveTab('vendors')}>Vendor Directory</button>
                 </li>
             </ul>
 
@@ -386,348 +387,338 @@ const VendorPayables = () => {
 
             {/* 1. Add Vendor Modal */}
             {showVendorModal && (
-                <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
-                    <div className="modal-dialog modal-dialog-centered">
-                        <div className="modal-content border-0 rounded-4 shadow-lg">
-                            <form onSubmit={handleCreateVendor}>
-                                <div className="modal-header border-0 p-4 pb-0">
-                                    <h5 className="fw-bold mb-0">New Supplier Profile</h5>
-                                    <button type="button" className="btn-close" onClick={() => setShowVendorModal(false)}></button>
+                <AdminModalWrapper show={showVendorModal} onClose={() => setShowVendorModal(false)}>
+                    <div className="modal-content border-0 rounded-4 shadow-lg">
+                        <form onSubmit={handleCreateVendor}>
+                            <div className="modal-header border-0 p-4 pb-0">
+                                <h5 className="fw-bold mb-0">New Supplier Profile</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowVendorModal(false)}></button>
+                            </div>
+                            <div className="modal-body p-4">
+                                <div className="mb-3">
+                                    <label className="form-label small fw-bold text-muted">Vendor Name</label>
+                                    <input className="form-control" required value={newVendor.name} onChange={e => setNewVendor({ ...newVendor, name: e.target.value })} placeholder="e.g. CleanMaster Corp" />
                                 </div>
-                                <div className="modal-body p-4">
-                                    <div className="mb-3">
-                                        <label className="form-label small fw-bold text-muted">Vendor Name</label>
-                                        <input className="form-control" required value={newVendor.name} onChange={e => setNewVendor({ ...newVendor, name: e.target.value })} placeholder="e.g. CleanMaster Corp" />
+                                <div className="row g-2 mb-3">
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted">Category</label>
+                                        <select className="form-select" value={newVendor.category} onChange={e => setNewVendor({ ...newVendor, category: e.target.value })}>
+                                            <option value="Supplies">Supplies</option>
+                                            <option value="Utilities">Utilities</option>
+                                            <option value="Rent">Rent</option>
+                                            <option value="Marketing">Marketing</option>
+                                            <option value="Maintenance">Maintenance</option>
+                                            <option value="Others">Others</option>
+                                        </select>
                                     </div>
-                                    <div className="row g-2 mb-3">
-                                        <div className="col-md-6">
-                                            <label className="form-label small fw-bold text-muted">Category</label>
-                                            <select className="form-select" value={newVendor.category} onChange={e => setNewVendor({ ...newVendor, category: e.target.value })}>
-                                                <option value="Supplies">Supplies</option>
-                                                <option value="Utilities">Utilities</option>
-                                                <option value="Rent">Rent</option>
-                                                <option value="Marketing">Marketing</option>
-                                                <option value="Maintenance">Maintenance</option>
-                                                <option value="Others">Others</option>
-                                            </select>
-                                        </div>
-                                        <div className="col-md-6">
-                                            <label className="form-label small fw-bold text-muted">Payment Terms</label>
-                                            <select className="form-select" value={newVendor.paymentTerms} onChange={e => setNewVendor({ ...newVendor, paymentTerms: e.target.value })}>
-                                                <option value="Cash on Delivery">Cash on Delivery</option>
-                                                <option value="Gcash">Gcash</option>
-                                                <option value="Maya">Maya</option>
-                                                <option value="Bank Transfer">Bank Transfer</option>
-                                            </select>
-                                        </div>
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted">Payment Terms</label>
+                                        <select className="form-select" value={newVendor.paymentTerms} onChange={e => setNewVendor({ ...newVendor, paymentTerms: e.target.value })}>
+                                            <option value="Cash on Delivery">Cash on Delivery</option>
+                                            <option value="Gcash">Gcash</option>
+                                            <option value="Maya">Maya</option>
+                                            <option value="Bank Transfer">Bank Transfer</option>
+                                        </select>
                                     </div>
-                                    <div className="row g-2 mb-3">
-                                        <div className="col-md-6">
-                                            <label className="form-label small fw-bold text-muted">Contact Person</label>
-                                            <input className="form-control" value={newVendor.contactPerson} onChange={e => setNewVendor({ ...newVendor, contactPerson: e.target.value })} placeholder="e.g. Juan Dela Cruz" />
-                                        </div>
-                                        <div className="col-md-6">
-                                            <label className="form-label small fw-bold text-muted">Phone Number</label>
-                                            <input
-                                                className="form-control"
-                                                value={newVendor.phone}
-                                                onChange={e => {
-                                                    const val = e.target.value.replace(/\D/g, '');
-                                                    if (val.length <= 11) {
-                                                        setNewVendor({ ...newVendor, phone: val });
-                                                    }
-                                                }}
-                                                placeholder="e.g. 09123456789"
-                                            />
-                                        </div>
-                                    </div>
-                                    <label className="form-label small fw-bold text-muted">Email Address</label>
-                                    <input className="form-control" value={newVendor.email} onChange={e => setNewVendor({ ...newVendor, email: e.target.value })} placeholder="e.g. juandelacruz@gmail.com" />
                                 </div>
-                                <div className="modal-footer border-0 p-4 pt-0">
-                                    <button type="submit" className="btn btn-save w-100 rounded-3 shadow">Create Vendor</button>
+                                <div className="row g-2 mb-3">
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted">Contact Person</label>
+                                        <input className="form-control" value={newVendor.contactPerson} onChange={e => setNewVendor({ ...newVendor, contactPerson: e.target.value })} placeholder="e.g. Juan Dela Cruz" />
+                                    </div>
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted">Phone Number</label>
+                                        <input
+                                            className="form-control"
+                                            value={newVendor.phone}
+                                            onChange={e => {
+                                                const val = e.target.value.replace(/\D/g, '');
+                                                if (val.length <= 11) {
+                                                    setNewVendor({ ...newVendor, phone: val });
+                                                }
+                                            }}
+                                            placeholder="e.g. 09123456789"
+                                        />
+                                    </div>
                                 </div>
-                            </form>
-                        </div>
+                                <label className="form-label small fw-bold text-muted">Email Address</label>
+                                <input className="form-control" value={newVendor.email} onChange={e => setNewVendor({ ...newVendor, email: e.target.value })} placeholder="e.g. juandelacruz@gmail.com" />
+                            </div>
+                            <div className="modal-footer border-0 p-4 pt-0">
+                                <button type="submit" className="btn btn-save w-100 rounded-3 shadow">Create Vendor</button>
+                            </div>
+                        </form>
                     </div>
-                </div>
+                </AdminModalWrapper>
             )}
 
             {/* 2. Add Bill Modal */}
             {showBillModal && (
-                <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
-                    <div className="modal-dialog modal-dialog-centered">
-                        <div className="modal-content border-0 rounded-4 shadow-lg">
-                            <form onSubmit={handleCreateBill}>
-                                <div className="modal-header border-0 p-4 pb-0">
-                                    <h5 className="fw-bold mb-0">Record New Bill</h5>
-                                    <button type="button" className="btn-close" onClick={() => setShowBillModal(false)}></button>
+                <AdminModalWrapper show={showBillModal} onClose={() => setShowBillModal(false)}>
+                    <div className="modal-content border-0 rounded-4 shadow-lg">
+                        <form onSubmit={handleCreateBill}>
+                            <div className="modal-header border-0 p-4 pb-0">
+                                <h5 className="fw-bold mb-0">Record New Bill</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowBillModal(false)}></button>
+                            </div>
+                            <div className="modal-body p-4">
+                                <div className="mb-3">
+                                    <label className="form-label small fw-bold text-muted">Vendor</label>
+                                    <select className="form-select" required value={newBill.vendorId} onChange={e => setNewBill({ ...newBill, vendorId: e.target.value })}>
+                                        <option value="">-- Select Vendor --</option>
+                                        {vendors.map(v => <option key={v._id} value={v._id}>{v.name}</option>)}
+                                    </select>
                                 </div>
-                                <div className="modal-body p-4">
-                                    <div className="mb-3">
-                                        <label className="form-label small fw-bold text-muted">Vendor</label>
-                                        <select className="form-select" required value={newBill.vendorId} onChange={e => setNewBill({ ...newBill, vendorId: e.target.value })}>
-                                            <option value="">-- Select Vendor --</option>
-                                            {vendors.map(v => <option key={v._id} value={v._id}>{v.name}</option>)}
-                                        </select>
+                                <div className="row g-2 mb-3">
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted">Bill / Invoice #</label>
+                                        <input className="form-control" required readOnly value={newBill.billNumber} onChange={e => setNewBill({ ...newBill, billNumber: e.target.value })} placeholder="INV-2024-001" />
                                     </div>
-                                    <div className="row g-2 mb-3">
-                                        <div className="col-md-6">
-                                            <label className="form-label small fw-bold text-muted">Bill / Invoice #</label>
-                                            <input className="form-control" required readOnly value={newBill.billNumber} onChange={e => setNewBill({ ...newBill, billNumber: e.target.value })} placeholder="INV-2024-001" />
-                                        </div>
-                                        <div className="col-md-6">
-                                            <label className="form-label small fw-bold text-muted">Amount Due (₱)</label>
-                                            <input className="form-control" type="number" required value={newBill.amount} onChange={e => setNewBill({ ...newBill, amount: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="mb-3">
-                                        <label className="form-label small fw-bold text-muted">Description</label>
-                                        <input className="form-control" required value={newBill.description} onChange={e => setNewBill({ ...newBill, description: e.target.value })} placeholder="e.g. 5 Liters Foam Soap" />
-                                    </div>
-                                    <div className="mb-3">
-                                        <label className="form-label small fw-bold text-muted">Due Date</label>
-                                        <input className="form-control" type="date" required value={newBill.dueDate} onChange={e => setNewBill({ ...newBill, dueDate: e.target.value })} />
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted">Amount Due (₱)</label>
+                                        <input className="form-control" type="number" required value={newBill.amount} onChange={e => setNewBill({ ...newBill, amount: e.target.value })} />
                                     </div>
                                 </div>
-                                <div className="modal-footer border-0 p-4 pt-0">
-                                    <button type="submit" className="btn btn-primary w-100 rounded-3 shadow">Add to Payables</button>
+                                <div className="mb-3">
+                                    <label className="form-label small fw-bold text-muted">Description</label>
+                                    <input className="form-control" required value={newBill.description} onChange={e => setNewBill({ ...newBill, description: e.target.value })} placeholder="e.g. 5 Liters Foam Soap" />
                                 </div>
-                            </form>
-                        </div>
+                                <div className="mb-3">
+                                    <label className="form-label small fw-bold text-muted">Due Date</label>
+                                    <input className="form-control" type="date" required value={newBill.dueDate} onChange={e => setNewBill({ ...newBill, dueDate: e.target.value })} />
+                                </div>
+                            </div>
+                            <div className="modal-footer border-0 p-4 pt-0">
+                                <button type="submit" className="btn btn-primary w-100 rounded-3 shadow">Add to Payables</button>
+                            </div>
+                        </form>
                     </div>
-                </div>
+                </AdminModalWrapper>
             )}
 
             {/* 3. Record Payment Modal */}
             {showPaymentModal && selectedBill && (
-                <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
-                    <div className="modal-dialog modal-dialog-centered">
-                        <div className="modal-content border-0 rounded-4 shadow-lg">
-                            <form onSubmit={handleRecordPayment}>
-                                <div className="modal-header border-0 p-4 pb-0">
-                                    <h5 className="fw-bold mb-0 text-success">Release Payment</h5>
-                                    <button type="button" className="btn-close" onClick={() => setShowPaymentModal(false)}></button>
-                                </div>
-                                <div className="modal-body p-4 text-center">
-                                    <p className="text-muted mb-4">You are recording a payment for:<br /><b className="text-dark-secondary">{selectedBill.description}</b><br /><small className="text-muted">{selectedBill.vendorId?.name}</small></p>
+                <AdminModalWrapper show={showPaymentModal} onClose={() => setShowPaymentModal(false)}>
+                    <div className="modal-content border-0 rounded-4 shadow-lg">
+                        <form onSubmit={handleRecordPayment}>
+                            <div className="modal-header border-0 p-4 pb-0">
+                                <h5 className="fw-bold mb-0 text-success">Release Payment</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowPaymentModal(false)}></button>
+                            </div>
+                            <div className="modal-body p-4 text-center">
+                                <p className="text-muted mb-4">You are recording a payment for:<br /><b className="text-dark-secondary">{selectedBill.description}</b><br /><small className="text-muted">{selectedBill.vendorId?.name}</small></p>
 
-                                    <div className="bg-light p-3 rounded-4 mb-4">
-                                        <label className="form-label small fw-bold text-muted mb-1">Amount to Release</label>
-                                        <div className="input-group input-group-lg">
-                                            <span className="input-group-text bg-transparent border-0 fw-bold text-dark">₱</span>
-                                            <input className="form-control border-0 fw-bold text-center text-dark rounded-3" type="number" required value={paymentData.amount} onChange={e => setPaymentData({ ...paymentData, amount: e.target.value })} />
-                                        </div>
+                                <div className="bg-light p-3 rounded-4 mb-4">
+                                    <label className="form-label small fw-bold text-muted mb-1">Amount to Release</label>
+                                    <div className="input-group input-group-lg">
+                                        <span className="input-group-text bg-transparent border-0 fw-bold text-dark">₱</span>
+                                        <input className="form-control border-0 fw-bold text-center text-dark rounded-3" type="number" required value={paymentData.amount} onChange={e => setPaymentData({ ...paymentData, amount: e.target.value })} />
                                     </div>
+                                </div>
 
-                                    <div className="row g-2 mb-3 text-start">
-                                        <div className="col-md-6">
-                                            <label className="form-label small fw-bold text-muted">Method</label>
-                                            <select className="form-select" value={paymentData.method} onChange={e => setPaymentData({ ...paymentData, method: e.target.value })}>
-                                                <option value="Cash">Cash</option>
-                                                <option value="Bank Transfer">Bank Transfer</option>
-                                                <option value="GCash">GCash</option>
-                                                <option value="Check">Check</option>
-                                            </select>
-                                        </div>
-                                        <div className="col-md-6">
-                                            <label className="form-label small fw-bold text-muted">Date Paid</label>
-                                            <input className="form-control" type="date" value={paymentData.date} onChange={e => setPaymentData({ ...paymentData, date: e.target.value })} />
-                                        </div>
+                                <div className="row g-2 mb-3 text-start">
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted">Method</label>
+                                        <select className="form-select" value={paymentData.method} onChange={e => setPaymentData({ ...paymentData, method: e.target.value })}>
+                                            <option value="Cash">Cash</option>
+                                            <option value="Bank Transfer">Bank Transfer</option>
+                                            <option value="GCash">GCash</option>
+                                            <option value="Check">Check</option>
+                                        </select>
                                     </div>
-                                    <div className="text-start">
-                                        <label className="form-label small fw-bold text-muted">Reference #</label>
-                                        <input className="form-control bg-light border-0 fw-bold text-muted" readOnly value={paymentData.reference} onChange={e => setPaymentData({ ...paymentData, reference: e.target.value })} placeholder="PAY-MMDDYY-01" />
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted">Date Paid</label>
+                                        <input className="form-control" type="date" value={paymentData.date} onChange={e => setPaymentData({ ...paymentData, date: e.target.value })} />
                                     </div>
                                 </div>
-                                <div className="modal-footer border-0 p-4 pt-0">
-                                    <button type="submit" className="btn btn-success w-100 rounded-3 shadow py-2">Confirm & Sync to Expenses</button>
+                                <div className="text-start">
+                                    <label className="form-label small fw-bold text-muted">Reference #</label>
+                                    <input className="form-control bg-light border-0 fw-bold text-muted" readOnly value={paymentData.reference} onChange={e => setPaymentData({ ...paymentData, reference: e.target.value })} placeholder="PAY-MMDDYY-01" />
                                 </div>
-                            </form>
-                        </div>
+                            </div>
+                            <div className="modal-footer border-0 p-4 pt-0">
+                                <button type="submit" className="btn btn-success w-100 rounded-3 shadow py-2">Confirm & Sync to Expenses</button>
+                            </div>
+                        </form>
                     </div>
-                </div>
+                </AdminModalWrapper>
             )}
 
             {/* 4. Vendor History / 360 Modal (CRM Matched UI) */}
             {showHistoryModal && selectedVendorHistory && (
-                <div className="modal show d-block animate-fade-in" style={{ background: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
-                    <div className="modal-dialog modal-dialog-centered modal-lg">
-                        <div className="modal-content border-0 rounded-4 shadow overflow-hidden">
-                            {/* Modal Header Profile (Matching CRM) */}
-                            <div className="modal-header border-0 pb-4 pt-5 px-5 position-relative" style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
-                                <button type="button" className="btn-close btn-close-white position-absolute top-0 end-0 m-3" onClick={() => setShowHistoryModal(false)} />
-                                <div className="d-flex align-items-center gap-4 w-100 text-white">
-                                    <div className="rounded-circle d-flex align-items-center justify-content-center brand-accent fw-bold shadow-lg text-white" style={{ width: 80, height: 80, fontSize: '2rem', background: 'var(--brand-active)' }}>
-                                        {selectedVendorHistory.vendor.name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div className="flex-grow-1">
-                                        <h3 className="mb-1 fw-bold font-poppins">{selectedVendorHistory.vendor.name}</h3>
-                                        <p className="mb-2 text-light opacity-75 d-flex gap-3" style={{ fontSize: '0.85rem' }}>
-                                            <span>Email: {selectedVendorHistory.vendor.email || 'N/A'}</span>
-                                            <span>Phone: {selectedVendorHistory.vendor.phone || 'N/A'}</span>
-                                        </p>
-                                        <div className="d-flex gap-2">
-                                            <button onClick={handleOpenEditVendor} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
-                                                <img src={editIcon} style={{ width: '16px' }} alt="Edit Icon" /></button>
-                                            <button onClick={handleDeleteVendor} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
-                                                <img src={deleteIcon} style={{ width: '16px' }} alt="Delete Icon" /></button>
-                                        </div>
-                                    </div>
-                                    <div className="text-end pe-2">
-                                        <p className="mb-1 text-light opacity-75 small text-uppercase">Total Spent</p>
-                                        <h3 className="mb-0 text-success fw-bold">₱{selectedVendorHistory.vendor.totalPaid.toLocaleString()}</h3>
+                <AdminModalWrapper show={showHistoryModal} onClose={() => setShowHistoryModal(false)} size="lg">
+                    <div className="modal-content border-0 rounded-4 shadow overflow-hidden">
+                        {/* Modal Header Profile (Matching CRM) */}
+                        <div className="modal-header border-0 pb-4 pt-5 px-5 position-relative" style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
+                            <button type="button" className="btn-close btn-close-white position-absolute top-0 end-0 m-3" onClick={() => setShowHistoryModal(false)} />
+                            <div className="d-flex align-items-center gap-4 w-100 text-white">
+                                <div className="rounded-circle d-flex align-items-center justify-content-center brand-accent fw-bold shadow-lg text-white" style={{ width: 80, height: 80, fontSize: '2rem', background: 'var(--brand-active)' }}>
+                                    {selectedVendorHistory.vendor.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="flex-grow-1">
+                                    <h3 className="mb-1 fw-bold font-poppins">{selectedVendorHistory.vendor.name}</h3>
+                                    <p className="mb-2 text-light opacity-75 d-flex gap-3" style={{ fontSize: '0.85rem' }}>
+                                        <span>Email: {selectedVendorHistory.vendor.email || 'N/A'}</span>
+                                        <span>Phone: {selectedVendorHistory.vendor.phone || 'N/A'}</span>
+                                    </p>
+                                    <div className="d-flex gap-2">
+                                        <button onClick={handleOpenEditVendor} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
+                                            <img src={editIcon} style={{ width: '16px' }} alt="Edit Icon" /></button>
+                                        <button onClick={handleDeleteVendor} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
+                                            <img src={deleteIcon} style={{ width: '16px' }} alt="Delete Icon" /></button>
                                     </div>
                                 </div>
+                                <div className="text-end pe-2">
+                                    <p className="mb-1 text-light opacity-75 small text-uppercase">Total Spent</p>
+                                    <h3 className="mb-0 text-success fw-bold">₱{selectedVendorHistory.vendor.totalPaid.toLocaleString()}</h3>
+                                </div>
                             </div>
+                        </div>
 
-                            {/* Modal Body */}
-                            <div className="modal-body p-0">
-                                <div className="row g-0">
-                                    {/* Left Column (Stats & Info) */}
-                                    <div className="col-md-5 p-4 border-end bg-light" style={{ minHeight: '420px' }}>
-                                        <h6 className="fw-bold text-dark-secondary mb-3">Quick Actions</h6>
-                                        <div className="d-flex gap-2 mb-4">
-                                            {selectedVendorHistory.vendor.email ? (
-                                                <a href={`mailto:${selectedVendorHistory.vendor.email}`} className="btn btn-save btn-sm flex-fill rounded-3 shadow-sm text-decoration-none text-center d-flex align-items-center justify-content-center">Email</a>
-                                            ) : (
-                                                <button disabled className="btn btn-sm btn-outline-secondary flex-fill rounded-3 opacity-50" style={{ cursor: 'not-allowed' }}>No Email</button>
-                                            )}
-                                            {selectedVendorHistory.vendor.phone ? (
-                                                <a href={`tel:${selectedVendorHistory.vendor.phone}`} className="btn btn-call btn-sm flex-fill rounded-3 text-decoration-none text-center d-flex align-items-center justify-content-center">Call</a>
-                                            ) : (
-                                                <button disabled className="btn btn-sm btn-outline-secondary flex-fill rounded-3 opacity-50" style={{ cursor: 'not-allowed' }}>No Phone</button>
-                                            )}
-                                        </div>
+                        {/* Modal Body */}
+                        <div className="modal-body p-0">
+                            <div className="row g-0">
+                                {/* Left Column (Stats & Info) */}
+                                <div className="col-md-5 p-4 border-end bg-light" style={{ minHeight: '420px' }}>
+                                    <h6 className="fw-bold text-dark-secondary mb-3">Quick Actions</h6>
+                                    <div className="d-flex gap-2 mb-4">
+                                        {selectedVendorHistory.vendor.email ? (
+                                            <a href={`mailto:${selectedVendorHistory.vendor.email}`} className="btn btn-save btn-sm flex-fill rounded-3 shadow-sm text-decoration-none text-center d-flex align-items-center justify-content-center">Email</a>
+                                        ) : (
+                                            <button disabled className="btn btn-sm btn-outline-secondary flex-fill rounded-3 opacity-50" style={{ cursor: 'not-allowed' }}>No Email</button>
+                                        )}
+                                        {selectedVendorHistory.vendor.phone ? (
+                                            <a href={`tel:${selectedVendorHistory.vendor.phone}`} className="btn btn-call btn-sm flex-fill rounded-3 text-decoration-none text-center d-flex align-items-center justify-content-center">Call</a>
+                                        ) : (
+                                            <button disabled className="btn btn-sm btn-outline-secondary flex-fill rounded-3 opacity-50" style={{ cursor: 'not-allowed' }}>No Phone</button>
+                                        )}
+                                    </div>
 
-                                        <h6 className="fw-bold text-dark-secondary mb-2">Vendor Details</h6>
-                                        <div className="mb-4">
-                                            <div className="d-flex align-items-center gap-2 p-2 px-3 border rounded-3 bg-white" style={{ borderColor: '#f59e0b', borderLeft: '4px solid #f59e0b' }}>
-                                                <div className="flex-grow-1">
-                                                    <div className="fw-bold d-flex align-items-center gap-1" style={{ fontSize: '0.85rem', color: '#d97706' }}>{selectedVendorHistory.vendor.category}</div>
-                                                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>{selectedVendorHistory.vendor.paymentTerms}</div>
-                                                </div>
+                                    <h6 className="fw-bold text-dark-secondary mb-2">Vendor Details</h6>
+                                    <div className="mb-4">
+                                        <div className="d-flex align-items-center gap-2 p-2 px-3 border rounded-3 bg-white" style={{ borderColor: '#f59e0b', borderLeft: '4px solid #f59e0b' }}>
+                                            <div className="flex-grow-1">
+                                                <div className="fw-bold d-flex align-items-center gap-1" style={{ fontSize: '0.85rem', color: '#d97706' }}>{selectedVendorHistory.vendor.category}</div>
+                                                <div className="text-muted" style={{ fontSize: '0.75rem' }}>{selectedVendorHistory.vendor.paymentTerms}</div>
                                             </div>
-                                        </div>
-
-                                        <h6 className="fw-bold text-dark-secondary mb-2">Unpaid Balance</h6>
-                                        <div className="card border-0 shadow-sm rounded-3 p-3 bg-white mb-4">
-                                            <h4 className="fw-bold mb-0 text-danger">₱{selectedVendorHistory.vendor.totalOwed.toLocaleString()}</h4>
-                                            <small className="text-muted">Outstanding debt for this vendor</small>
-                                        </div>
-
-                                        <h6 className="fw-bold text-dark-secondary mb-2">Contact Person</h6>
-                                        <div className="bg-white p-3 rounded-3 shadow-sm border border-light">
-                                            <div className="fw-bold text-dark-secondary small">{selectedVendorHistory.vendor.contactPerson || 'No Contact Person'}</div>
-                                            <div className="text-muted small mt-1">{selectedVendorHistory.vendor.address || 'No Address Provided'}</div>
                                         </div>
                                     </div>
 
-                                    {/* Right Column (Payment Timeline) */}
-                                    <div className="col-md-7 p-4 bg-white">
-                                        <h6 className="fw-bold text-dark-secondary mb-3">Payment Timeline</h6>
-                                        {selectedVendorHistory.history.length === 0 ? (
-                                            <p className="text-muted small">No past transactions found.</p>
-                                        ) : (
-                                            <div style={{ maxHeight: '600px', overflowY: 'auto' }} className="pe-2 custom-scrollbar">
-                                                {selectedVendorHistory.history.map((bill, idx) => (
-                                                    <div key={bill._id} className="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom border-light">
-                                                        <div className="rounded-circle bg-light d-flex align-items-center justify-content-center text-muted fw-bold" style={{ width: 32, height: 32, flexShrink: 0, fontSize: '0.8rem' }}>
-                                                            {selectedVendorHistory.history.length - idx}
+                                    <h6 className="fw-bold text-dark-secondary mb-2">Unpaid Balance</h6>
+                                    <div className="card border-0 shadow-sm rounded-3 p-3 bg-white mb-4">
+                                        <h4 className="fw-bold mb-0 text-danger">₱{selectedVendorHistory.vendor.totalOwed.toLocaleString()}</h4>
+                                        <small className="text-muted">Outstanding debt for this vendor</small>
+                                    </div>
+
+                                    <h6 className="fw-bold text-dark-secondary mb-2">Contact Person</h6>
+                                    <div className="bg-white p-3 rounded-3 shadow-sm border border-light">
+                                        <div className="fw-bold text-dark-secondary small">{selectedVendorHistory.vendor.contactPerson || 'No Contact Person'}</div>
+                                        <div className="text-muted small mt-1">{selectedVendorHistory.vendor.address || 'No Address Provided'}</div>
+                                    </div>
+                                </div>
+
+                                {/* Right Column (Payment Timeline) */}
+                                <div className="col-md-7 p-4 bg-white">
+                                    <h6 className="fw-bold text-dark-secondary mb-3">Payment Timeline</h6>
+                                    {selectedVendorHistory.history.length === 0 ? (
+                                        <p className="text-muted small">No past transactions found.</p>
+                                    ) : (
+                                        <div style={{ maxHeight: '600px', overflowY: 'auto' }} className="pe-2 custom-scrollbar">
+                                            {selectedVendorHistory.history.map((bill, idx) => (
+                                                <div key={bill._id} className="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom border-light">
+                                                    <div className="rounded-circle bg-light d-flex align-items-center justify-content-center text-muted fw-bold" style={{ width: 32, height: 32, flexShrink: 0, fontSize: '0.8rem' }}>
+                                                        {selectedVendorHistory.history.length - idx}
+                                                    </div>
+                                                    <div className="flex-grow-1">
+                                                        <div className="d-flex justify-content-between mb-1">
+                                                            <span className="fw-bold text-dark-secondary" style={{ fontSize: '0.85rem' }}>{bill.description}</span>
+                                                            <span className="fw-bold text-dark-secondary" style={{ fontSize: '0.85rem' }}>₱{bill.amount?.toLocaleString()}</span>
                                                         </div>
-                                                        <div className="flex-grow-1">
-                                                            <div className="d-flex justify-content-between mb-1">
-                                                                <span className="fw-bold text-dark-secondary" style={{ fontSize: '0.85rem' }}>{bill.description}</span>
-                                                                <span className="fw-bold text-dark-secondary" style={{ fontSize: '0.85rem' }}>₱{bill.amount?.toLocaleString()}</span>
-                                                            </div>
-                                                            <div className="d-flex justify-content-between align-items-center">
-                                                                <small className="text-muted">{new Date(bill.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</small>
-                                                                <div className="d-flex gap-2 align-items-center">
-                                                                    <span className="badge bg-light text-muted border px-2" style={{ fontSize: '0.65rem' }}>{bill.billNumber}</span>
-                                                                    <span className={`badge rounded-pill ${bill.status === 'Paid' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'}`} style={{ fontSize: '0.65rem' }}>
-                                                                        {bill.status}
-                                                                    </span>
-                                                                </div>
+                                                        <div className="d-flex justify-content-between align-items-center">
+                                                            <small className="text-muted">{new Date(bill.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</small>
+                                                            <div className="d-flex gap-2 align-items-center">
+                                                                <span className="badge bg-light text-muted border px-2" style={{ fontSize: '0.65rem' }}>{bill.billNumber}</span>
+                                                                <span className={`badge rounded-pill ${bill.status === 'Paid' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'}`} style={{ fontSize: '0.65rem' }}>
+                                                                    {bill.status}
+                                                                </span>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                </AdminModalWrapper>
             )}
 
             {/* 5. Edit Vendor Modal */}
             {showEditVendorModal && editVendorData && (
-                <div className="modal show d-block animate-fade-in" style={{ background: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
-                    <div className="modal-dialog modal-dialog-centered">
-                        <div className="modal-content border-0 rounded-4 shadow-lg">
-                            <form onSubmit={handleUpdateVendor}>
-                                <div className="modal-header border-0 p-4 pb-0">
-                                    <h5 className="fw-bold mb-0">Edit Supplier Profile</h5>
-                                    <button type="button" className="btn-close" onClick={() => setShowEditVendorModal(false)}></button>
+                <AdminModalWrapper show={showEditVendorModal} onClose={() => setShowEditVendorModal(false)}>
+                    <div className="modal-content border-0 rounded-4 shadow-lg">
+                        <form onSubmit={handleUpdateVendor}>
+                            <div className="modal-header border-0 p-4 pb-0">
+                                <h5 className="fw-bold mb-0">Edit Supplier Profile</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowEditVendorModal(false)}></button>
+                            </div>
+                            <div className="modal-body p-4">
+                                <div className="mb-3">
+                                    <label className="form-label small fw-bold text-muted">Vendor Name</label>
+                                    <input className="form-control" required value={editVendorData.name} onChange={e => setEditVendorData({ ...editVendorData, name: e.target.value })} />
                                 </div>
-                                <div className="modal-body p-4">
-                                    <div className="mb-3">
-                                        <label className="form-label small fw-bold text-muted">Vendor Name</label>
-                                        <input className="form-control" required value={editVendorData.name} onChange={e => setEditVendorData({ ...editVendorData, name: e.target.value })} />
+                                <div className="row g-2 mb-3">
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted">Category</label>
+                                        <select className="form-select" value={editVendorData.category} onChange={e => setEditVendorData({ ...editVendorData, category: e.target.value })}>
+                                            <option value="Supplies">Supplies</option>
+                                            <option value="Utilities">Utilities</option>
+                                            <option value="Rent">Rent</option>
+                                            <option value="Marketing">Marketing</option>
+                                            <option value="Maintenance">Maintenance</option>
+                                            <option value="Others">Others</option>
+                                        </select>
                                     </div>
-                                    <div className="row g-2 mb-3">
-                                        <div className="col-md-6">
-                                            <label className="form-label small fw-bold text-muted">Category</label>
-                                            <select className="form-select" value={editVendorData.category} onChange={e => setEditVendorData({ ...editVendorData, category: e.target.value })}>
-                                                <option value="Supplies">Supplies</option>
-                                                <option value="Utilities">Utilities</option>
-                                                <option value="Rent">Rent</option>
-                                                <option value="Marketing">Marketing</option>
-                                                <option value="Maintenance">Maintenance</option>
-                                                <option value="Others">Others</option>
-                                            </select>
-                                        </div>
-                                        <div className="col-md-6">
-                                            <label className="form-label small fw-bold text-muted">Payment Terms</label>
-                                            <select className="form-select" value={editVendorData.paymentTerms} onChange={e => setEditVendorData({ ...editVendorData, paymentTerms: e.target.value })}>
-                                                <option value="Cash on Delivery">Cash on Delivery</option>
-                                                <option value="Gcash">Gcash</option>
-                                                <option value="Maya">Maya</option>
-                                                <option value="Bank Transfer">Bank Transfer</option>
-                                            </select>
-                                        </div>
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted">Payment Terms</label>
+                                        <select className="form-select" value={editVendorData.paymentTerms} onChange={e => setEditVendorData({ ...editVendorData, paymentTerms: e.target.value })}>
+                                            <option value="Cash on Delivery">Cash on Delivery</option>
+                                            <option value="Gcash">Gcash</option>
+                                            <option value="Maya">Maya</option>
+                                            <option value="Bank Transfer">Bank Transfer</option>
+                                        </select>
                                     </div>
-                                    <div className="row g-2 mb-3">
-                                        <div className="col-md-6">
-                                            <label className="form-label small fw-bold text-muted">Contact Person</label>
-                                            <input className="form-control" value={editVendorData.contactPerson} onChange={e => setEditVendorData({ ...editVendorData, contactPerson: e.target.value })} />
-                                        </div>
-                                        <div className="col-md-6">
-                                            <label className="form-label small fw-bold text-muted">Phone Number</label>
-                                            <input
-                                                className="form-control"
-                                                value={editVendorData.phone}
-                                                onChange={e => {
-                                                    const val = e.target.value.replace(/\D/g, '');
-                                                    if (val.length <= 11) {
-                                                        setEditVendorData({ ...editVendorData, phone: val });
-                                                    }
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <label className="form-label small fw-bold text-muted">Email Address</label>
-                                    <input className="form-control" value={editVendorData.email} onChange={e => setEditVendorData({ ...editVendorData, email: e.target.value })} />
                                 </div>
-                                <div className="modal-footer border-0 p-4 pt-0">
-                                    <button type="submit" className="btn btn-save w-100 rounded-3 shadow">Save Changes</button>
+                                <div className="row g-2 mb-3">
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted">Contact Person</label>
+                                        <input className="form-control" value={editVendorData.contactPerson} onChange={e => setEditVendorData({ ...editVendorData, contactPerson: e.target.value })} />
+                                    </div>
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted">Phone Number</label>
+                                        <input
+                                            className="form-control"
+                                            value={editVendorData.phone}
+                                            onChange={e => {
+                                                const val = e.target.value.replace(/\D/g, '');
+                                                if (val.length <= 11) {
+                                                    setEditVendorData({ ...editVendorData, phone: val });
+                                                }
+                                            }}
+                                        />
+                                    </div>
                                 </div>
-                            </form>
-                        </div>
+                                <label className="form-label small fw-bold text-muted">Email Address</label>
+                                <input className="form-control" value={editVendorData.email} onChange={e => setEditVendorData({ ...editVendorData, email: e.target.value })} />
+                            </div>
+                            <div className="modal-footer border-0 p-4 pt-0">
+                                <button type="submit" className="btn btn-save w-100 rounded-3 shadow">Save Changes</button>
+                            </div>
+                        </form>
                     </div>
-                </div>
+                </AdminModalWrapper>
             )}
         </div>
     );

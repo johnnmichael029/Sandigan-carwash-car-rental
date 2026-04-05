@@ -101,14 +101,14 @@ const clockToggle = async (req, res) => {
             if (employee.shiftType === 'Morning') {
                 // Morning shift ends at 17:00 (5:00 PM)
                 const shiftEnd = new Date(record.clockInTime);
-                shiftEnd.setHours(17, 0, 0, 0); 
+                shiftEnd.setHours(17, 0, 0, 0);
                 if (clockOut > shiftEnd) {
                     overtimeMinutes = Math.floor((clockOut - shiftEnd) / 60000);
                 }
             } else if (employee.shiftType === 'Night') {
                 // Night shift ends 5 AM
                 const shiftEnd = new Date(record.clockInTime);
-                shiftEnd.setHours(5, 0, 0, 0); 
+                shiftEnd.setHours(5, 0, 0, 0);
                 if (shiftEnd < record.clockInTime) shiftEnd.setDate(shiftEnd.getDate() + 1);
                 if (clockOut > shiftEnd) {
                     overtimeMinutes = Math.floor((clockOut - shiftEnd) / 60000);
@@ -298,9 +298,10 @@ const getAllAttendance = async (req, res) => {
             return res.status(403).json({ error: 'Permission denied. Admins only.' });
         }
 
-        const limit = parseInt(req.query.limit) || 100;
-        const records = await Attendance.find()
-            .populate('employee', 'fullName fullname role name baseSalary salaryFrequency shiftType shiftStartTime')
+        const limit = parseInt(req.query.limit) || 200;
+
+        const records = await Attendance.find({})
+            .populate('employee', 'fullName fullname role name baseSalary salaryFrequency shiftType shiftStartTime employeeId')
             .sort({ createdAt: -1 })
             .limit(limit);
 
@@ -311,24 +312,101 @@ const getAllAttendance = async (req, res) => {
 };
 
 /**
- * Update holiday status (Admin Only)
+ * Update attendance details (Admin Only)
  */
-const updateHolidayStatus = async (req, res) => {
+const updateAttendance = async (req, res) => {
     try {
         if (req.employeeRole !== 'admin') {
             return res.status(403).json({ error: 'Permission denied. Admins only.' });
         }
 
-        const { holidayType, holidayName, wasPresentYesterday } = req.body;
-        const record = await Attendance.findById(req.params.id);
+        const { holidayType, holidayName, wasPresentYesterday, clockInTime, clockOutTime } = req.body;
+        const record = await Attendance.findById(req.params.id).populate('employee');
         if (!record) return res.status(404).json({ error: 'Attendance record not found.' });
 
         if (holidayType !== undefined) record.holidayType = holidayType;
         if (holidayName !== undefined) record.holidayName = holidayName;
         if (wasPresentYesterday !== undefined) record.wasPresentYesterday = wasPresentYesterday;
 
+        if (clockInTime && !isNaN(new Date(clockInTime).getTime())) record.clockInTime = new Date(clockInTime);
+        if (clockOutTime && !isNaN(new Date(clockOutTime).getTime())) record.clockOutTime = new Date(clockOutTime);
+        else if (clockOutTime === '') record.clockOutTime = null; // Clear if empty
+
+        // If clock times are updated, RECALCULATE DURATION & OT
+        if (record.clockInTime && record.clockOutTime) {
+            const employee = record.employee;
+            let effectiveInTime = new Date(record.clockInTime);
+
+            // Shift clamping
+            if (employee && employee.shiftType !== 'None' && employee.shiftStartTime) {
+                // Handle formats like "08:00" or "8:00 AM"
+                const parts = employee.shiftStartTime.split(' ');
+                const timeStr = parts[0];
+                const modifier = parts[1];
+                let [hours, minutes] = timeStr.split(':').map(Number);
+
+                if (modifier === 'PM' && hours < 12) hours += 12;
+                if (modifier === 'AM' && hours === 12) hours = 0;
+
+                if (!isNaN(hours) && !isNaN(minutes)) {
+                    const shiftStart = new Date(record.clockInTime);
+                    shiftStart.setHours(hours, minutes, 0, 0);
+                    if (effectiveInTime < shiftStart) effectiveInTime = shiftStart;
+                }
+            }
+
+            const diffMs = record.clockOutTime.getTime() - effectiveInTime.getTime();
+            let durationMinutes = Math.floor(diffMs / 60000);
+
+            // Smart Break Logic
+            const shiftInHour = effectiveInTime.getHours();
+            const shiftOutHour = record.clockOutTime.getHours();
+
+            if (employee.shiftType === 'Morning' && shiftInHour < 12 && shiftOutHour >= 13) {
+                durationMinutes = Math.max(0, durationMinutes - 60);
+            } else if (employee.shiftType === 'Night' && (shiftInHour >= 20 || shiftInHour < 4) && (shiftOutHour >= 1 || shiftOutHour < shiftInHour)) {
+                durationMinutes = Math.max(0, durationMinutes - 60);
+            } else if (durationMinutes > 300) {
+                durationMinutes -= 60;
+            }
+            record.durationMinutes = durationMinutes;
+
+            // OT LOGIC
+            let overtimeMinutes = 0;
+            const clockOut = new Date(record.clockOutTime);
+            if (employee.shiftType === 'Morning') {
+                const shiftEnd = new Date(record.clockInTime);
+                shiftEnd.setHours(17, 0, 0, 0);
+                if (clockOut > shiftEnd) overtimeMinutes = Math.floor((clockOut - shiftEnd) / 60000);
+            } else if (employee.shiftType === 'Night') {
+                const shiftEnd = new Date(record.clockInTime);
+                shiftEnd.setHours(5, 0, 0, 0);
+                if (shiftEnd < record.clockInTime) shiftEnd.setDate(shiftEnd.getDate() + 1);
+                if (clockOut > shiftEnd) overtimeMinutes = Math.floor((clockOut - shiftEnd) / 60000);
+            } else {
+                const standardMinutes = 480;
+                if (durationMinutes > standardMinutes) overtimeMinutes = durationMinutes - standardMinutes;
+            }
+            record.overtimeMinutes = overtimeMinutes;
+        }
+
         await record.save();
-        res.json({ message: 'Holiday status updated successfully.', record });
+        res.json({ message: 'Attendance updated successfully.', record });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * Delete attendance record (Admin Only)
+ */
+const deleteAttendance = async (req, res) => {
+    try {
+        if (req.employeeRole !== 'admin') {
+            return res.status(403).json({ error: 'Permission denied. Admins only.' });
+        }
+        await Attendance.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Attendance record deleted successfully.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -339,6 +417,7 @@ module.exports = {
     approveOT,
     getTodayStatus,
     getAllAttendance,
-    updateHolidayStatus,
+    updateAttendance,
+    deleteAttendance,
     adminClockToggle
 };

@@ -11,7 +11,10 @@ const {
     deleteEmployee,
     updateEmployee,
     loginEmployee,
-    logoutEmployee
+    logoutEmployee,
+    addEvaluation,
+    updateSkills,
+    backfillEmployeeIds
 } = require('../controllers/employeeController');
 
 // --- PUBLIC ROUTES (no auth needed) ---
@@ -55,6 +58,9 @@ router.post('/logout', logoutEmployee);
 // Create a new employee (sign up - restrict to admin)
 router.post('/signup', requireAuth, adminOnly, createEmployee);
 
+// Backfill: Assign IDs to all employees missing one (Admin only — run once)
+router.post('/backfill-ids', requireAuth, adminOnly, backfillEmployeeIds);
+
 // --- PROTECTED ROUTES (require valid JWT) ---
 
 // Get all employees — staff need this for detailer selection
@@ -65,6 +71,10 @@ router.get('/:id', requireAuth, getEmployee);
 
 // Update employee (Admin only)
 router.patch('/:id', requireAuth, adminOnly, updateEmployee);
+
+// Performance and Training (Admin only)
+router.post('/:id/evaluation', requireAuth, adminOnly, addEvaluation);
+router.patch('/:id/skills', requireAuth, adminOnly, updateSkills);
 
 // Delete employee (Admin only)
 router.delete('/:id', requireAuth, adminOnly, deleteEmployee);

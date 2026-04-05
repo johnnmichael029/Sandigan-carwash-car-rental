@@ -6,6 +6,11 @@ const employeeSchema = new Schema({
         type: String,
         required: true
     },
+    employeeId: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
     email: {
         type: String,
         unique: true,
@@ -49,7 +54,20 @@ const employeeSchema = new Schema({
 
     lastPaidDate: { type: Date },
     hiredDate: { type: Date, default: Date.now },
-    status: { type: String, enum: ['Active', 'On Leave', 'Sick'], default: 'Active' }
+    status: { type: String, enum: ['Active', 'On Leave', 'Sick'], default: 'Active' },
+
+    // Leave Balances
+    leaveBalances: {
+        sickLeave:     { allocated: { type: Number, default: 5 }, used: { type: Number, default: 0 } },
+        vacationLeave: { allocated: { type: Number, default: 5 }, used: { type: Number, default: 0 } }
+    },
+    skills: [{ type: String }],
+    evaluations: [{
+        rating: { type: Number, min: 1, max: 5 },
+        comment: String,
+        reviewerName: String,
+        date: { type: Date, default: Date.now }
+    }]
 }, { timestamps: true });
 
 const Employee = mongoose.model('employee', employeeSchema);

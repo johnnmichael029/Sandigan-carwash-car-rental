@@ -168,6 +168,7 @@ app.use('/api/holidays', require('./routes/holidayRoutes'));
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/forecast', forecastRoutes);
 app.use('/api/ledger', ledgerRoutes);
+app.use('/api/leaves', require('./routes/leaveRoutes'));
 
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {
@@ -180,6 +181,8 @@ app.use((err, req, res, next) => {
     console.error(`[SERVER_ERROR] ${err.message}`);
     res.status(err.status || 500).json({ error: err.message || 'An internal server error occurred' });
 });
+
+
 
 // Listen on PORT
 server.listen(port, () => {

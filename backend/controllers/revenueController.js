@@ -4,7 +4,7 @@ const { createLog } = require('./activityLogController');
 // ── GET all revenue records ──────────────────────────────────────
 const getRevenues = async (req, res) => {
     try {
-        const { from, to, category, source } = req.query;
+        const { from, to, category, source, search } = req.query;
         const filter = {};
 
         if (from || to) {
@@ -18,6 +18,24 @@ const getRevenues = async (req, res) => {
         }
         if (category) filter.category = category;
         if (source) filter.source = source;
+
+        if (search && search.trim()) {
+            const query = search.trim();
+            filter.$or = [
+                { title: { $regex: query, $options: 'i' } },
+                { category: { $regex: query, $options: 'i' } },
+                { referenceId: { $regex: query, $options: 'i' } },
+                { notes: { $regex: query, $options: 'i' } },
+                // Allow searching by Date string (MM/DD/YYYY)
+                { $expr: { 
+                    $regexMatch: { 
+                        input: { $dateToString: { format: "%m/%d/%Y", date: "$date" } }, 
+                        regex: query, 
+                        options: "i" 
+                    } 
+                } }
+            ];
+        }
 
         const revenues = await Revenue.find(filter)
             .populate('recordedBy', 'fullName role')

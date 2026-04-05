@@ -590,6 +590,10 @@ label {
     color: var(--text-primary);
 }
 
+.btn-active:hover {
+    background-color: var(--brand-active);
+}
+
 .btn-record-expenses:hover,
 .btn-register-item:hover,
 .btn-save:hover {
@@ -628,6 +632,16 @@ label {
 .btn-smc-card:hover {
     background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
     color: var(--text-in-progress);
+}
+
+.btn-next:hover {
+    background-color: var(--brand-active) !important;
+}
+
+.btn-edit:hover,
+.btn-cancel:hover,
+.btn-delete:hover {
+    background-color: var(--brand-active) !important;
 }
 
 

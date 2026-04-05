@@ -26,6 +26,26 @@ const getEmployees = async (req, res) => {
     }
 };
 
+const generateEmployeeId = async () => {
+    const year = new Date().getFullYear();
+
+    // Sort by createdAt descending to find the most recently created employee WITH an ID.
+    // This avoids the string-sort bug where 'EMP-2026-009' > 'EMP-2026-010' alphabetically.
+    const latestEmp = await Employee.findOne({
+        employeeId: new RegExp(`^EMP-${year}-`)
+    }).sort({ createdAt: -1 });
+
+    if (latestEmp && latestEmp.employeeId) {
+        const parts = latestEmp.employeeId.split('-');
+        const currentNum = parseInt(parts[2], 10);
+        if (!isNaN(currentNum)) {
+            const nextNum = (currentNum + 1).toString().padStart(3, '0');
+            return `EMP-${year}-${nextNum}`;
+        }
+    }
+    return `EMP-${year}-001`;
+};
+
 // Create employee
 const createEmployee = async (req, res) => {
     let {
@@ -64,7 +84,11 @@ const createEmployee = async (req, res) => {
             hashedPassword = await bcrypt.hash(password, salt);
         }
 
+        const newEmployeeId = await generateEmployeeId();
+        console.log(`[EMPLOYEE_CREATE] Generated ID: ${newEmployeeId} for ${fullName}`);
+
         const newEmployee = await Employee.create({
+            employeeId: newEmployeeId,
             fullName,
             email,
             password: hashedPassword,
@@ -300,6 +324,104 @@ const logoutEmployee = async (req, res) => {
     }
 };
 
+// Add a performance evaluation
+const addEvaluation = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rating, comment } = req.body;
+        const reviewerName = req.user ? req.user.fullName : 'Admin';
+
+        const employee = await Employee.findByIdAndUpdate(
+            id,
+            { $push: { evaluations: { rating, comment, reviewerName, date: new Date() } } },
+            { returnDocument: 'after', runValidators: true }
+        );
+
+        if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+        // Audit Log
+        await createLog({
+            actorId: req.user ? req.user.id : null,
+            actorName: reviewerName,
+            actorRole: req.user ? req.user.role : 'admin',
+            module: 'HRIS',
+            action: 'performance_reviewed',
+            message: `Added a ${rating}-star review for ${employee.fullName}`,
+            meta: { employeeId: id, rating }
+        });
+
+        res.json({ message: 'Evaluation added successfully', employee });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Update employee skills/training
+const updateSkills = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { skills } = req.body;
+
+        const employee = await Employee.findByIdAndUpdate(id, { skills }, { returnDocument: 'after', runValidators: true });
+        if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+        // Audit Log
+        await createLog({
+            actorId: req.user ? req.user.id : null,
+            actorName: req.user ? req.user.fullName : 'Admin',
+            actorRole: req.user ? req.user.role : 'admin',
+            module: 'HRIS',
+            action: 'skills_updated',
+            message: `Updated skills/training records for ${employee.fullName}`,
+            meta: { employeeId: id, skillsCount: skills.length }
+        });
+
+        res.json({ message: 'Skills updated successfully', employee });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Backfill: Assign employeeId to all employees that don't have one
+const backfillEmployeeIds = async (req, res) => {
+    try {
+        // Find all employees missing an employeeId, sorted by creation date
+        const employees = await Employee.find({
+            $or: [{ employeeId: { $exists: false } }, { employeeId: null }, { employeeId: '' }]
+        }).sort({ createdAt: 1 });
+
+        if (employees.length === 0) {
+            return res.json({ message: 'All employees already have IDs.', updated: 0 });
+        }
+
+        let updatedCount = 0;
+        for (const emp of employees) {
+            const newId = await generateEmployeeId();
+            emp.employeeId = newId;
+            await emp.save();
+            console.log(`[BACKFILL] Assigned ${newId} to ${emp.fullName}`);
+            updatedCount++;
+        }
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'HRIS',
+                action: 'employee_ids_backfilled',
+                message: `Backfilled Employee IDs for ${updatedCount} employee(s).`,
+                meta: { updatedCount }
+            });
+        }
+
+        res.json({ message: `Successfully assigned IDs to ${updatedCount} employee(s).`, updated: updatedCount });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     getEmployee,
     getEmployees,
@@ -308,4 +430,7 @@ module.exports = {
     deleteEmployee,
     loginEmployee,
     logoutEmployee,
+    addEvaluation,
+    updateSkills,
+    backfillEmployeeIds
 }
