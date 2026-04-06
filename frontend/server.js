@@ -28,7 +28,7 @@ app.use(helmet({
 app.use(express.static(__dirname));
 
 // SPA Fallback: Any route not recognized goes to index.html (solves 404 on refresh)
-app.get('*', (req, res) => {
+app.use((req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
