@@ -191,7 +191,23 @@ server.listen(port, () => {
 
 // Connect to MongoDB Atlas
 mongoose.connect(dbURI)
-    .then(() => console.log('✅ Connected to MongoDB Atlas!'))
+    .then(async () => {
+        console.log('✅ Connected to MongoDB Atlas!');
+
+        // ── One-time DB cleanup: Fix empty-string emails that break sparse unique index ──
+        try {
+            const Employee = require('./models/employeeModel');
+            const result = await Employee.updateMany(
+                { email: '' },
+                { $set: { email: null } }
+            );
+            if (result.modifiedCount > 0) {
+                console.log(`🔧 [STARTUP FIX] Converted ${result.modifiedCount} empty-string email(s) to null for sparse index compatibility.`);
+            }
+        } catch (cleanupErr) {
+            console.warn('[STARTUP FIX] Email cleanup skipped:', cleanupErr.message);
+        }
+    })
     .catch(err => {
         console.error('❌ Database connection error:', err);
         process.exit(1); // This stops the "infinite loading" if the database fails

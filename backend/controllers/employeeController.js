@@ -29,11 +29,11 @@ const getEmployees = async (req, res) => {
 const generateEmployeeId = async () => {
     const year = new Date().getFullYear();
 
-    // Sort by createdAt descending to find the most recently created employee WITH an ID.
-    // This avoids the string-sort bug where 'EMP-2026-009' > 'EMP-2026-010' alphabetically.
+    // Sort by employeeId descending to find the highest existing numeric suffix.
+    // This is more reliable than createdAt if records were manually inserted or backfilled.
     const latestEmp = await Employee.findOne({
         employeeId: new RegExp(`^EMP-${year}-`)
-    }).sort({ createdAt: -1 });
+    }).sort({ employeeId: -1 });
 
     if (latestEmp && latestEmp.employeeId) {
         const parts = latestEmp.employeeId.split('-');
@@ -59,33 +59,39 @@ const createEmployee = async (req, res) => {
     if (shiftType === 'Morning' && !shiftStartTime) shiftStartTime = "08:00 AM";
     if (shiftType === 'Night' && !shiftStartTime) shiftStartTime = "05:00 PM";
 
+    // ── Explicit boolean coercion ──
+    // The frontend may send hasAccount as the string "false", which JS treats as truthy.
+    if (typeof hasAccount === 'string') hasAccount = hasAccount === 'true';
+
     // Fallback unique identity for directory-only staff (Satisfies DB uniqueness without requiring a real email)
     if (!hasAccount || role === 'detailer') {
         if (!email || email.trim() === '') {
-            email = `${role}_${Date.now()}@sandigan.local`;
+            email = `${role}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}@sandigan.local`;
         }
         if (!password || password.trim() === '') {
             password = `noaccount_${Date.now()}!`;
         }
     }
 
+    console.log(`[EMPLOYEE_CREATE] Attempting → name: "${fullName}", email: "${email}", hasAccount: ${hasAccount}, role: ${role}`);
+
     try {
         let hashedPassword = null;
         if (hasAccount) {
             if (!email || !password) {
-                return res.status(400).json({ message: 'Email and password are required for accounts.' });
+                return res.status(400).json({ error: 'Email and password are required for accounts.' });
             }
             // Check if email already exists
             const existingEmployee = await Employee.findOne({ email });
             if (existingEmployee) {
-                return res.status(400).json({ message: 'Email already in use' });
+                console.log(`[EMPLOYEE_CREATE] ❌ REJECTED — email "${email}" already exists (owned by "${existingEmployee.fullName}")`);
+                return res.status(400).json({ error: 'Email already in use' });
             }
             const salt = await bcrypt.genSalt(10);
             hashedPassword = await bcrypt.hash(password, salt);
         }
 
         const newEmployeeId = await generateEmployeeId();
-        console.log(`[EMPLOYEE_CREATE] Generated ID: ${newEmployeeId} for ${fullName}`);
 
         const newEmployee = await Employee.create({
             employeeId: newEmployeeId,
@@ -105,6 +111,8 @@ const createEmployee = async (req, res) => {
             hiredDate: hiredDate ? new Date(hiredDate) : undefined
         });
 
+        console.log(`[EMPLOYEE_CREATE] ✅ SUCCESS — "${fullName}" saved as ${newEmployeeId} (email: ${newEmployee.email || 'none'})`);
+
         // Audit Log
         if (req.user) {
             await createLog({
@@ -121,8 +129,18 @@ const createEmployee = async (req, res) => {
         res.status(201).json({ message: 'Employee created successfully' });
     } catch (error) {
         if (error.code === 11000) {
-            return res.status(400).json({ message: 'The email address you entered is already in use by another account.' });
+            const key = Object.keys(error.keyPattern || {})[0];
+            const val = error.keyValue?.[key] || 'unknown';
+            console.log(`[EMPLOYEE_CREATE] ❌ FAILED — duplicate ${key}: "${val}" for "${fullName}"`);
+            if (key === 'email') {
+                return res.status(400).json({ error: 'The email address you entered is already in use.' });
+            }
+            if (key === 'employeeId') {
+                return res.status(400).json({ error: 'System generated a duplicate Employee ID. Please try again in 1 second.' });
+            }
+            return res.status(400).json({ error: 'A duplicate record already exists in the system.' });
         }
+        console.log(`[EMPLOYEE_CREATE] ❌ FAILED — ${error.message}`);
         res.status(400).json({ error: error.message });
     }
 };
@@ -167,10 +185,16 @@ const updateEmployee = async (req, res) => {
         if (salaryFrequency !== undefined) updateFields.salaryFrequency = salaryFrequency;
         if (status !== undefined) updateFields.status = status;
 
-        if (hasAccount !== undefined) updateFields.hasAccount = hasAccount;
+        if (hasAccount !== undefined) updateFields.hasAccount = (typeof hasAccount === 'string') ? hasAccount === 'true' : !!hasAccount;
         if (shiftType !== undefined) updateFields.shiftType = shiftType;
         if (shiftStartTime !== undefined) updateFields.shiftStartTime = shiftStartTime;
         if (hiredDate !== undefined) updateFields.hiredDate = hiredDate ? new Date(hiredDate) : null;
+
+        // ── Ensure empty-string emails are stored as null  ──
+        // findByIdAndUpdate bypasses Mongoose pre-validate hooks, so we must do it here.
+        if (updateFields.email !== undefined && updateFields.email !== null && updateFields.email.trim() === '') {
+            updateFields.email = null;
+        }
 
         const employee = await Employee.findByIdAndUpdate(id, updateFields, { returnDocument: 'after', runValidators: true });
         if (!employee) {
@@ -193,9 +217,13 @@ const updateEmployee = async (req, res) => {
         res.json({ message: 'Employee updated successfully', employee });
     } catch (error) {
         if (error.code === 11000) {
-            return res.status(400).json({ message: 'The email address you entered is already in use by another account.' });
+            const key = Object.keys(error.keyPattern || {})[0];
+            if (key === 'email') {
+                return res.status(400).json({ error: 'The email address you entered is already in use.' });
+            }
+            return res.status(400).json({ error: 'A duplicate record already exists in the system.' });
         }
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ error: error.message });
     }
 };
 

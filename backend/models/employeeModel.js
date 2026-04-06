@@ -70,6 +70,19 @@ const employeeSchema = new Schema({
     }]
 }, { timestamps: true });
 
+// ── CRITICAL: Convert empty-string emails to null before save ──
+// MongoDB's sparse unique index only skips null/undefined — empty strings ""
+// are treated as real values and cause duplicate key errors (11000).
+// NOTE: Mongoose 9+ removed the `next` callback — just return from the function.
+employeeSchema.pre('validate', function () {
+    if (this.email !== undefined && this.email !== null && this.email.trim() === '') {
+        this.email = null;
+    }
+    if (this.employeeId !== undefined && this.employeeId !== null && this.employeeId.trim() === '') {
+        this.employeeId = null;
+    }
+});
+
 const Employee = mongoose.model('employee', employeeSchema);
 
 module.exports = Employee;
