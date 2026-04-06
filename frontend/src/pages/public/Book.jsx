@@ -6,7 +6,7 @@ import '../../css/style.css';
 import ReCAPTCHA from "react-google-recaptcha";
 import { useNavigate } from 'react-router-dom';
 import fluentbubblewhite from '../../assets/icon/fluent-bubble-white.png';
-import { jsPDF } from "jspdf";
+import jsPDF from "jspdf";
 import bgimg from '../../assets/img/hero-bg-img.png';
 import bubble1 from '../../assets/img/bubble-container.png';
 import bubble2 from '../../assets/img/bubble-container1.png';
@@ -190,18 +190,23 @@ const Book = () => {
                 customClass: { popup: 'rounded-5' }
             }).then((result) => {
                 if (result.isDenied) {
+                    console.log("Downloading PDF for BookID:", finalDisplayId);
                     generatePDF(finalDisplayId);
-                    Swal.fire({
-                        title: 'Download Started!',
-                        html: 'Your receipt is ready to download.',
-                        icon: 'info',
-                        confirmButtonText: 'Back to Home',
-                        confirmButtonColor: '#23A0CE',
-                        background: '#111',
-                        color: '#FAFAFA',
-                    }).then(() => {
-                        navigate('/');
-                    });
+                    
+                    // Small delay to ensure browser captures the download trigger
+                    setTimeout(() => {
+                        Swal.fire({
+                            title: 'Download Started!',
+                            html: 'Your receipt is ready to download.',
+                            icon: 'info',
+                            confirmButtonText: 'Back to Home',
+                            confirmButtonColor: '#23A0CE',
+                            background: '#111',
+                            color: '#FAFAFA',
+                        }).then(() => {
+                            navigate('/');
+                        });
+                    }, 500);
                 } else {
                     navigate('/');
                 }
@@ -230,6 +235,7 @@ const Book = () => {
     // Generate PDF Receipt
     const generatePDF = (finalId) => {
         const doc = new jsPDF({
+            orientation: "portrait",
             unit: "mm",
             format: [80, 100]
         });
@@ -243,7 +249,7 @@ const Book = () => {
         doc.setFontSize(10);
         doc.setFont("courier", "normal");
         doc.text("----------------------------", 40, 22, { align: "center" });
-        doc.text(today.toLocaleString(), 40, 28, { align: "center" });
+        doc.text(new Date().toLocaleString(), 40, 28, { align: "center" });
         doc.text("----------------------------", 40, 34, { align: "center" });
 
         // Main ID (Big and Bold like Jollibee Kiosk)
@@ -568,7 +574,6 @@ const Book = () => {
                                                     </div>
                                                 </div>
 
-                                                {/*Privacy Policy and CAPTCHA */}
                                                 <div className="form-check d-flex align-items-start gap-3 mb-3">
                                                     <input
                                                         className="form-check-input flex-shrink-0"
@@ -587,13 +592,11 @@ const Book = () => {
                                                     <input
                                                         className="form-check-input flex-shrink-0"
                                                         type="checkbox"
-                                                        checked={privacyChecked}
-                                                        onChange={(e) => setPrivacyChecked(e.target.checked)}
-                                                        id="privacyPolicy"
+                                                        id="timeAgreement"
                                                         required
                                                         style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
                                                     />
-                                                    <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                    <label className="form-check-label text-light opacity-75 small" htmlFor="timeAgreement" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
                                                         I agree to arrive on time for my scheduled booking. Late arrivals may result in rescheduling or cancellation of the booking.
                                                     </label>
                                                 </div>
@@ -601,13 +604,11 @@ const Book = () => {
                                                     <input
                                                         className="form-check-input flex-shrink-0"
                                                         type="checkbox"
-                                                        checked={privacyChecked}
-                                                        onChange={(e) => setPrivacyChecked(e.target.checked)}
-                                                        id="privacyPolicy"
+                                                        id="punctualityAcknowledge"
                                                         required
                                                         style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
                                                     />
-                                                    <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                    <label className="form-check-label text-light opacity-75 small" htmlFor="punctualityAcknowledge" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
                                                         I understand that punctuality is essential to ensure a smooth and efficient service experience for all customers.
                                                     </label>
                                                 </div>
@@ -615,13 +616,11 @@ const Book = () => {
                                                     <input
                                                         className="form-check-input flex-shrink-0"
                                                         type="checkbox"
-                                                        checked={privacyChecked}
-                                                        onChange={(e) => setPrivacyChecked(e.target.checked)}
-                                                        id="privacyPolicy"
+                                                        id="contactAcknowledge"
                                                         required
                                                         style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
                                                     />
-                                                    <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                    <label className="form-check-label text-light opacity-75 small" htmlFor="contactAcknowledge" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
                                                         I acknowledge that if I am unable to arrive on time, I will contact the company as soon as possible to discuss alternative arrangements.
                                                     </label>
                                                 </div>

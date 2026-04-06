@@ -3,10 +3,14 @@ import { API_BASE, authHeaders } from '../../../api/config';
 import { TableSkeleton, CRMSkeleton } from '../../SkeletonLoaders';
 import Swal from 'sweetalert2';
 import axios from 'axios';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { QRCodeCanvas } from 'qrcode.react';
 
 import editIcon from '../../../assets/icon/edit.png';
 import deleteIcon from '../../../assets/icon/delete.png';
 import AdminModalWrapper from '../shared/AdminModalWrapper';
+import sandiganLogo from '../../../assets/logo/sandigan-logo.png';
 
 const CRMPage = ({ user }) => {
     const [customers, setCustomers] = useState([]);
@@ -503,316 +507,316 @@ const CRMPage = ({ user }) => {
             {/* Client 360 Slide-out Modal */}
             {selectedClient && (
                 <AdminModalWrapper show={!!selectedClient} onClose={() => setSelectedClient(null)} dialogStyle={{ maxWidth: '800px' }}>
-                        <div className="modal-content border-0 rounded-4 shadow overflow-hidden">
-                            {/* Modal Header Profile */}
-                            <div className="modal-header border-0 pb-4 pt-5 px-5 position-relative" style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
-                                <button type="button" className="btn-close btn-close-white position-absolute top-0 end-0 m-3" onClick={() => setSelectedClient(null)} />
-                                <div className="d-flex align-items-center gap-4 w-100 text-white">
-                                    <div className="rounded-circle d-flex align-items-center justify-content-center brand-accent fw-bold shadow-lg" style={{ width: 80, height: 80, fontSize: '2rem', background: 'var(--brand-active)' }}>
-                                        {selectedClient.firstName.charAt(0).toUpperCase()}{selectedClient.lastName.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div className="flex-grow-1">
-                                        <h3 className="mb-1 fw-bold font-poppins">{selectedClient.firstName} {selectedClient.lastName}</h3>
-                                        <p className="mb-2 text-light opacity-75 d-flex gap-3" style={{ fontSize: '0.85rem' }}>
-                                            <span>Email: {selectedClient.email}</span>
-                                            <span>Phone: {selectedClient.phone || 'N/A'}</span>
-                                        </p>
-                                        {/* Edit & Delete action row - Hidden for Walk-in profile */}
-                                        {selectedClient.email !== 'walkin@example.com' && (
-                                            <div className="d-flex gap-2">
-                                                <button onClick={handleOpenEdit} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
-                                                    <img src={editIcon} style={{ width: '16px' }} alt="Edit Icon" /></button>
-                                                <button onClick={handleDeleteClient} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
-                                                    <img src={deleteIcon} style={{ width: '16px' }} alt="Delete Icon" /></button>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="text-end pe-2">
-                                        <p className="mb-1 text-light opacity-75 small text-uppercase">Lifetime Value</p>
-                                        <h3 className="mb-0 text-success fw-bold">₱{selectedClient.lifetimeSpend.toLocaleString()}</h3>
-                                    </div>
+                    <div className="modal-content border-0 rounded-4 shadow overflow-hidden">
+                        {/* Modal Header Profile */}
+                        <div className="modal-header border-0 pb-4 pt-5 px-5 position-relative" style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
+                            <button type="button" className="btn-close btn-close-white position-absolute top-0 end-0 m-3" onClick={() => setSelectedClient(null)} />
+                            <div className="d-flex align-items-center gap-4 w-100 text-white">
+                                <div className="rounded-circle d-flex align-items-center justify-content-center brand-accent fw-bold shadow-lg" style={{ width: 80, height: 80, fontSize: '2rem', background: 'var(--brand-active)' }}>
+                                    {selectedClient.firstName.charAt(0).toUpperCase()}{selectedClient.lastName.charAt(0).toUpperCase()}
                                 </div>
-                            </div>
-
-                            {/* Modal Body */}
-                            <div className="modal-body p-0">
-                                <div className="row g-0">
-                                    {/* Left Column */}
-                                    <div className="col-md-5 p-4 border-end bg-light" style={{ minHeight: '420px' }}>
-                                        <h6 className="fw-bold text-dark-secondary mb-3">Quick Actions</h6>
-                                        <div className="d-flex gap-2 mb-4">
-                                            {selectedClient.email === 'walkin@example.com' ? (
-                                                <>
-                                                    <button disabled className="btn btn-sm btn-outline-secondary flex-fill rounded-3 opacity-50" style={{ cursor: 'not-allowed' }}>No Email</button>
-                                                    <button disabled className="btn btn-sm btn-outline-secondary flex-fill rounded-3 opacity-50" style={{ cursor: 'not-allowed' }}>No Phone</button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <a href={`mailto:${selectedClient.email}`} className="btn btn-save btn-sm flex-fill rounded-3 shadow-sm text-decoration-none">Send Email</a>
-                                                    <a href={`tel:${selectedClient.phone}`} className="btn btn-call btn-sm flex-fill rounded-3 text-decoration-none">Call</a>
-                                                </>
-                                            )}
+                                <div className="flex-grow-1">
+                                    <h3 className="mb-1 fw-bold font-poppins">{selectedClient.firstName} {selectedClient.lastName}</h3>
+                                    <p className="mb-2 text-light opacity-75 d-flex gap-3" style={{ fontSize: '0.85rem' }}>
+                                        <span>Email: {selectedClient.email}</span>
+                                        <span>Phone: {selectedClient.phone || 'N/A'}</span>
+                                    </p>
+                                    {/* Edit & Delete action row - Hidden for Walk-in profile */}
+                                    {selectedClient.email !== 'walkin@example.com' && (
+                                        <div className="d-flex gap-2">
+                                            <button onClick={handleOpenEdit} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
+                                                <img src={editIcon} style={{ width: '16px' }} alt="Edit Icon" /></button>
+                                            <button onClick={handleDeleteClient} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
+                                                <img src={deleteIcon} style={{ width: '16px' }} alt="Delete Icon" /></button>
                                         </div>
-
-                                        {/* SMC Membership Area */}
-                                        <h6 className="fw-bold text-dark-secondary mb-2">Membership</h6>
-                                        <div className="mb-4">
-                                            {selectedClient.hasSMC ? (
-                                                <div className="d-flex align-items-center gap-2 p-2 px-3 border rounded-3 bg-white" style={{ borderColor: '#22c55e', borderLeft: '4px solid #22c55e' }}>
-                                                    <div className="flex-grow-1">
-                                                        <div className="fw-bold d-flex align-items-center gap-1" style={{ fontSize: '0.85rem', color: '#d97706' }}>SMC Active</div>
-                                                        <div className="text-muted" style={{ fontSize: '0.75rem', fontFamily: 'monospace' }}>{selectedClient.smcId}</div>
-                                                    </div>
-                                                    {/* Disable Print for shared Walk-in profile cards as they are unique assets issued per transaction */}
-                                                    {selectedClient.email !== 'walkin@example.com' && (
-                                                        <button onClick={() => setShowSMCPrint(true)} className="btn btn-sm btn-outline-success px-3 py-1 rounded-3 fw-bold shadow-sm">
-                                                            Print
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <button onClick={handleIssueSMC} className="btn w-100 rounded-3 text-white shadow-sm d-flex justify-content-center align-items-center gap-2 border-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', fontSize: '0.85rem', fontWeight: 600, padding: '10px' }}>
-                                                    Issue Membership Card
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {/* Tag Manager — DB driven */}
-                                        <h6 className="fw-bold text-dark-secondary mb-2">Segment Tags</h6>
-                                        <p className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>Click to toggle. Save when done.</p>
-                                        <div className="d-flex flex-wrap gap-2 mb-3">
-                                            {availableTags.map(tag => {
-                                                const isActive = clientTags.includes(tag.name);
-                                                return (
-                                                    <button
-                                                        key={tag._id}
-                                                        onClick={() => handleToggleTag(tag.name)}
-                                                        className="badge rounded-pill border-0"
-                                                        style={{
-                                                            fontSize: '0.72rem', cursor: 'pointer', padding: '6px 12px', fontWeight: 600,
-                                                            background: isActive ? tag.color : '#f1f5f9',
-                                                            color: isActive ? tag.textColor : '#64748b',
-                                                            border: `1.5px solid ${isActive ? tag.color : '#e2e8f0'}`,
-                                                            opacity: isActive ? 1 : 0.75,
-                                                        }}
-                                                        title={tag.description || ''}
-                                                    >
-                                                        {isActive ? '✓ ' : ''}{tag.name}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                        <button
-                                            onClick={handleSaveTags}
-                                            className="btn btn-save btn-sm w-100 rounded-3 mb-4"
-                                            disabled={isSavingTags || selectedClient.email === 'walkin@example.com'}
-                                        >
-                                            {isSavingTags ? 'Saving...' : 'Save Tags'}
-                                        </button>
-
-
-                                        <h6 className="fw-bold text-dark-secondary mb-2">Staff Notes</h6>
-                                        <textarea
-                                            className="form-control rounded-3 border-0 shadow-sm mb-3"
-                                            rows="4"
-                                            placeholder="Add instructions or preferences..."
-                                            value={notesText}
-                                            onChange={(e) => setNotesText(e.target.value)}
-                                            style={{ fontSize: '0.85rem', resize: 'none' }}
-                                        />
-                                        <button
-                                            onClick={handleSaveNotes}
-                                            className="btn btn-save btn-success btn-sm w-100 rounded-3"
-                                            disabled={isSavingNotes || notesText === selectedClient.notes || selectedClient.email === 'walkin@example.com'}
-                                        >
-                                            {isSavingNotes ? 'Saving...' : 'Save CRM Notes'}
-                                        </button>
-
-                                        {selectedClient.vehicles?.length > 0 && (
-                                            <div className="mt-4">
-                                                <h6 className="fw-bold text-dark-secondary mb-2">Known Vehicles</h6>
-                                                <div className="d-flex flex-wrap gap-2">
-                                                    {selectedClient.vehicles.map(v => (
-                                                        <span key={v} className="badge bg-white text-dark border rounded-pill px-3 py-2 shadow-sm" style={{ fontSize: '0.75rem' }}>{v}</span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Right Column (Transaction History) */}
-                                    <div className="col-md-7 p-4 bg-white">
-                                        <h6 className="fw-bold text-dark-secondary mb-3">Transaction Timeline</h6>
-                                        {!clientStats ? (
-                                            <div className="text-center p-4"><div className="spinner-border text-primary spinner-border-sm" /> Loading history...</div>
-                                        ) : clientStats.history?.length === 0 ? (
-                                            <p className="text-muted small">No past transactions found.</p>
-                                        ) : (
-                                            <div style={{ maxHeight: '680px', overflowY: 'auto' }} className="pe-2 custom-scrollbar">
-                                                {clientStats.history.map((booking, idx) => (
-                                                    <div key={booking._id} className="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom border-light">
-                                                        <div className="rounded-circle bg-light d-flex align-items-center justify-content-center text-muted" style={{ width: 32, height: 32, flexShrink: 0, fontSize: '0.8rem' }}>
-                                                            {clientStats.history.length - idx}
-                                                        </div>
-                                                        <div className="flex-grow-1">
-                                                            <div className="d-flex justify-content-between mb-1">
-                                                                <span className="fw-bold text-dark-secondary" style={{ fontSize: '0.85rem' }}>{Array.isArray(booking.serviceType) ? booking.serviceType.join(', ') : booking.serviceType}</span>
-                                                                <span className="fw-bold text-success" style={{ fontSize: '0.85rem' }}>₱{booking.totalPrice?.toLocaleString()}</span>
-                                                            </div>
-                                                            <div className="d-flex justify-content-between align-items-center">
-                                                                <small className="text-muted">{new Date(booking.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</small>
-                                                                <div className="d-flex gap-1 align-items-center overflow-hidden" style={{ maxWidth: '60%' }}>
-                                                                    {booking.purchasedProducts?.length > 0 && booking.purchasedProducts.map((p, pIdx) => (
-                                                                        <span key={pIdx} className="badge bg-white text-dark-gray400 border rounded-pill px-2" style={{ fontSize: '0.6rem', fontWeight: 500 }}>
-                                                                            {p.productName} x{p.quantity}
-                                                                        </span>
-                                                                    ))}
-                                                                    <span className="badge bg-light text-dark rounded-pill ms-1" style={{ fontSize: '0.65rem' }}>{booking.vehicleType}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                                    )}
+                                </div>
+                                <div className="text-end pe-2">
+                                    <p className="mb-1 text-light opacity-75 small text-uppercase">Lifetime Value</p>
+                                    <h3 className="mb-0 text-success fw-bold">₱{selectedClient.lifetimeSpend.toLocaleString()}</h3>
                                 </div>
                             </div>
                         </div>
+
+                        {/* Modal Body */}
+                        <div className="modal-body p-0">
+                            <div className="row g-0">
+                                {/* Left Column */}
+                                <div className="col-md-5 p-4 border-end bg-light" style={{ minHeight: '420px' }}>
+                                    <h6 className="fw-bold text-dark-secondary mb-3">Quick Actions</h6>
+                                    <div className="d-flex gap-2 mb-4">
+                                        {selectedClient.email === 'walkin@example.com' ? (
+                                            <>
+                                                <button disabled className="btn btn-sm btn-outline-secondary flex-fill rounded-3 opacity-50" style={{ cursor: 'not-allowed' }}>No Email</button>
+                                                <button disabled className="btn btn-sm btn-outline-secondary flex-fill rounded-3 opacity-50" style={{ cursor: 'not-allowed' }}>No Phone</button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <a href={`mailto:${selectedClient.email}`} className="btn btn-save btn-sm flex-fill rounded-3 shadow-sm text-decoration-none">Send Email</a>
+                                                <a href={`tel:${selectedClient.phone}`} className="btn btn-call btn-sm flex-fill rounded-3 text-decoration-none">Call</a>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* SMC Membership Area */}
+                                    <h6 className="fw-bold text-dark-secondary mb-2">Membership</h6>
+                                    <div className="mb-4">
+                                        {selectedClient.hasSMC ? (
+                                            <div className="d-flex align-items-center gap-2 p-2 px-3 border rounded-3 bg-white" style={{ borderColor: '#22c55e', borderLeft: '4px solid #22c55e' }}>
+                                                <div className="flex-grow-1">
+                                                    <div className="fw-bold d-flex align-items-center gap-1" style={{ fontSize: '0.85rem', color: '#d97706' }}>SMC Active</div>
+                                                    <div className="text-muted" style={{ fontSize: '0.75rem', fontFamily: 'monospace' }}>{selectedClient.smcId}</div>
+                                                </div>
+                                                {/* Disable Print for shared Walk-in profile cards as they are unique assets issued per transaction */}
+                                                {selectedClient.email !== 'walkin@example.com' && (
+                                                    <button onClick={() => setShowSMCPrint(true)} className="btn btn-sm btn-outline-success px-3 py-1 rounded-3 fw-bold shadow-sm">
+                                                        Print
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <button onClick={handleIssueSMC} className="btn w-100 rounded-3 text-white shadow-sm d-flex justify-content-center align-items-center gap-2 border-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', fontSize: '0.85rem', fontWeight: 600, padding: '10px' }}>
+                                                Issue Membership Card
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Tag Manager — DB driven */}
+                                    <h6 className="fw-bold text-dark-secondary mb-2">Segment Tags</h6>
+                                    <p className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>Click to toggle. Save when done.</p>
+                                    <div className="d-flex flex-wrap gap-2 mb-3">
+                                        {availableTags.map(tag => {
+                                            const isActive = clientTags.includes(tag.name);
+                                            return (
+                                                <button
+                                                    key={tag._id}
+                                                    onClick={() => handleToggleTag(tag.name)}
+                                                    className="badge rounded-pill border-0"
+                                                    style={{
+                                                        fontSize: '0.72rem', cursor: 'pointer', padding: '6px 12px', fontWeight: 600,
+                                                        background: isActive ? tag.color : '#f1f5f9',
+                                                        color: isActive ? tag.textColor : '#64748b',
+                                                        border: `1.5px solid ${isActive ? tag.color : '#e2e8f0'}`,
+                                                        opacity: isActive ? 1 : 0.75,
+                                                    }}
+                                                    title={tag.description || ''}
+                                                >
+                                                    {isActive ? '✓ ' : ''}{tag.name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <button
+                                        onClick={handleSaveTags}
+                                        className="btn btn-save btn-sm w-100 rounded-3 mb-4"
+                                        disabled={isSavingTags || selectedClient.email === 'walkin@example.com'}
+                                    >
+                                        {isSavingTags ? 'Saving...' : 'Save Tags'}
+                                    </button>
+
+
+                                    <h6 className="fw-bold text-dark-secondary mb-2">Staff Notes</h6>
+                                    <textarea
+                                        className="form-control rounded-3 border-0 shadow-sm mb-3"
+                                        rows="4"
+                                        placeholder="Add instructions or preferences..."
+                                        value={notesText}
+                                        onChange={(e) => setNotesText(e.target.value)}
+                                        style={{ fontSize: '0.85rem', resize: 'none' }}
+                                    />
+                                    <button
+                                        onClick={handleSaveNotes}
+                                        className="btn btn-save btn-success btn-sm w-100 rounded-3"
+                                        disabled={isSavingNotes || notesText === selectedClient.notes || selectedClient.email === 'walkin@example.com'}
+                                    >
+                                        {isSavingNotes ? 'Saving...' : 'Save CRM Notes'}
+                                    </button>
+
+                                    {selectedClient.vehicles?.length > 0 && (
+                                        <div className="mt-4">
+                                            <h6 className="fw-bold text-dark-secondary mb-2">Known Vehicles</h6>
+                                            <div className="d-flex flex-wrap gap-2">
+                                                {selectedClient.vehicles.map(v => (
+                                                    <span key={v} className="badge bg-white text-dark border rounded-pill px-3 py-2 shadow-sm" style={{ fontSize: '0.75rem' }}>{v}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Right Column (Transaction History) */}
+                                <div className="col-md-7 p-4 bg-white">
+                                    <h6 className="fw-bold text-dark-secondary mb-3">Transaction Timeline</h6>
+                                    {!clientStats ? (
+                                        <div className="text-center p-4"><div className="spinner-border text-primary spinner-border-sm" /> Loading history...</div>
+                                    ) : clientStats.history?.length === 0 ? (
+                                        <p className="text-muted small">No past transactions found.</p>
+                                    ) : (
+                                        <div style={{ maxHeight: '680px', overflowY: 'auto' }} className="pe-2 custom-scrollbar">
+                                            {clientStats.history.map((booking, idx) => (
+                                                <div key={booking._id} className="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom border-light">
+                                                    <div className="rounded-circle bg-light d-flex align-items-center justify-content-center text-muted" style={{ width: 32, height: 32, flexShrink: 0, fontSize: '0.8rem' }}>
+                                                        {clientStats.history.length - idx}
+                                                    </div>
+                                                    <div className="flex-grow-1">
+                                                        <div className="d-flex justify-content-between mb-1">
+                                                            <span className="fw-bold text-dark-secondary" style={{ fontSize: '0.85rem' }}>{Array.isArray(booking.serviceType) ? booking.serviceType.join(', ') : booking.serviceType}</span>
+                                                            <span className="fw-bold text-success" style={{ fontSize: '0.85rem' }}>₱{booking.totalPrice?.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="d-flex justify-content-between align-items-center">
+                                                            <small className="text-muted">{new Date(booking.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</small>
+                                                            <div className="d-flex gap-1 align-items-center overflow-hidden" style={{ maxWidth: '60%' }}>
+                                                                {booking.purchasedProducts?.length > 0 && booking.purchasedProducts.map((p, pIdx) => (
+                                                                    <span key={pIdx} className="badge bg-white text-dark-gray400 border rounded-pill px-2" style={{ fontSize: '0.6rem', fontWeight: 500 }}>
+                                                                        {p.productName} x{p.quantity}
+                                                                    </span>
+                                                                ))}
+                                                                <span className="badge bg-light text-dark rounded-pill ms-1" style={{ fontSize: '0.65rem' }}>{booking.vehicleType}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </AdminModalWrapper>
             )}
 
             {/* Edit Client Modal */}
             {showEditClientModal && editClientData && (
                 <AdminModalWrapper show={showEditClientModal} onClose={() => setShowEditClientModal(false)}>
-                        <div className="modal-content border-0 rounded-4 shadow">
-                            <form onSubmit={handleUpdateClientSubmit}>
-                                <div className="modal-header border-0 pb-0 pt-4 px-4">
-                                    <div>
-                                        <h5 className="modal-title fw-bold text-dark-secondary font-poppins mb-1">Edit Client Profile</h5>
-                                        <p className="text-muted small mb-0">Update {selectedClient.firstName}'s CRM record.</p>
-                                    </div>
-                                    <button type="button" className="btn-close" onClick={() => setShowEditClientModal(false)} />
+                    <div className="modal-content border-0 rounded-4 shadow">
+                        <form onSubmit={handleUpdateClientSubmit}>
+                            <div className="modal-header border-0 pb-0 pt-4 px-4">
+                                <div>
+                                    <h5 className="modal-title fw-bold text-dark-secondary font-poppins mb-1">Edit Client Profile</h5>
+                                    <p className="text-muted small mb-0">Update {selectedClient.firstName}'s CRM record.</p>
                                 </div>
-                                <div className="modal-body p-4">
-                                    <div className="row g-3 mb-3">
-                                        <div className="col-md-6">
-                                            <label className="form-label text-muted small fw-bold mb-1">First Name</label>
-                                            <input type="text" className="form-control rounded-3" required value={editClientData.firstName} onChange={e => setEditClientData({ ...editClientData, firstName: e.target.value })} />
-                                        </div>
-                                        <div className="col-md-6">
-                                            <label className="form-label text-muted small fw-bold mb-1">Last Name</label>
-                                            <input type="text" className="form-control rounded-3" required value={editClientData.lastName} onChange={e => setEditClientData({ ...editClientData, lastName: e.target.value })} />
-                                        </div>
+                                <button type="button" className="btn-close" onClick={() => setShowEditClientModal(false)} />
+                            </div>
+                            <div className="modal-body p-4">
+                                <div className="row g-3 mb-3">
+                                    <div className="col-md-6">
+                                        <label className="form-label text-muted small fw-bold mb-1">First Name</label>
+                                        <input type="text" className="form-control rounded-3" required value={editClientData.firstName} onChange={e => setEditClientData({ ...editClientData, firstName: e.target.value })} />
                                     </div>
-                                    <div className="row g-3 mb-3">
-                                        <div className="col-md-6">
-                                            <label className="form-label text-muted small fw-bold mb-1">Email Address</label>
-                                            <input type="email" className="form-control rounded-3" required value={editClientData.email} onChange={e => setEditClientData({ ...editClientData, email: e.target.value })} />
-                                        </div>
-                                        <div className="col-md-6">
-                                            <label className="form-label text-muted small fw-bold mb-1">Phone Number</label>
-                                            <input
-                                                type="tel"
-                                                className="form-control rounded-3"
-                                                required
-                                                value={editClientData.phone}
-                                                maxLength="11"
-                                                onChange={e => {
-                                                    const val = e.target.value.replace(/\D/g, '').slice(0, 11);
-                                                    setEditClientData({ ...editClientData, phone: val });
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="mb-3">
-                                        <label className="form-label text-muted small fw-bold mb-1">Vehicles (Comma-separated)</label>
-                                        <input type="text" className="form-control rounded-3" value={editClientData.vehicles} onChange={e => setEditClientData({ ...editClientData, vehicles: e.target.value })} placeholder="e.g. Honda Civic, Toyota Fortuner" />
-                                    </div>
-                                    <div className="mb-0">
-                                        <label className="form-label text-muted small fw-bold mb-1">CRM Notes</label>
-                                        <textarea className="form-control rounded-3" rows="3" value={editClientData.notes} onChange={e => setEditClientData({ ...editClientData, notes: e.target.value })} style={{ resize: 'none' }} />
+                                    <div className="col-md-6">
+                                        <label className="form-label text-muted small fw-bold mb-1">Last Name</label>
+                                        <input type="text" className="form-control rounded-3" required value={editClientData.lastName} onChange={e => setEditClientData({ ...editClientData, lastName: e.target.value })} />
                                     </div>
                                 </div>
-                                <div className="modal-footer border-0 pt-0 pb-4 justify-content-center">
-                                    <button type="button" className="btn btn-light px-4 rounded-3" onClick={() => setShowEditClientModal(false)}>Cancel</button>
-                                    <button type="submit" className="btn btn-save btn-primary px-4 rounded-3" disabled={isUpdatingClient}>
-                                        {isUpdatingClient ? 'Saving...' : 'Save Changes'}
-                                    </button>
+                                <div className="row g-3 mb-3">
+                                    <div className="col-md-6">
+                                        <label className="form-label text-muted small fw-bold mb-1">Email Address</label>
+                                        <input type="email" className="form-control rounded-3" required value={editClientData.email} onChange={e => setEditClientData({ ...editClientData, email: e.target.value })} />
+                                    </div>
+                                    <div className="col-md-6">
+                                        <label className="form-label text-muted small fw-bold mb-1">Phone Number</label>
+                                        <input
+                                            type="tel"
+                                            className="form-control rounded-3"
+                                            required
+                                            value={editClientData.phone}
+                                            maxLength="11"
+                                            onChange={e => {
+                                                const val = e.target.value.replace(/\D/g, '').slice(0, 11);
+                                                setEditClientData({ ...editClientData, phone: val });
+                                            }}
+                                        />
+                                    </div>
                                 </div>
-                            </form>
-                        </div>
+                                <div className="mb-3">
+                                    <label className="form-label text-muted small fw-bold mb-1">Vehicles (Comma-separated)</label>
+                                    <input type="text" className="form-control rounded-3" value={editClientData.vehicles} onChange={e => setEditClientData({ ...editClientData, vehicles: e.target.value })} placeholder="e.g. Honda Civic, Toyota Fortuner" />
+                                </div>
+                                <div className="mb-0">
+                                    <label className="form-label text-muted small fw-bold mb-1">CRM Notes</label>
+                                    <textarea className="form-control rounded-3" rows="3" value={editClientData.notes} onChange={e => setEditClientData({ ...editClientData, notes: e.target.value })} style={{ resize: 'none' }} />
+                                </div>
+                            </div>
+                            <div className="modal-footer border-0 pt-0 pb-4 justify-content-center">
+                                <button type="button" className="btn btn-light px-4 rounded-3" onClick={() => setShowEditClientModal(false)}>Cancel</button>
+                                <button type="submit" className="btn btn-save btn-primary px-4 rounded-3" disabled={isUpdatingClient}>
+                                    {isUpdatingClient ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </AdminModalWrapper>
             )}
 
             {/* SMC Config Modal */}
             {showSMCConfig && (
                 <AdminModalWrapper show={showSMCConfig} onClose={() => setShowSMCConfig(false)}>
-                        <div className="modal-content border-0 rounded-4 shadow">
-                            <form onSubmit={handleSaveSMCConfig}>
-                                <div className="modal-header border-0 pb-0 pt-4 px-4">
-                                    <div>
-                                        <h5 className="modal-title fw-bold text-dark-secondary font-poppins mb-1">SMC Configuration</h5>
-                                        <p className="text-muted small mb-0">Set the default price and discount percentage.</p>
-                                    </div>
-                                    <button type="button" className="btn-close" onClick={() => setShowSMCConfig(false)} />
+                    <div className="modal-content border-0 rounded-4 shadow">
+                        <form onSubmit={handleSaveSMCConfig}>
+                            <div className="modal-header border-0 pb-0 pt-4 px-4">
+                                <div>
+                                    <h5 className="modal-title fw-bold text-dark-secondary font-poppins mb-1">SMC Configuration</h5>
+                                    <p className="text-muted small mb-0">Set the default price and discount percentage.</p>
                                 </div>
-                                <div className="modal-body p-4 row g-3">
-                                    <div className="col-md-9 mb-1">
-                                        <label className="form-label text-muted small fw-bold mb-1">Card Program Name</label>
-                                        <input type="text" className="form-control rounded-3 fw-bold" value={smcConfig.cardName || ''} onChange={e => setSmcConfig({ ...smcConfig, cardName: e.target.value })} required />
-                                    </div>
-                                    <div className="col-md-3 mb-1">
-                                        <label className="form-label text-muted small fw-bold mb-1">Base Color</label>
-                                        <div className="d-flex w-100 p-0 border rounded-3 overflow-hidden" style={{ height: '38px', borderColor: '#e2e8f0' }}>
-                                            <input type="color" className="border-0 w-100 h-100 p-0 m-0" style={{ cursor: 'pointer' }} value={smcConfig.cardColor || '#0f172a'} onChange={e => setSmcConfig({ ...smcConfig, cardColor: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="col-md-6 mb-2">
-                                        <label className="form-label text-muted small fw-bold mb-1">ID Abbreviation Prefix</label>
-                                        <input type="text" className="form-control rounded-3 text-uppercase font-monospace" placeholder="e.g. VIP" value={smcConfig.abbreviation || ''} onChange={e => setSmcConfig({ ...smcConfig, abbreviation: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5) })} required />
-                                    </div>
-                                    <div className="col-md-6 mb-2">
-                                        <label className="form-label text-muted small fw-bold mb-1">Validity Period</label>
-                                        <select className="form-select rounded-3 fw-semibold text-dark-secondary" value={smcConfig.validityMonths || 0} onChange={e => setSmcConfig({ ...smcConfig, validityMonths: Number(e.target.value) })}>
-                                            <option value={0}>Lifetime / No Expiry</option>
-                                            <option value={6}>6 Months</option>
-                                            <option value={12}>1 Year</option>
-                                            <option value={24}>2 Years</option>
-                                            <option value={36}>3 Years</option>
-                                            <option value={60}>5 Years</option>
-                                        </select>
-                                    </div>
-                                    <div className="col-md-6 mb-2">
-                                        <label className="form-label text-muted small fw-bold mb-1">Purchase Price</label>
-                                        <div className="input-group">
-                                            <span className="input-group-text bg-light text-muted fw-bold">₱</span>
-                                            <input type="number" className="form-control" value={smcConfig.price || 0} onChange={e => setSmcConfig({ ...smcConfig, price: Number(e.target.value) })} required min="0" />
-                                        </div>
-                                    </div>
-                                    <div className="col-md-6 mb-2">
-                                        <label className="form-label text-muted small fw-bold mb-1">Global POS Discount</label>
-                                        <div className="input-group">
-                                            <input type="number" className="form-control" value={smcConfig.discountPercentage || 0} onChange={e => setSmcConfig({ ...smcConfig, discountPercentage: Number(e.target.value) })} required min="0" max="100" />
-                                            <span className="input-group-text bg-light text-muted fw-bold">%</span>
-                                        </div>
-                                    </div>
-                                    <div className="col-md-6 mb-2">
-                                        <label className="form-label text-muted small fw-bold mb-1">Renewal Price</label>
-                                        <div className="input-group">
-                                            <span className="input-group-text bg-light text-muted fw-bold">₱</span>
-                                            <input type="number" className="form-control" value={smcConfig.renewalPrice || 0} onChange={e => setSmcConfig({ ...smcConfig, renewalPrice: Number(e.target.value) })} required min="0" />
-                                        </div>
+                                <button type="button" className="btn-close" onClick={() => setShowSMCConfig(false)} />
+                            </div>
+                            <div className="modal-body p-4 row g-3">
+                                <div className="col-md-9 mb-1">
+                                    <label className="form-label text-muted small fw-bold mb-1">Card Program Name</label>
+                                    <input type="text" className="form-control rounded-3 fw-bold" value={smcConfig.cardName || ''} onChange={e => setSmcConfig({ ...smcConfig, cardName: e.target.value })} required />
+                                </div>
+                                <div className="col-md-3 mb-1">
+                                    <label className="form-label text-muted small fw-bold mb-1">Base Color</label>
+                                    <div className="d-flex w-100 p-0 border rounded-3 overflow-hidden" style={{ height: '38px', borderColor: '#e2e8f0' }}>
+                                        <input type="color" className="border-0 w-100 h-100 p-0 m-0" style={{ cursor: 'pointer' }} value={smcConfig.cardColor || '#0f172a'} onChange={e => setSmcConfig({ ...smcConfig, cardColor: e.target.value })} />
                                     </div>
                                 </div>
-                                <div className="modal-footer border-0 pt-0 pb-4 justify-content-center">
-                                    <button type="button" className="btn btn-light px-4 rounded-3" onClick={() => setShowSMCConfig(false)}>Cancel</button>
-                                    <button type="submit" className="btn btn-save btn-primary px-4 rounded-3" disabled={isSavingSMC}>
-                                        {isSavingSMC ? 'Saving...' : 'Save Settings'}
-                                    </button>
+                                <div className="col-md-6 mb-2">
+                                    <label className="form-label text-muted small fw-bold mb-1">ID Abbreviation Prefix</label>
+                                    <input type="text" className="form-control rounded-3 text-uppercase font-monospace" placeholder="e.g. VIP" value={smcConfig.abbreviation || ''} onChange={e => setSmcConfig({ ...smcConfig, abbreviation: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5) })} required />
                                 </div>
-                            </form>
-                        </div>
+                                <div className="col-md-6 mb-2">
+                                    <label className="form-label text-muted small fw-bold mb-1">Validity Period</label>
+                                    <select className="form-select rounded-3 fw-semibold text-dark-secondary" value={smcConfig.validityMonths || 0} onChange={e => setSmcConfig({ ...smcConfig, validityMonths: Number(e.target.value) })}>
+                                        <option value={0}>Lifetime / No Expiry</option>
+                                        <option value={6}>6 Months</option>
+                                        <option value={12}>1 Year</option>
+                                        <option value={24}>2 Years</option>
+                                        <option value={36}>3 Years</option>
+                                        <option value={60}>5 Years</option>
+                                    </select>
+                                </div>
+                                <div className="col-md-6 mb-2">
+                                    <label className="form-label text-muted small fw-bold mb-1">Purchase Price</label>
+                                    <div className="input-group">
+                                        <span className="input-group-text bg-light text-muted fw-bold">₱</span>
+                                        <input type="number" className="form-control" value={smcConfig.price || 0} onChange={e => setSmcConfig({ ...smcConfig, price: Number(e.target.value) })} required min="0" />
+                                    </div>
+                                </div>
+                                <div className="col-md-6 mb-2">
+                                    <label className="form-label text-muted small fw-bold mb-1">Global POS Discount</label>
+                                    <div className="input-group">
+                                        <input type="number" className="form-control" value={smcConfig.discountPercentage || 0} onChange={e => setSmcConfig({ ...smcConfig, discountPercentage: Number(e.target.value) })} required min="0" max="100" />
+                                        <span className="input-group-text bg-light text-muted fw-bold">%</span>
+                                    </div>
+                                </div>
+                                <div className="col-md-6 mb-2">
+                                    <label className="form-label text-muted small fw-bold mb-1">Renewal Price</label>
+                                    <div className="input-group">
+                                        <span className="input-group-text bg-light text-muted fw-bold">₱</span>
+                                        <input type="number" className="form-control" value={smcConfig.renewalPrice || 0} onChange={e => setSmcConfig({ ...smcConfig, renewalPrice: Number(e.target.value) })} required min="0" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer border-0 pt-0 pb-4 justify-content-center">
+                                <button type="button" className="btn btn-light px-4 rounded-3" onClick={() => setShowSMCConfig(false)}>Cancel</button>
+                                <button type="submit" className="btn btn-save btn-primary px-4 rounded-3" disabled={isSavingSMC}>
+                                    {isSavingSMC ? 'Saving...' : 'Save Settings'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </AdminModalWrapper>
             )}
 
@@ -853,10 +857,10 @@ const CRMPage = ({ user }) => {
                                             </div>
                                         </div>
 
-                                        <div className="mt-2 text-start">
+                                        {/* <div className="mt-2 text-start">
                                             <h4 className="mb-0 fw-bold" style={{ fontSize: '1.4rem' }}>{selectedClient.firstName?.toUpperCase()} {selectedClient.lastName?.toUpperCase()}</h4>
                                             <p className="mb-0 opacity-75" style={{ fontSize: '0.7rem', fontWeight: 300, spacing: '2px' }}>MEMBERSHIP STATUS: ACTIVE</p>
-                                        </div>
+                                        </div> */}
 
                                         <div className="d-flex justify-content-between align-items-end mt-2">
                                             <div className="text-start">
@@ -912,155 +916,155 @@ const CRMPage = ({ user }) => {
             {/* Add Client Modal */}
             {showAddClientModal && (
                 <AdminModalWrapper show={showAddClientModal} onClose={() => setShowAddClientModal(false)}>
-                        <div className="modal-content border-0 rounded-4 shadow">
-                            <form onSubmit={handleAddClientSubmit}>
-                                <div className="modal-header border-0 pb-0 pt-4 px-4">
-                                    <div>
-                                        <h5 className="modal-title fw-bold text-dark-secondary font-poppins mb-1">Add New Client</h5>
-                                        <p className="text-muted small mb-0">Manually add a customer to your CRM database.</p>
-                                    </div>
-                                    <button type="button" className="btn-close" onClick={() => setShowAddClientModal(false)} />
+                    <div className="modal-content border-0 rounded-4 shadow">
+                        <form onSubmit={handleAddClientSubmit}>
+                            <div className="modal-header border-0 pb-0 pt-4 px-4">
+                                <div>
+                                    <h5 className="modal-title fw-bold text-dark-secondary font-poppins mb-1">Add New Client</h5>
+                                    <p className="text-muted small mb-0">Manually add a customer to your CRM database.</p>
                                 </div>
-                                <div className="modal-body p-4">
-                                    <div className="row g-3 mb-3">
-                                        <div className="col-md-6">
-                                            <label className="form-label text-muted small fw-bold mb-1">First Name</label>
-                                            <input type="text" className="form-control rounded-3" required value={newClientData.firstName} onChange={e => setNewClientData({ ...newClientData, firstName: e.target.value })} placeholder="Juan" />
-                                        </div>
-                                        <div className="col-md-6">
-                                            <label className="form-label text-muted small fw-bold mb-1">Last Name</label>
-                                            <input type="text" className="form-control rounded-3" required value={newClientData.lastName} onChange={e => setNewClientData({ ...newClientData, lastName: e.target.value })} placeholder="Dela Cruz" />
-                                        </div>
+                                <button type="button" className="btn-close" onClick={() => setShowAddClientModal(false)} />
+                            </div>
+                            <div className="modal-body p-4">
+                                <div className="row g-3 mb-3">
+                                    <div className="col-md-6">
+                                        <label className="form-label text-muted small fw-bold mb-1">First Name</label>
+                                        <input type="text" className="form-control rounded-3" required value={newClientData.firstName} onChange={e => setNewClientData({ ...newClientData, firstName: e.target.value })} placeholder="Juan" />
                                     </div>
-                                    <div className="row g-3 mb-3">
-                                        <div className="col-md-6">
-                                            <label className="form-label text-muted small fw-bold mb-1">Email Address</label>
-                                            <input type="email" className="form-control rounded-3" required value={newClientData.email} onChange={e => setNewClientData({ ...newClientData, email: e.target.value })} placeholder="juan@example.com" />
-                                        </div>
-                                        <div className="col-md-6">
-                                            <label className="form-label text-muted small fw-bold mb-1">Phone Number</label>
-                                            <input
-                                                type="tel"
-                                                className="form-control rounded-3"
-                                                required
-                                                value={newClientData.phone}
-                                                maxLength="11"
-                                                onChange={e => {
-                                                    const val = e.target.value.replace(/\D/g, '').slice(0, 11);
-                                                    setNewClientData({ ...newClientData, phone: val });
-                                                }}
-                                                placeholder="0912..."
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="mb-3">
-                                        <label className="form-label text-muted small fw-bold mb-1">Vehicles (Comma-separated)</label>
-                                        <input type="text" className="form-control rounded-3" required value={newClientData.vehicles} onChange={e => setNewClientData({ ...newClientData, vehicles: e.target.value })} placeholder="e.g. Honda Civic, Toyota Fortuner" />
-                                    </div>
-                                    <div className="mb-0">
-                                        <label className="form-label text-muted small fw-bold mb-1">Initial CRM Notes</label>
-                                        <textarea className="form-control rounded-3" rows="3" value={newClientData.notes} onChange={e => setNewClientData({ ...newClientData, notes: e.target.value })} placeholder="Any special preferences?" style={{ resize: 'none' }} />
+                                    <div className="col-md-6">
+                                        <label className="form-label text-muted small fw-bold mb-1">Last Name</label>
+                                        <input type="text" className="form-control rounded-3" required value={newClientData.lastName} onChange={e => setNewClientData({ ...newClientData, lastName: e.target.value })} placeholder="Dela Cruz" />
                                     </div>
                                 </div>
-                                <div className="modal-footer border-0 pt-0 pb-4 justify-content-center">
-                                    <button type="button" className="btn btn-light px-4 rounded-3" onClick={() => setShowAddClientModal(false)}>Cancel</button>
-                                    <button type="submit" className="btn btn-save btn-primary px-4 rounded-3" disabled={isAddingClient}>
-                                        {isAddingClient ? 'Saving...' : 'Save Client Profile'}
-                                    </button>
+                                <div className="row g-3 mb-3">
+                                    <div className="col-md-6">
+                                        <label className="form-label text-muted small fw-bold mb-1">Email Address</label>
+                                        <input type="email" className="form-control rounded-3" required value={newClientData.email} onChange={e => setNewClientData({ ...newClientData, email: e.target.value })} placeholder="juan@example.com" />
+                                    </div>
+                                    <div className="col-md-6">
+                                        <label className="form-label text-muted small fw-bold mb-1">Phone Number</label>
+                                        <input
+                                            type="tel"
+                                            className="form-control rounded-3"
+                                            required
+                                            value={newClientData.phone}
+                                            maxLength="11"
+                                            onChange={e => {
+                                                const val = e.target.value.replace(/\D/g, '').slice(0, 11);
+                                                setNewClientData({ ...newClientData, phone: val });
+                                            }}
+                                            placeholder="0912..."
+                                        />
+                                    </div>
                                 </div>
-                            </form>
-                        </div>
+                                <div className="mb-3">
+                                    <label className="form-label text-muted small fw-bold mb-1">Vehicles (Comma-separated)</label>
+                                    <input type="text" className="form-control rounded-3" required value={newClientData.vehicles} onChange={e => setNewClientData({ ...newClientData, vehicles: e.target.value })} placeholder="e.g. Honda Civic, Toyota Fortuner" />
+                                </div>
+                                <div className="mb-0">
+                                    <label className="form-label text-muted small fw-bold mb-1">Initial CRM Notes</label>
+                                    <textarea className="form-control rounded-3" rows="3" value={newClientData.notes} onChange={e => setNewClientData({ ...newClientData, notes: e.target.value })} placeholder="Any special preferences?" style={{ resize: 'none' }} />
+                                </div>
+                            </div>
+                            <div className="modal-footer border-0 pt-0 pb-4 justify-content-center">
+                                <button type="button" className="btn btn-light px-4 rounded-3" onClick={() => setShowAddClientModal(false)}>Cancel</button>
+                                <button type="submit" className="btn btn-save btn-primary px-4 rounded-3" disabled={isAddingClient}>
+                                    {isAddingClient ? 'Saving...' : 'Save Client Profile'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </AdminModalWrapper>
             )}
 
             {/* Tag Library Manager Modal */}
             {showTagManager && (
                 <AdminModalWrapper show={showTagManager} onClose={() => { setShowTagManager(false); setEditingTag(null); }} dialogStyle={{ maxWidth: '800px' }}>
-                        <div className="modal-content border-0 rounded-4 shadow overflow-hidden">
-                            <div className="modal-header border-0 py-4 px-4" style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
-                                <div className="text-white">
-                                    <h5 className="modal-title fw-bold font-poppins mb-1">Tag Library Manager</h5>
-                                    <p className="mb-0 opacity-75 small">Create and manage custom client segment tags</p>
-                                </div>
-                                <button type="button" className="btn-close btn-close-white" onClick={() => { setShowTagManager(false); setEditingTag(null); }} />
+                    <div className="modal-content border-0 rounded-4 shadow overflow-hidden">
+                        <div className="modal-header border-0 py-4 px-4" style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
+                            <div className="text-white">
+                                <h5 className="modal-title fw-bold font-poppins mb-1">Tag Library Manager</h5>
+                                <p className="mb-0 opacity-75 small">Create and manage custom client segment tags</p>
                             </div>
-                            <div className="modal-body p-0">
-                                <div className="row g-0">
-                                    {/* Left — Create / Edit form */}
-                                    <div className="col-md-5 p-4 border-end bg-light">
-                                        <h6 className="fw-bold text-dark-secondary mb-3">{editingTag ? 'Edit Tag' : 'Create New Tag'}</h6>
-                                        <form onSubmit={editingTag ? handleUpdateTag : handleCreateTag}>
-                                            <div className="mb-3">
-                                                <label className="form-label text-muted small fw-bold mb-1">Tag Name</label>
-                                                <input type="text" className="form-control rounded-3" required placeholder="e.g. Loyalty Member"
-                                                    value={editingTag ? editingTag.name : newTagData.name}
-                                                    onChange={e => editingTag ? setEditingTag({ ...editingTag, name: e.target.value }) : setNewTagData({ ...newTagData, name: e.target.value })} />
+                            <button type="button" className="btn-close btn-close-white" onClick={() => { setShowTagManager(false); setEditingTag(null); }} />
+                        </div>
+                        <div className="modal-body p-0">
+                            <div className="row g-0">
+                                {/* Left — Create / Edit form */}
+                                <div className="col-md-5 p-4 border-end bg-light">
+                                    <h6 className="fw-bold text-dark-secondary mb-3">{editingTag ? 'Edit Tag' : 'Create New Tag'}</h6>
+                                    <form onSubmit={editingTag ? handleUpdateTag : handleCreateTag}>
+                                        <div className="mb-3">
+                                            <label className="form-label text-muted small fw-bold mb-1">Tag Name</label>
+                                            <input type="text" className="form-control rounded-3" required placeholder="e.g. Loyalty Member"
+                                                value={editingTag ? editingTag.name : newTagData.name}
+                                                onChange={e => editingTag ? setEditingTag({ ...editingTag, name: e.target.value }) : setNewTagData({ ...newTagData, name: e.target.value })} />
+                                        </div>
+                                        <div className="mb-3">
+                                            <label className="form-label text-muted small fw-bold mb-1">Description <span className="text-muted fw-normal">(optional)</span></label>
+                                            <input type="text" className="form-control rounded-3" placeholder="e.g. Premium loyalty program members"
+                                                value={editingTag ? editingTag.description : newTagData.description}
+                                                onChange={e => editingTag ? setEditingTag({ ...editingTag, description: e.target.value }) : setNewTagData({ ...newTagData, description: e.target.value })} />
+                                        </div>
+                                        <div className="row g-3 mb-3">
+                                            <div className="col-6">
+                                                <label className="form-label text-muted small fw-bold mb-1">Badge Color</label>
+                                                <input type="color" className="form-control form-control-color w-100 rounded-3 border-0" style={{ height: '38px' }}
+                                                    value={editingTag ? editingTag.color : newTagData.color}
+                                                    onChange={e => editingTag ? setEditingTag({ ...editingTag, color: e.target.value }) : setNewTagData({ ...newTagData, color: e.target.value })} />
                                             </div>
-                                            <div className="mb-3">
-                                                <label className="form-label text-muted small fw-bold mb-1">Description <span className="text-muted fw-normal">(optional)</span></label>
-                                                <input type="text" className="form-control rounded-3" placeholder="e.g. Premium loyalty program members"
-                                                    value={editingTag ? editingTag.description : newTagData.description}
-                                                    onChange={e => editingTag ? setEditingTag({ ...editingTag, description: e.target.value }) : setNewTagData({ ...newTagData, description: e.target.value })} />
+                                            <div className="col-6">
+                                                <label className="form-label text-muted small fw-bold mb-1">Text Color</label>
+                                                <input type="color" className="form-control form-control-color w-100 rounded-3 border-0" style={{ height: '38px' }}
+                                                    value={editingTag ? editingTag.textColor : newTagData.textColor}
+                                                    onChange={e => editingTag ? setEditingTag({ ...editingTag, textColor: e.target.value }) : setNewTagData({ ...newTagData, textColor: e.target.value })} />
                                             </div>
-                                            <div className="row g-3 mb-3">
-                                                <div className="col-6">
-                                                    <label className="form-label text-muted small fw-bold mb-1">Badge Color</label>
-                                                    <input type="color" className="form-control form-control-color w-100 rounded-3 border-0" style={{ height: '38px' }}
-                                                        value={editingTag ? editingTag.color : newTagData.color}
-                                                        onChange={e => editingTag ? setEditingTag({ ...editingTag, color: e.target.value }) : setNewTagData({ ...newTagData, color: e.target.value })} />
+                                        </div>
+                                        <div className="mb-4">
+                                            <label className="form-label text-muted small fw-bold mb-1">Preview</label>
+                                            <div className="p-3 border rounded-3 bg-white d-flex align-items-center justify-content-center h-100">
+                                                <span className="badge rounded-pill px-3 py-2 fw-bold" style={{ background: editingTag ? editingTag.color : newTagData.color, color: editingTag ? editingTag.textColor : newTagData.textColor, fontSize: '0.75rem' }}>
+                                                    {(editingTag ? editingTag.name : newTagData.name) || 'Preview'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="d-flex gap-2">
+                                            {editingTag && (
+                                                <button type="button" className="btn btn-light btn-sm flex-fill rounded-3" onClick={() => setEditingTag(null)}>Cancel Edit</button>
+                                            )}
+                                            <button type="submit" className="btn btn-save btn-primary btn-sm flex-fill rounded-3" disabled={isCreatingTag || isUpdatingTag}>
+                                                {editingTag ? (isUpdatingTag ? 'Saving...' : 'Save Changes') : (isCreatingTag ? 'Creating...' : '+ Create Tag')}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                {/* Right — Tag list */}
+                                <div className="col-md-7 p-4 bg-white" style={{ maxHeight: '520px', overflowY: 'auto' }}>
+                                    <h6 className="fw-bold text-dark-secondary mb-3">All Tags ({availableTags.length})</h6>
+                                    {availableTags.map(tag => (
+                                        <div key={tag._id} className="d-flex align-items-center justify-content-between py-2 px-3 mb-2 rounded-3 border bg-light">
+                                            <div className="d-flex align-items-center gap-3">
+                                                <span className="badge rounded-pill px-3 py-2 fw-bold" style={{ background: tag.color, color: tag.textColor, fontSize: '0.75rem' }}>{tag.name}</span>
+                                                <div>
+                                                    <p className="mb-0 small text-muted" style={{ fontSize: '0.6rem' }}>{tag.description || '—'}</p>
+                                                    {tag.isSystem && (
+                                                        <span className="badge bg-secondary rounded-pill" style={{ fontSize: '0.6rem', padding: '1px 8px', fontWeight: '400' }}>System</span>
+                                                    )}
                                                 </div>
-                                                <div className="col-6">
-                                                    <label className="form-label text-muted small fw-bold mb-1">Text Color</label>
-                                                    <input type="color" className="form-control form-control-color w-100 rounded-3 border-0" style={{ height: '38px' }}
-                                                        value={editingTag ? editingTag.textColor : newTagData.textColor}
-                                                        onChange={e => editingTag ? setEditingTag({ ...editingTag, textColor: e.target.value }) : setNewTagData({ ...newTagData, textColor: e.target.value })} />
-                                                </div>
                                             </div>
-                                            <div className="mb-4">
-                                                <label className="form-label text-muted small fw-bold mb-1">Preview</label>
-                                                <div className="p-3 border rounded-3 bg-white d-flex align-items-center justify-content-center h-100">
-                                                    <span className="badge rounded-pill px-3 py-2 fw-bold" style={{ background: editingTag ? editingTag.color : newTagData.color, color: editingTag ? editingTag.textColor : newTagData.textColor, fontSize: '0.75rem' }}>
-                                                        {(editingTag ? editingTag.name : newTagData.name) || 'Preview'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="d-flex gap-2">
-                                                {editingTag && (
-                                                    <button type="button" className="btn btn-light btn-sm flex-fill rounded-3" onClick={() => setEditingTag(null)}>Cancel Edit</button>
-                                                )}
-                                                <button type="submit" className="btn btn-save btn-primary btn-sm flex-fill rounded-3" disabled={isCreatingTag || isUpdatingTag}>
-                                                    {editingTag ? (isUpdatingTag ? 'Saving...' : 'Save Changes') : (isCreatingTag ? 'Creating...' : '+ Create Tag')}
+                                            <div className="d-flex gap-1">
+                                                <button onClick={() => setEditingTag({ _id: tag._id, name: tag.name, color: tag.color, textColor: tag.textColor, description: tag.description || '' })} className="btn btn-sm btn-outline-secondary rounded-2 px-2 py-1" style={{ fontSize: '0.72rem' }}>Edit</button>
+                                                <button onClick={() => handleDeleteTag(tag)} className={`btn btn-sm rounded-2 px-2 py-1 ${tag.isSystem ? 'btn-outline-secondary opacity-50' : 'btn-outline-danger'}`} style={{ fontSize: '0.72rem' }} disabled={tag.isSystem}>
+                                                    {tag.isSystem ? 'Protected' : 'Delete'}
                                                 </button>
                                             </div>
-                                        </form>
-                                    </div>
-
-                                    {/* Right — Tag list */}
-                                    <div className="col-md-7 p-4 bg-white" style={{ maxHeight: '520px', overflowY: 'auto' }}>
-                                        <h6 className="fw-bold text-dark-secondary mb-3">All Tags ({availableTags.length})</h6>
-                                        {availableTags.map(tag => (
-                                            <div key={tag._id} className="d-flex align-items-center justify-content-between py-2 px-3 mb-2 rounded-3 border bg-light">
-                                                <div className="d-flex align-items-center gap-3">
-                                                    <span className="badge rounded-pill px-3 py-2 fw-bold" style={{ background: tag.color, color: tag.textColor, fontSize: '0.75rem' }}>{tag.name}</span>
-                                                    <div>
-                                                        <p className="mb-0 small text-muted" style={{ fontSize: '0.6rem' }}>{tag.description || '—'}</p>
-                                                        {tag.isSystem && (
-                                                            <span className="badge bg-secondary rounded-pill" style={{ fontSize: '0.6rem', padding: '1px 8px', fontWeight: '400' }}>System</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="d-flex gap-1">
-                                                    <button onClick={() => setEditingTag({ _id: tag._id, name: tag.name, color: tag.color, textColor: tag.textColor, description: tag.description || '' })} className="btn btn-sm btn-outline-secondary rounded-2 px-2 py-1" style={{ fontSize: '0.72rem' }}>Edit</button>
-                                                    <button onClick={() => handleDeleteTag(tag)} className={`btn btn-sm rounded-2 px-2 py-1 ${tag.isSystem ? 'btn-outline-secondary opacity-50' : 'btn-outline-danger'}`} style={{ fontSize: '0.72rem' }} disabled={tag.isSystem}>
-                                                        {tag.isSystem ? 'Protected' : 'Delete'}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
+                    </div>
                 </AdminModalWrapper>
             )}
         </div>
