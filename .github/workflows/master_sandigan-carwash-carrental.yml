@@ -32,6 +32,12 @@ jobs:
           npm run test --if-present
         working-directory: ./frontend  
 
+      - name: Prepare production server files
+        run: |
+          cp server.js dist/
+          cp package.json dist/
+        working-directory: ./frontend
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:

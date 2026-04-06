@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Apply Security Headers (Solves the "F" grade on SecurityHeaders.com)
+// Apply Security Headers 
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -24,12 +24,12 @@ app.use(helmet({
     },
 }));
 
-// Serve the compiled React application from /dist
-app.use(express.static(path.join(__dirname, 'dist')));
+// Serve the compiled React application from current directory
+app.use(express.static(__dirname));
 
 // SPA Fallback: Any route not recognized goes to index.html (solves 404 on refresh)
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(port, () => {
