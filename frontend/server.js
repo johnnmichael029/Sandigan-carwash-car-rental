@@ -16,20 +16,39 @@ app.use(helmet({
         directives: {
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://www.google.com", "https://www.gstatic.com"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-            imgSrc: ["'self'", "data:", "https:"],
+            imgSrc: ["'self'", "data:", "https:", "http:"], // Allow images from all secure sources
             connectSrc: ["'self'", "wss:", "https:", "http://localhost:*", "ws://localhost:*"],
+            frameSrc: ["'self'", "https://www.google.com"],
         },
     },
+    crossOriginResourcePolicy: { policy: 'cross-origin' } // Essential for loading images from diverse CDNs
 }));
 
-// Serve the compiled React application from current directory
-app.use(express.static(__dirname));
+const staticPath = path.resolve(__dirname);
+console.log(`[INFO] Serving static files from: ${staticPath}`);
 
-// SPA Fallback: Any route not recognized goes to index.html (solves 404 on refresh)
+// 1. First, serve static files explicitly
+// This ensures that /assets/xxx.css or images are served with the correct MIME type
+app.use(express.static(staticPath, {
+    maxAge: '1d',
+    index: false // We will handle the index manually for the SPA
+}));
+
+// 2. Serve the main index.html for the root route
+app.get('/', (req, res) => {
+    res.sendFile(path.join(staticPath, 'index.html'));
+});
+
+// 3. SPA Fallback: Redirect all other non-file requests to index.html (Express 5 safe)
 app.use((req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    // If the request is for a file that doesn't exist (e.g. broken .css), 
+    // don't send index.html, just 404.
+    if (req.url.includes('.')) {
+        return res.status(404).send('Not Found');
+    }
+    res.sendFile(path.join(staticPath, 'index.html'));
 });
 
 app.listen(port, () => {
