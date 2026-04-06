@@ -36,6 +36,8 @@ jobs:
         run: |
           cp server.js dist/
           cp package.json dist/
+          cd dist
+          npm install express helmet
         working-directory: ./frontend
 
       - name: Upload artifact for deployment job
