@@ -19,7 +19,11 @@ const processPayrollCalculations = (employee, logs) => {
     let totalRegMinutes = 0;
     let totalOTMinutes = 0;
     let totalNDMinutes = 0;
+    let totalLateMinutes = 0;
     let holidayPay = 0;
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const restDayIdx = dayNames.indexOf(employee.restDay || 'Sunday');
 
     logs.forEach(log => {
         if (!log.clockInTime || !log.clockOutTime) return;
@@ -80,15 +84,50 @@ const processPayrollCalculations = (employee, logs) => {
         totalRegMinutes += dayRegMins;
         totalOTMinutes += dayOTMins;
 
+        // Late Logic
+        if (employee.shiftStartTime) {
+            try {
+                const [timePart, modifier] = employee.shiftStartTime.split(' ');
+                let [h, m] = timePart.split(':').map(Number);
+                if (modifier === 'PM' && h < 12) h += 12;
+                if (modifier === 'AM' && h === 12) h = 0;
+                const shiftStartDate = new Date(clockIn);
+                shiftStartDate.setHours(h, m, 0, 0);
+                if (clockIn > shiftStartDate) {
+                    const mins = Math.floor((clockIn - shiftStartDate) / 60000);
+                    if (mins > 5) totalLateMinutes += mins;
+                }
+            } catch (e) { }
+        }
+
         if (log.holidayType && log.holidayType !== 'None' && log.wasPresentYesterday) {
             if (log.holidayType === 'Regular') holidayPay += ((dayRegMins / 60) * hourlyRate);
             else if (log.holidayType === 'Special') holidayPay += (((dayRegMins / 60) * hourlyRate) * 0.30);
         }
     });
 
+    // --- ABSENCE DETECTION ---
+    let absentCount = 0;
+    const startOfLogic = employee.lastPaidDate ? new Date(employee.lastPaidDate) : (employee.hiredDate ? new Date(employee.hiredDate) : null);
+    if (startOfLogic) {
+        let d = new Date(startOfLogic);
+        d.setDate(d.getDate() + 1);
+        d.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        while (d < today) {
+            if (d.getDay() !== restDayIdx) {
+                const dStr = d.toISOString().split('T')[0];
+                if (!logs.some(l => l.dateStr === dStr)) absentCount++;
+            }
+            d.setDate(d.getDate() + 1);
+        }
+    }
+
     const otPay = (totalOTMinutes / 60) * hourlyRate * 1.30;
     const nightDiffPay = (totalNDMinutes / 60) * hourlyRate * 0.10;
     const accruedBase = (totalRegMinutes / 480) * dailyRate;
+    const lateDeduction = (totalLateMinutes / 60) * hourlyRate;
 
     // Automated Deductions
     const sss = calculateSSS(accruedBase);
@@ -96,7 +135,7 @@ const processPayrollCalculations = (employee, logs) => {
     const hdmf = calculateHDMF(accruedBase);
 
     // Taxable Income Breakdown
-    const grossTaxable = accruedBase + holidayPay + otPay + nightDiffPay;
+    const grossTaxable = accruedBase + holidayPay + otPay + nightDiffPay - lateDeduction;
     const totalMandatoryEE = sss.employee + ph.employee + hdmf.employee;
     const withholdingTax = calculateWithholdingTax(grossTaxable - totalMandatoryEE);
 
@@ -107,6 +146,9 @@ const processPayrollCalculations = (employee, logs) => {
         totalNDMinutes,
         nightDiffPay,
         holidayPay,
+        totalLateMinutes,
+        lateDeduction,
+        absentCount,
         sss,
         ph,
         hdmf,
@@ -399,8 +441,12 @@ const getPendingFixedSalary = async (req, res) => {
             let totalRegMinutes = 0;
             let totalOTMinutes = 0;
             let totalNDMinutes = 0;
+            let totalLateMinutes = 0;
             let holidayPay = 0;
             let lateCount = 0;
+
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const restDayIdx = dayNames.indexOf(emp.restDay || 'Sunday');
 
             logs.forEach(log => {
                 if (!log.clockInTime || !log.clockOutTime) return;
@@ -483,8 +529,13 @@ const getPendingFixedSalary = async (req, res) => {
                         if (modifier === 'AM' && h === 12) h = 0;
                         const shiftStartDate = new Date(clockIn);
                         shiftStartDate.setHours(h, m, 0, 0);
-                        const graceThreshold = new Date(shiftStartDate.getTime() + 5 * 60000);
-                        if (clockIn > graceThreshold) lateCount++;
+                        if (clockIn > shiftStartDate) {
+                            const mins = Math.floor((clockIn - shiftStartDate) / 60000);
+                            if (mins > 5) {
+                                lateCount++;
+                                totalLateMinutes += mins;
+                            }
+                        }
                     } catch (e) { }
                 }
 
@@ -499,12 +550,30 @@ const getPendingFixedSalary = async (req, res) => {
             const accruedBase = (totalRegMinutes / 480) * dailyRate;
             const otPay = (totalOTMinutes / 60) * hourlyRate * 1.30;
             const nightDiffPay = (totalNDMinutes / 60) * hourlyRate * 0.10;
+            const lateDeduction = (totalLateMinutes / 60) * hourlyRate;
+
+            // --- ABSENCE DETECTION ---
+            let absentCount = 0;
+            if (startDate) {
+                let d = new Date(startDate);
+                d.setDate(d.getDate() + 1);
+                d.setHours(0, 0, 0, 0);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                while (d < today) {
+                    if (d.getDay() !== restDayIdx) {
+                        const dStr = d.toISOString().split('T')[0];
+                        if (!logs.some(l => l.dateStr === dStr)) absentCount++;
+                    }
+                    d.setDate(d.getDate() + 1);
+                }
+            }
 
             // Predicted Deductions (For Preview)
             const sss = calculateSSS(accruedBase);
             const ph = calculatePhilHealth(accruedBase);
             const hdmf = calculateHDMF(accruedBase);
-            const grossTaxable = accruedBase + holidayPay + otPay + nightDiffPay;
+            const grossTaxable = accruedBase + holidayPay + otPay + nightDiffPay - lateDeduction;
             const totalMandatoryEE = sss.employee + ph.employee + hdmf.employee;
             const predictedTax = calculateWithholdingTax(grossTaxable - totalMandatoryEE);
             const totalDeductions = totalMandatoryEE + predictedTax;
@@ -522,6 +591,7 @@ const getPendingFixedSalary = async (req, res) => {
                 shiftType: emp.shiftType,
                 lastPaidDate: emp.lastPaidDate,
                 hiredDate: emp.hiredDate,
+                nonTaxableAllowance: emp.nonTaxableAllowance || 0,
                 logs: (logs || []).map(l => {
                     // Recalculate phases for the frontend display
                     const cIn = new Date(l.clockInTime);
@@ -579,6 +649,9 @@ const getPendingFixedSalary = async (req, res) => {
                     ndPay: nightDiffPay,
                     holidayPay,
                     lateCount,
+                    totalLateMinutes,
+                    lateDeduction,
+                    absentCount,
                     // New Predictions
                     sssEE: sss.employee,
                     philhealthEE: ph.employee,
@@ -620,11 +693,11 @@ const payFixedSalary = async (req, res) => {
         const logs = await Attendance.find({ employee: employeeId, createdAt: { $gt: startDate } });
 
         const pStats = processPayrollCalculations(employee, logs);
-        const { accruedBase, totalOTMinutes, otPay, totalNDMinutes, nightDiffPay, holidayPay, sss, ph, hdmf, grossTaxable, totalMandatoryEE, withholdingTax } = pStats;
+        const { accruedBase, totalOTMinutes, otPay, totalNDMinutes, nightDiffPay, holidayPay, totalLateMinutes, lateDeduction, absentCount, sss, ph, hdmf, grossTaxable, totalMandatoryEE, withholdingTax } = pStats;
 
-        const grossPay = grossTaxable + Number(bonus) + (employee.nonTaxableAllowance || 0);
-        const totalDeductions = totalMandatoryEE + withholdingTax + Number(deductions);
-        const netAmount = grossPay - totalDeductions;
+        const earningsGross = accruedBase + holidayPay + otPay + nightDiffPay + Number(bonus) + (employee.nonTaxableAllowance || 0);
+        const totalDeductions = totalMandatoryEE + withholdingTax + Number(deductions) + lateDeduction;
+        const netAmount = earningsGross - totalDeductions;
 
         await Expense.create({
             title: `Salary — [${employee.employeeId || 'No ID'}] ${employee.fullName} (${employee.salaryFrequency || 'Monthly'})`,
@@ -643,12 +716,13 @@ const payFixedSalary = async (req, res) => {
             holidayPay: holidayPay,
             bonuses: Number(bonus),
             allowances: employee.nonTaxableAllowance || 0,
-            grossPay: grossPay,
+            grossPay: earningsGross,
 
             sssEE: sss.employee,
             philhealthEE: ph.employee,
             hdmfEE: hdmf.employee,
             withholdingTax: withholdingTax,
+            latesDeduction: lateDeduction,
             totalDeductions: totalDeductions,
 
             sssER: sss.employer,
@@ -703,11 +777,11 @@ const bulkPayFixedSalary = async (req, res) => {
             if (logs.length === 0 && !employee.hiredDate) continue; // Skip if no work and new employee
 
             const pStats = processPayrollCalculations(employee, logs);
-            const { accruedBase, totalOTMinutes, otPay, totalNDMinutes, nightDiffPay, holidayPay, sss, ph, hdmf, grossTaxable, totalMandatoryEE, withholdingTax } = pStats;
+            const { accruedBase, totalOTMinutes, otPay, totalNDMinutes, nightDiffPay, holidayPay, totalLateMinutes, lateDeduction, absentCount, sss, ph, hdmf, grossTaxable, totalMandatoryEE, withholdingTax } = pStats;
 
-            const grossPay = grossTaxable + (employee.nonTaxableAllowance || 0);
-            const totalDeductions = totalMandatoryEE + withholdingTax;
-            const netAmount = grossPay - totalDeductions;
+            const earningsGross = accruedBase + holidayPay + otPay + nightDiffPay + (employee.nonTaxableAllowance || 0);
+            const totalDeductions = totalMandatoryEE + withholdingTax + lateDeduction;
+            const netAmount = earningsGross - totalDeductions;
 
             if (netAmount <= 0 && logs.length === 0) continue; // Defensive skip
 
@@ -728,11 +802,12 @@ const bulkPayFixedSalary = async (req, res) => {
                 holidayPay,
                 bonuses: 0,
                 allowances: employee.nonTaxableAllowance || 0,
-                grossPay,
+                grossPay: earningsGross,
                 sssEE: sss.employee,
                 philhealthEE: ph.employee,
                 hdmfEE: hdmf.employee,
                 withholdingTax,
+                latesDeduction: lateDeduction,
                 totalDeductions,
                 sssER: sss.employer,
                 philhealthER: ph.employer,

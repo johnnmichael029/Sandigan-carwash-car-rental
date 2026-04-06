@@ -1,5 +1,6 @@
 const ServiceRecipe = require('../models/serviceRecipeModel');
 const Inventory = require('../models/inventoryModel');
+const { logMovement } = require('./stockMovementController');
 
 // GET all recipes (with inventory item details populated)
 exports.getRecipes = async (req, res) => {
@@ -76,8 +77,18 @@ exports.deductStockForBooking = async ({ serviceTypes, vehicleType }) => {
             const costForThisIngredient = item.costPerUnit * ingredient.quantityUsed;
             totalSupplyCost += costForThisIngredient;
 
+            const oldStock = item.currentStock;
             const newStock = Math.max(0, item.currentStock - ingredient.quantityUsed);
             await Inventory.findByIdAndUpdate(item._id, { currentStock: newStock });
+
+            await logMovement({
+                inventoryItem: item._id,
+                type: 'Outbound',
+                quantity: -ingredient.quantityUsed,
+                previousStock: oldStock,
+                newStock: newStock,
+                reason: `Service: ${serviceType}`
+            });
         }
     }
 
@@ -131,8 +142,19 @@ exports.deductStockForProduct = async (productData, quantityMultiplier = 1) => {
             const costForIngredient = unitCost * deductQty;
             totalCost += Number(costForIngredient) || 0;
 
-            const newStock = Math.max(0, (Number(item.currentStock) || 0) - deductQty);
+            const oldStock = Number(item.currentStock) || 0;
+            const newStock = Math.max(0, oldStock - deductQty);
             await Inventory.findByIdAndUpdate(item._id, { currentStock: newStock });
+
+            await logMovement({
+                inventoryItem: item._id,
+                type: 'Outbound',
+                quantity: -deductQty,
+                previousStock: oldStock,
+                newStock: newStock,
+                reason: `Product Sale: ${prodName}`
+            });
+
             console.log(`[Recipe] Item: ${item.name} | Deducted: ${deductQty} | Remaining: ${newStock} | Cost: ₱${costForIngredient}`);
         }
 

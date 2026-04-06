@@ -188,7 +188,7 @@ const HRISPage = ({ user }) => {
         hasAccount: true, shiftType: 'None', shiftStartTime: '',
         hiredDate: new Date().toISOString().split('T')[0],
         sssNo: '', tinNo: '', philhealthNo: '', pagibigNo: '',
-        nonTaxableAllowance: ''
+        nonTaxableAllowance: '', restDay: 'Sunday'
     });
     const [isSaving, setIsSaving] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -638,7 +638,7 @@ const HRISPage = ({ user }) => {
             hasAccount: true, shiftType: 'None', shiftStartTime: '',
             hiredDate: new Date().toISOString().split('T')[0],
             sssNo: '', tinNo: '', philhealthNo: '', pagibigNo: '',
-            nonTaxableAllowance: ''
+            nonTaxableAllowance: '', restDay: 'Sunday'
         });
         setShowPassword(false);
         setShowModal(true);
@@ -672,7 +672,8 @@ const HRISPage = ({ user }) => {
             tinNo: emp.tinNo || '',
             philhealthNo: emp.philhealthNo || '',
             pagibigNo: emp.pagibigNo || '',
-            nonTaxableAllowance: emp.nonTaxableAllowance || ''
+            nonTaxableAllowance: emp.nonTaxableAllowance || '',
+            restDay: emp.restDay || 'Sunday'
         });
         setShowPassword(false);
         setShowModal(true);
@@ -896,13 +897,13 @@ const HRISPage = ({ user }) => {
         doc.text(`Ref No: PAY-${hist._id?.slice(-8).toUpperCase()}`, 130, 73);
 
         // --- ID Numbers (Tiny Sub-header) ---
-        if (!isDetailer) {
-            doc.setFontSize(7);
-            doc.setTextColor(100, 100, 100);
-            doc.text(`SSS: ${emp.sssNo || '---'} | TIN: ${emp.tinNo || '---'} | PH: ${emp.philhealthNo || '---'} | HDMF: ${emp.pagibigNo || '---'}`, 15, 78);
-            doc.setFontSize(9);
-            doc.setTextColor(40, 40, 40);
-        }
+        // if (!isDetailer) {
+        //     doc.setFontSize(7);
+        //     doc.setTextColor(100, 100, 100);
+        //     doc.text(`SSS: ${emp.sssNo || '---'} | TIN: ${emp.tinNo || '---'} | PH: ${emp.philhealthNo || '---'} | HDMF: ${emp.pagibigNo || '---'}`, 15, 78);
+        //     doc.setFontSize(9);
+        //     doc.setTextColor(40, 40, 40);
+        // }
 
         if (isDetailer) {
             // --- SIMPLIFIED DETAILER LAYOUT ---
@@ -931,26 +932,26 @@ const HRISPage = ({ user }) => {
 
             doc.setFont("helvetica", "normal");
             doc.text("Basic Salary", 20, 105);
-            doc.text(`PHP ${(hist.basicPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 95, 105, { align: 'right' });
+            doc.text(`PHP ${(hist.basicPay || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 105, { align: 'right' });
 
             doc.text(`Overtime (${(hist.overtimeHours || 0).toFixed(1)} hrs)`, 20, 111);
-            doc.text(`PHP ${(hist.overtimePay || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 95, 111, { align: 'right' });
+            doc.text(`PHP ${(hist.overtimePay || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 111, { align: 'right' });
 
             doc.text(`Night Diff (${(hist.nightDiffHours || 0).toFixed(1)} hrs)`, 20, 117);
-            doc.text(`PHP ${(hist.nightDiffPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 95, 117, { align: 'right' });
+            doc.text(`PHP ${(hist.nightDiffPay || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 117, { align: 'right' });
 
             doc.text("Holiday Pay", 20, 123);
-            doc.text(`PHP ${(hist.holidayPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 95, 123, { align: 'right' });
+            doc.text(`PHP ${(hist.holidayPay || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 123, { align: 'right' });
 
             doc.text("Bonuses / Adjustments", 20, 129);
-            doc.text(`PHP ${(hist.bonuses || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 95, 129, { align: 'right' });
+            doc.text(`PHP ${(hist.bonuses || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 129, { align: 'right' });
 
             doc.text("Non-Taxable Allowance", 20, 135);
-            doc.text(`PHP ${(hist.allowances || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 95, 135, { align: 'right' });
+            doc.text(`PHP ${(hist.allowances || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 135, { align: 'right' });
 
             doc.setFont("helvetica", "bold");
             doc.text("TOTAL GROSS EARNINGS", 20, 145);
-            doc.text(`PHP ${(hist.grossPay || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 95, 145, { align: 'right' });
+            doc.text(`PHP ${(hist.grossPay || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 145, { align: 'right' });
 
             // Deductions Column (Right)
             doc.setFont("helvetica", "bold");
@@ -971,7 +972,7 @@ const HRISPage = ({ user }) => {
             doc.text(`PHP ${(hist.withholdingTax || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 190, 123, { align: 'right' });
 
             doc.text("Lates / Absents", 115, 129);
-            doc.text(`PHP ${(hist.totalDeductions - (hist.sssEE + hist.philhealthEE + hist.hdmfEE + hist.withholdingTax) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 190, 129, { align: 'right' });
+            doc.text(`PHP ${((hist.latesDeduction || 0) + (hist.absentsDeduction || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 190, 129, { align: 'right' });
 
             doc.setFontSize(8);
             doc.setTextColor(150, 150, 150);
@@ -1779,6 +1780,7 @@ const HRISPage = ({ user }) => {
                                                                             <span className="text-success">+{p.stats.otHours}h OT</span> |
                                                                             <span className="text-purple-600 ms-1" style={{ color: '#9333ea' }}>+{p.stats.ndHours || 0}h ND</span> |
                                                                             <span className="text-info ms-1">₱{p.stats.holidayPay.toLocaleString()} Holiday</span>
+                                                                            {p.nonTaxableAllowance > 0 && <span className="ms-1 fw-bold" style={{ color: '#9333ea' }}>| +₱{p.nonTaxableAllowance.toLocaleString()} Allw.</span>}
                                                                         </div>
                                                                     </td>
                                                                     <td className="border-0 text-danger">₱{p.stats.totalDeductions.toLocaleString()}</td>
@@ -1817,6 +1819,7 @@ const HRISPage = ({ user }) => {
                                                                                     <span className="badge rounded-pill" style={{ background: 'rgba(35,160,206,0.12)', color: '#23A0CE', fontSize: '0.62rem' }}>{p.employeeId}</span>
                                                                                     <span className="badge rounded-pill" style={{ background: 'rgba(35,160,206,0.12)', color: '#23A0CE', fontSize: '0.62rem' }}>{p.role}</span>
                                                                                     <span className="badge rounded-pill bg-light text-muted border" style={{ fontSize: '0.62rem' }}>{p.frequency}</span>
+                                                                                    {p.nonTaxableAllowance > 0 && <span className="badge rounded-pill border" style={{ background: 'rgba(147,51,234,0.08)', color: '#9333ea', borderColor: 'rgba(147,51,234,0.2)', fontSize: '0.62rem' }}>+₱{p.nonTaxableAllowance.toLocaleString()} Allowance</span>}
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -1861,20 +1864,20 @@ const HRISPage = ({ user }) => {
                                                                             <div className="p-2 rounded-3" style={{ background: 'rgba(147, 51, 234, 0.08)' }}>
                                                                                 <div className="text-muted" style={{ fontSize: '0.62rem', textTransform: 'uppercase' }}>Night Diff</div>
                                                                                 <div className="fw-bold text-purple-600" style={{ fontSize: '0.85rem', color: '#9333ea' }}>
-                                                                                    {p.stats.ndHours || 0}h <span className="opacity-75" style={{ fontSize: '0.65rem' }}>₱{(p.stats.ndPay || 0).toLocaleString()}</span>
+                                                                                    {p.stats.ndHours || 0}h <span className="opacity-75" style={{ fontSize: '0.65rem' }}>₱{(p.stats.ndPay || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
                                                                         <div className="col-4">
                                                                             <div className="p-2 rounded-3" style={{ background: 'rgba(56,189,248,0.08)' }}>
                                                                                 <div className="text-muted" style={{ fontSize: '0.62rem', textTransform: 'uppercase' }}>Holiday Pay</div>
-                                                                                <div className="fw-bold text-info" style={{ fontSize: '0.85rem' }}>₱{p.stats.holidayPay.toLocaleString()}</div>
+                                                                                <div className="fw-bold text-info" style={{ fontSize: '0.85rem' }}>₱{p.stats.holidayPay.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</div>
                                                                             </div>
                                                                         </div>
                                                                         <div className="col-6">
                                                                             <div className="p-2 rounded-3" style={{ background: 'rgba(239,68,68,0.06)' }}>
                                                                                 <div className="text-muted" style={{ fontSize: '0.68rem', textTransform: 'uppercase' }}>Gov Deduct</div>
-                                                                                <div className="fw-bold text-danger" style={{ fontSize: '0.95rem' }}>₱{(p.stats.totalDeductions || 0).toLocaleString()}</div>
+                                                                                <div className="fw-bold text-danger" style={{ fontSize: '0.95rem' }}>₱{(p.stats.totalDeductions || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</div>
                                                                             </div>
                                                                         </div>
                                                                         <div className="col-6">
@@ -2479,212 +2482,187 @@ const HRISPage = ({ user }) => {
                 </div>
             )}
 
+
             {/* ── ADD / EDIT EMPLOYEE MODAL ── */}
             {showModal && (
-                <AdminModalWrapper show={showModal} onClose={() => setShowModal(false)}>
-                    <div className="modal-content rounded-4 border-0 shadow">
-                        <div className="modal-header border-0 pb-0 pt-4 px-4">
-                            <h5 className="modal-title fw-bold text-dark-secondary">{editingEmp ? 'Edit Employee' : 'Add New Employee'}</h5>
-                            <button type="button" className="btn-close" onClick={() => setShowModal(false)} />
+                <AdminModalWrapper show={showModal} onClose={() => setShowModal(false)} size="lg">
+                    <div className="modal-content rounded-4 border-0 shadow-lg">
+                        <div className="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h4 className="modal-title fw-bold text-dark-secondary mb-1">{editingEmp ? 'Update Profile' : 'New Employee'}</h4>
+                                <p className="text-muted small mb-0">{editingEmp ? 'Refine staff credentials and access' : 'Enter details to onboard a new staff member'}</p>
+                            </div>
+                            <button type="button" className="btn-close shadow-none" onClick={() => setShowModal(false)} />
                         </div>
-                        <form onSubmit={handleSaveEmployee}>
-                            <div className="modal-body px-4 py-3">
-                                {/* Personal Info */}
-                                <h6 className="fw-bold mb-3 text-dark-secondary" style={{ fontSize: '0.9rem' }}>Personal Information</h6>
-                                <div className="mb-3">
-                                    <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Full Name</label>
-                                    <input type="text" className="form-control rounded-3" value={empForm.fullName} onChange={e => setEmpForm({ ...empForm, fullName: e.target.value })} required placeholder="e.g. Maria Santos" />
+                        <div className="modal-body p-4">
+                            {/* SECTION: PERSONAL INFORMATION */}
+                            <div className="mb-4">
+                                <div className="d-flex align-items-center gap-2 mb-3">
+                                    <h6 className="fw-bold text-dark-secondary mb-0">Basic Information</h6>
                                 </div>
-                                <div className="row g-2 mb-3">
-                                    <div className="col-4">
-                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Age <span className="text-muted fw-normal">(Opt)</span></label>
-                                        <input type="number" className="form-control rounded-3" value={empForm.age} onChange={e => setEmpForm({ ...empForm, age: e.target.value })} placeholder="e.g. 28" min={18} max={99} />
-                                    </div>
-                                    <div className="col-8">
-                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Contact No. <span className="text-muted fw-normal">(Opt)</span></label>
-                                        <div className="input-group">
-                                            <span className="input-group-text bg-light border-end-0 rounded-start-3 text-dark" style={{ fontSize: '0.85rem' }}>+63</span>
-                                            <input
-                                                type="tel"
-                                                className="form-control border-start-0 rounded-end-3 px-1"
-                                                value={empForm.phone}
-                                                onChange={e => {
-                                                    const cleanVal = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                                    setEmpForm({ ...empForm, phone: cleanVal });
-                                                }}
-                                                placeholder="948 XXX XXXX"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="mb-3">
-                                    <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Email Address {!empForm.hasAccount && <span className="text-muted fw-normal">(Opt)</span>}</label>
-                                    <input type="email" className="form-control rounded-3" value={empForm.email} onChange={e => setEmpForm({ ...empForm, email: e.target.value })} required={empForm.hasAccount} placeholder="staff@sandigan.com" />
-                                </div>
-                                <div className="mb-4">
-                                    <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Address <span className="text-muted fw-normal">(Opt)</span></label>
-                                    <input type="text" className="form-control rounded-3" value={empForm.address} onChange={e => setEmpForm({ ...empForm, address: e.target.value })} placeholder="Full address" />
-                                </div>
-
-                                <div className="mb-4">
-                                    <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Start of Works / Hired Date</label>
-                                    <input type="date" className="form-control rounded-3" value={empForm.hiredDate} onChange={e => setEmpForm({ ...empForm, hiredDate: e.target.value })} required />
-                                    <small className="text-muted" style={{ fontSize: '0.7rem' }}>This date marks the beginning of their first pay cycle.</small>
-                                </div>
-
-                                <hr className="my-4 text-muted opacity-25" />
-
-                                {/* Role & Access Info */}
-                                <h6 className="fw-bold mb-3 text-dark-secondary" style={{ fontSize: '0.9rem' }}>Role & System Access</h6>
-                                <div className="mb-3">
-                                    <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Role</label>
-                                    <select className="form-select rounded-3" value={empForm.role} onChange={e => setEmpForm({ ...empForm, role: e.target.value })}>
-                                        <option value="employee">Employee (Staff Dashboard access)</option>
-                                        <option value="detailer">Detailer (No account - Payroll tracking only)</option>
-                                        <option value="admin">Admin (Full ERP access)</option>
-                                    </select>
-                                </div>
-
-                                <div className="mb-3">
-                                    <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Staff Status</label>
-                                    <select className="form-select rounded-3" value={empForm.status} onChange={e => setEmpForm({ ...empForm, status: e.target.value })}>
-                                        <option value="Active">Active / Working</option>
-                                        <option value="On Leave">On Leave</option>
-                                        <option value="Sick">Sick / Medical</option>
-                                    </select>
-                                </div>
-
-                                <div className="row g-2 mb-3">
+                                <div className="row g-3">
                                     <div className="col-12 col-md-6">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Full Name</label>
+                                        <input type="text" className="form-control rounded-3 shadow-none border-light-subtle bg-light-subtle" placeholder="e.g. John Doe" value={empForm.fullName} onChange={(e) => setEmpForm({ ...empForm, fullName: e.target.value })} required />
+                                    </div>
+                                    <div className="col-12 col-md-6">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Email Address</label>
+                                        <input type="email" className="form-control rounded-3 shadow-none border-light-subtle bg-light-subtle" placeholder="e.g. john@sandigan.com" value={empForm.email} onChange={(e) => setEmpForm({ ...empForm, email: e.target.value })} />
+                                    </div>
+                                    <div className="col-12 col-md-4">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Contact Number</label>
+                                        <input type="text" className="form-control rounded-3 shadow-none border-light-subtle bg-light-subtle" placeholder="0912-XXX-XXXX" value={empForm.phone} onChange={(e) => setEmpForm({ ...empForm, phone: e.target.value })} />
+                                    </div>
+                                    <div className="col-12 col-md-4">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Age</label>
+                                        <input type="number" className="form-control rounded-3 shadow-none border-light-subtle bg-light-subtle" value={empForm.age} onChange={(e) => setEmpForm({ ...empForm, age: e.target.value })} />
+                                    </div>
+                                    <div className="col-12 col-md-4">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Hired Date</label>
+                                        <input type="date" className="form-control rounded-3 shadow-none border-light-subtle bg-light-subtle" value={empForm.hiredDate} onChange={(e) => setEmpForm({ ...empForm, hiredDate: e.target.value })} />
+                                    </div>
+                                    <div className="col-12">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Complete Address</label>
+                                        <textarea className="form-control rounded-3 shadow-none border-light-subtle bg-light-subtle" rows="2" value={empForm.address} onChange={(e) => setEmpForm({ ...empForm, address: e.target.value })}></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr className="my-4 opacity-50" />
+
+                            {/* SECTION: WORK & SCHEDULE */}
+                            <div className="mb-4">
+                                <div className="d-flex align-items-center gap-2 mb-3">
+
+                                    <h6 className="fw-bold text-dark-secondary mb-0">Role & Schedule</h6>
+                                </div>
+                                <div className="row g-3">
+                                    <div className="col-12 col-md-6">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Designated Role</label>
+                                        <select className="form-select rounded-3 shadow-none border-light-subtle bg-light-subtle" value={empForm.role} onChange={(e) => setEmpForm({ ...empForm, role: e.target.value })}>
+                                            <option value="employee">Employee (Staff Dashboard access)</option>
+                                            <option value="admin">Administrator (Full Access)</option>
+                                            <option value="detailer">Service Detailer (Payroll Only)</option>
+                                        </select>
+                                    </div>
+                                    <div className="col-12 col-md-6">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Staff Status</label>
+                                        <select className="form-select rounded-3 shadow-none border-light-subtle bg-light-subtle" value={empForm.status} onChange={(e) => setEmpForm({ ...empForm, status: e.target.value })}>
+                                            <option value="Active">Active / Working</option>
+                                            <option value="On Leave">On Leave</option>
+                                            <option value="Sick">Sick / Medical</option>
+                                        </select>
+                                    </div>
+                                    <div className="col-12 col-md-4">
                                         <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Shift Schedule</label>
-                                        <select className="form-select rounded-3" value={empForm.shiftType} onChange={e => setEmpForm({ ...empForm, shiftType: e.target.value })}>
+                                        <select className="form-select rounded-3 shadow-none border-light-subtle bg-light-subtle" value={empForm.shiftType} onChange={(e) => setEmpForm({ ...empForm, shiftType: e.target.value })}>
                                             <option value="None">No Regular Shift</option>
                                             <option value="Morning">Morning Shift (8H)</option>
                                             <option value="Night">Night Shift (8H)</option>
                                         </select>
                                     </div>
-                                    <div className="col-12 col-md-6">
+                                    <div className="col-12 col-md-4">
                                         <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Shift Start Time</label>
-                                        <input
-                                            type={empForm.shiftType === 'None' ? 'text' : 'time'}
-                                            className="form-control rounded-3"
-                                            value={empForm.shiftStartTime}
-                                            disabled={empForm.shiftType === 'None'}
-                                            onChange={e => setEmpForm({ ...empForm, shiftStartTime: e.target.value })}
-                                            placeholder="Set Time"
-                                        />
+                                        <div className="input-group">
+
+                                            <input type="text" className="form-control border-start-0 rounded-end-3 shadow-none border-light-subtle bg-light-subtle" value={empForm.shiftStartTime} onChange={(e) => setEmpForm({ ...empForm, shiftStartTime: e.target.value })} placeholder="08:00 AM" />
+                                        </div>
+                                    </div>
+                                    <div className="col-12 col-md-4">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Weekly Rest Day</label>
+                                        <select className="form-select rounded-3 shadow-none border-light-subtle bg-light-subtle" value={empForm.restDay} onChange={(e) => setEmpForm({ ...empForm, restDay: e.target.value })}>
+                                            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(d => (
+                                                <option key={d} value={d}>{d}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
+                            </div>
 
-                                {empForm.role !== 'detailer' && (
-                                    <div className="d-flex align-items-center gap-2 mb-3 p-2 bg-light-subtle rounded-3 border">
-                                        <div className="form-check form-switch pt-1">
-                                            <input
-                                                className="form-check-input shadow-none"
-                                                type="checkbox"
-                                                id="hasAccountToggle"
-                                                checked={empForm.hasAccount}
-                                                onChange={e => setEmpForm({ ...empForm, hasAccount: e.target.checked })}
-                                            />
-                                        </div>
-                                        <label className="form-check-label fw-bold text-dark-secondary mb-0" htmlFor="hasAccountToggle" style={{ fontSize: '0.8rem' }}>
-                                            Create Login Account For This Employee
-                                        </label>
-                                    </div>
-                                )}
+                            <hr className="my-4 opacity-50" />
 
-                                <div className="mb-3">
-                                    <small className="text-muted mt-2 d-block" style={{ fontSize: '0.72rem', lineHeight: 1.4 }}>
-                                        {!empForm.hasAccount && 'This employee will not be able to log in. They are tracked for payroll and attendance only.'}
-                                        {empForm.hasAccount && empForm.role === 'admin' && 'Admins have full access to all ERP modules. Requires secure login.'}
-                                        {empForm.hasAccount && empForm.role === 'employee' && 'Employees access the staff dashboard to process bookings. Requires secure login.'}
-                                        {empForm.role === 'detailer' && 'Detailers appear in the booking assignment and payroll. No login required.'}
-                                    </small>
+                            {/* SECTION: PAYROLL & GOVERNMENT IDs */}
+                            <div className="mb-4">
+                                <div className="d-flex align-items-center gap-2 mb-3">
+
+                                    <h6 className="fw-bold text-dark-secondary mb-0">Salary & Government IDs</h6>
                                 </div>
+                                <div className="row g-3">
+                                    <div className="col-12 col-md-4">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Monthly Base Salary (₱)</label>
+                                        <input type="number" className="form-control rounded-3 shadow-none border-light-subtle bg-light-subtle" value={empForm.baseSalary} onChange={(e) => setEmpForm({ ...empForm, baseSalary: e.target.value })} />
+                                    </div>
+                                    <div className="col-12 col-md-4">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Payment Frequency</label>
+                                        <select className="form-select rounded-3 shadow-none border-light-subtle bg-light-subtle" value={empForm.salaryFrequency} onChange={(e) => setEmpForm({ ...empForm, salaryFrequency: e.target.value })}>
+                                            <option value="Weekly">Weekly</option>
+                                            <option value="Bi-Weekly">Bi-Weekly</option>
+                                            <option value="Monthly">Monthly</option>
+                                        </select>
+                                    </div>
+                                    <div className="col-12 col-md-4">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Non-Taxable Allowance (₱)</label>
+                                        <input type="number" className="form-control rounded-3 shadow-none border-light-subtle bg-light-subtle" value={empForm.nonTaxableAllowance} onChange={(e) => setEmpForm({ ...empForm, nonTaxableAllowance: e.target.value })} />
+                                    </div>
 
-                                {empForm.role !== 'detailer' && empForm.hasAccount && (
-                                    <div className="p-3 bg-light rounded-3 mt-3 border">
-                                        <div className="mb-2">
-                                            <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>{editingEmp ? 'New Password' : 'Password'}</label>
-                                            <div className="input-group">
-                                                <input
-                                                    type={showPassword ? "text" : "password"}
-                                                    className="form-control rounded-start-3"
-                                                    value={empForm.password}
-                                                    onChange={e => setEmpForm({ ...empForm, password: e.target.value })}
-                                                    required={!editingEmp && empForm.hasAccount}
-                                                    placeholder={editingEmp ? '••••••••' : 'Min. 8 characters'}
-                                                    minLength={editingEmp ? 0 : 8}
-                                                />
-                                                <button
-                                                    className="btn btn-outline-secondary rounded-end-3"
-                                                    type="button"
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                >
-                                                    {showPassword ? "Hide" : "Show"}
-                                                </button>
+                                    <div className="col-12 col-md-6 mt-3">
+                                        <div className="card border-0 rounded-4 bg-light-subtle p-3">
+                                            <div className="row g-3">
+                                                <div className="col-6">
+                                                    <label className="form-label text-muted x-small text-uppercase fw-bold mb-1">SSS Number</label>
+                                                    <input type="text" className="form-control form-control-sm rounded-2 shadow-none border-light" placeholder="XX-XXXXXXXXX-X" value={empForm.sssNo} onChange={(e) => setEmpForm({ ...empForm, sssNo: e.target.value })} />
+                                                </div>
+                                                <div className="col-6">
+                                                    <label className="form-label text-muted x-small text-uppercase fw-bold mb-1">TIN Number</label>
+                                                    <input type="text" className="form-control form-control-sm rounded-2 shadow-none border-light" placeholder="XXX-XXX-XXX" value={empForm.tinNo} onChange={(e) => setEmpForm({ ...empForm, tinNo: e.target.value })} />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                )}
-
-                                {empForm.role !== 'detailer' && (
-                                    <div className="p-3 bg-light rounded-3 mt-3 border">
-                                        <h6 className="fw-bold mb-3 text-dark-secondary" style={{ fontSize: '0.8rem' }}>Salary & Payroll Information</h6>
-                                        <div className="row g-2">
-                                            <div className="col-12 col-md-6">
-                                                <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Base Salary (₱) <span className="text-muted fw-normal">(Opt)</span></label>
-                                                <input type="number" className="form-control rounded-3" value={empForm.baseSalary} onChange={e => setEmpForm({ ...empForm, baseSalary: e.target.value })} placeholder="0" min="0" />
-                                            </div>
-                                            <div className="col-12 col-md-6">
-                                                <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Payment Frequency</label>
-                                                <select className="form-select rounded-3" value={empForm.salaryFrequency} onChange={e => setEmpForm({ ...empForm, salaryFrequency: e.target.value })}>
-                                                    <option value="Daily">Daily</option>
-                                                    <option value="Weekly">Weekly</option>
-                                                    <option value="Bi-Weekly">Bi-Weekly</option>
-                                                    <option value="Monthly">Monthly</option>
-                                                </select>
+                                    <div className="col-12 col-md-6 mt-3">
+                                        <div className="card border-0 rounded-4 bg-light-subtle p-3">
+                                            <div className="row g-3">
+                                                <div className="col-6">
+                                                    <label className="form-label text-muted x-small text-uppercase fw-bold mb-1">PhilHealth No.</label>
+                                                    <input type="text" className="form-control form-control-sm rounded-2 shadow-none border-light" placeholder="XX-XXXXXXXXX-X" value={empForm.philhealthNo} onChange={(e) => setEmpForm({ ...empForm, philhealthNo: e.target.value })} />
+                                                </div>
+                                                <div className="col-6">
+                                                    <label className="form-label text-muted x-small text-uppercase fw-bold mb-1">Pag-IBIG ID</label>
+                                                    <input type="text" className="form-control form-control-sm rounded-2 shadow-none border-light" placeholder="XXXX-XXXX-XXXX" value={empForm.pagibigNo} onChange={(e) => setEmpForm({ ...empForm, pagibigNo: e.target.value })} />
+                                                </div>
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
 
-                                        <div className="mt-3">
-                                            <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Non-Taxable Allowance (₱/Cycle) <span className="text-muted fw-normal">(e.g. Load, Transpo)</span></label>
-                                            <input type="number" className="form-control rounded-3" value={empForm.nonTaxableAllowance} onChange={e => setEmpForm({ ...empForm, nonTaxableAllowance: e.target.value })} placeholder="0" min="0" />
-                                        </div>
-
-                                        <div className="mt-4 pt-2 border-top">
-                                            <h6 className="fw-bold mb-3 text-dark-secondary" style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Government IDs (For Payslips)</h6>
-                                            <div className="row g-2 mb-2">
-                                                <div className="col-6">
-                                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.72rem' }}>SSS Number</label>
-                                                    <input type="text" className="form-control form-control-sm rounded-3" value={empForm.sssNo} onChange={e => setEmpForm({ ...empForm, sssNo: e.target.value })} placeholder="XX-XXXXXXXX-X" />
-                                                </div>
-                                                <div className="col-6">
-                                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.72rem' }}>TIN Number</label>
-                                                    <input type="text" className="form-control form-control-sm rounded-3" value={empForm.tinNo} onChange={e => setEmpForm({ ...empForm, tinNo: e.target.value })} placeholder="XXX-XXX-XXX" />
-                                                </div>
-                                            </div>
-                                            <div className="row g-2">
-                                                <div className="col-6">
-                                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.72rem' }}>PhilHealth No.</label>
-                                                    <input type="text" className="form-control form-control-sm rounded-3" value={empForm.philhealthNo} onChange={e => setEmpForm({ ...empForm, philhealthNo: e.target.value })} placeholder="XX-XXXXXXXXX-X" />
-                                                </div>
-                                                <div className="col-6">
-                                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.72rem' }}>Pag-IBIG ID</label>
-                                                    <input type="text" className="form-control form-control-sm rounded-3" value={empForm.pagibigNo} onChange={e => setEmpForm({ ...empForm, pagibigNo: e.target.value })} placeholder="XXXX-XXXX-XXXX" />
-                                                </div>
-                                            </div>
+                            {/* SECTION: LOGIN ACCOUNT */}
+                            <div className="px-4 py-3 bg-light rounded-4 mt-2">
+                                <div className="form-check form-switch d-flex align-items-center gap-3">
+                                    <input className="form-check-input shadow-none" type="checkbox" role="switch" id="accountSwitch" checked={empForm.hasAccount} onChange={(e) => setEmpForm({ ...empForm, hasAccount: e.target.checked })} />
+                                    <label className="form-check-label fw-bold text-dark-secondary" htmlFor="accountSwitch">Enable Staff Login Account</label>
+                                </div>
+                                {empForm.hasAccount && (
+                                    <div className="mt-3">
+                                        <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Login Password</label>
+                                        <div className="input-group">
+                                            <input type={showPassword ? 'text' : 'password'} className="form-control rounded-start-3 shadow-none border-light bg-white" placeholder="Min. 6 characters" value={empForm.password} onChange={(e) => setEmpForm({ ...empForm, password: e.target.value })} />
+                                            <button className="btn btn-outline-secondary rounded-end-3" type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button>
                                         </div>
                                     </div>
                                 )}
                             </div>
-                            <div className="modal-footer border-0 px-4 pb-4 pt-0">
-                                <button type="button" className="btn btn-light rounded-pill px-4" onClick={() => setShowModal(false)}>Cancel</button>
-                                <button type="submit" className="btn btn-save rounded-pill px-4" disabled={isSaving}>
-                                    {isSaving ? 'Saving...' : editingEmp ? 'Save Changes' : 'Add Employee'}
-                                </button>
-                            </div>
-                        </form>
+                        </div>
+                        <div className="modal-footer border-0 p-4 pt-0">
+                            <button type="button" className="btn btn-light rounded-pill px-4" onClick={() => setShowModal(false)}>Cancel</button>
+                            <button type="button" className="btn btn-save rounded-pill px-5 shadow-sm fw-bold" onClick={handleSaveEmployee} disabled={isSaving}>
+                                {isSaving ? (
+                                    <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</>
+                                ) : (
+                                    editingEmp ? 'Save Changes' : 'Create Employee'
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </AdminModalWrapper>
             )}
@@ -2775,7 +2753,6 @@ const HRISPage = ({ user }) => {
                                                 </div>
                                             </div>
 
-                                            {/* History Table */}
                                             {(() => {
                                                 const q = historySearchDebounced.toLowerCase().trim();
                                                 const filtered = (historyData.history || []).filter(item => {
@@ -3044,35 +3021,43 @@ const HRISPage = ({ user }) => {
 
                             <div className="modal-body p-4 pt-2">
                                 {/* KPI CARDS  */}
-                                <div className="row g-3 mb-4">
-                                    <div className="col-12 col-md-3">
+                                <div className="row row-cols-1 row-cols-md-5 g-3 mb-4">
+                                    <div className="col">
                                         <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)' }}>
                                             <div className="text-muted small fw-bold text-uppercase mb-2">Cycle Work Hours</div>
                                             <div className="d-flex align-items-baseline gap-2">
                                                 <h3 className="fw-bold text-dark-secondary mb-0">{selectedPayoutStaff.stats.totalHours}</h3>
                                                 <span className="text-muted">/ {selectedPayoutStaff.stats.targetHours}h</span>
                                             </div>
+                                            <small className="text-muted mt-1">Total Hours</small>
                                         </div>
                                     </div>
-                                    <div className="col-12 col-md-3">
+                                    <div className="col">
                                         <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)' }}>
-                                            <div className="text-muted small fw-bold text-uppercase mb-2">OT Premiums</div>
-                                            <h3 className="fw-bold brand-primary mb-0">₱{Math.round(selectedPayoutStaff.stats.otPay).toLocaleString()}</h3>
-                                            <small className="text-muted">{selectedPayoutStaff.stats.otHours}h Approved</small>
+                                            <div className="text-muted small fw-bold text-uppercase mb-2">OT & Holiday Pay</div>
+                                            <h3 className="fw-bold brand-primary mb-0">₱{Math.round(selectedPayoutStaff.stats.otPay + selectedPayoutStaff.stats.holidayPay).toLocaleString()}</h3>
+                                            <small className="text-muted mt-1">{selectedPayoutStaff.stats.otHours}h OT + Premium</small>
                                         </div>
                                     </div>
-                                    <div className="col-12 col-md-3">
+                                    <div className="col">
                                         <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)' }}>
-                                            <div className="text-muted small fw-bold text-uppercase mb-2">Holiday Pay</div>
-                                            <h3 className="fw-bold text-danger mb-0">₱{Math.round(selectedPayoutStaff.stats.holidayPay).toLocaleString()}</h3>
-                                            <small className="text-muted">Addtl. Premium Pay</small>
+                                            <div className="text-muted small fw-bold text-uppercase mb-2">NT Allowance</div>
+                                            <h3 className="fw-bold mb-0" style={{ color: '#9333ea' }}>₱{Math.round(selectedPayoutStaff.nonTaxableAllowance || 0).toLocaleString()}</h3>
+                                            <small className="text-muted mt-1">Fixed Cycle Benefit</small>
                                         </div>
                                     </div>
-                                    <div className="col-12 col-md-3">
+                                    <div className="col">
+                                        <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: 'linear-gradient(135deg, #fff7ed, #fff1f2)', border: '1px solid #fee2e2' }}>
+                                            <div className="text-danger small fw-bold text-uppercase mb-2">Late & Absences</div>
+                                            <h3 className="fw-bold text-danger mb-0">₱{Math.round(selectedPayoutStaff.stats.lateDeduction || 0).toLocaleString()}</h3>
+                                            <small className="text-muted mt-1">{selectedPayoutStaff.stats.totalLateMinutes || 0}m Late | {selectedPayoutStaff.stats.absentCount || 0}d Absent</small>
+                                        </div>
+                                    </div>
+                                    <div className="col">
                                         <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: 'rgba(34,197,94,0.07)', border: '1px dashed rgba(34,197,94,0.3)' }}>
-                                            <div className="text-muted small fw-bold text-uppercase mb-2">Current Accrued</div>
-                                            <h3 className="fw-bold text-success mb-0">₱{Math.round(selectedPayoutStaff.netAmount).toLocaleString()}</h3>
-                                            <small className="text-muted">Initial Net Payout</small>
+                                            <div className="text-muted small fw-bold text-uppercase mb-2">Final Net Payout</div>
+                                            <h2 className="fw-bold text-success mb-0">₱{Math.round(selectedPayoutStaff.netAmount).toLocaleString()}</h2>
+                                            <small className="text-muted mt-1">Net After Gov & Lates</small>
                                         </div>
                                     </div>
                                 </div>
@@ -3119,7 +3104,7 @@ const HRISPage = ({ user }) => {
                                                                 )}
                                                             </td>
                                                             <td className="pe-4 text-end">
-                                                                ₱{getDailyPay({ ...log, employee: selectedPayoutStaff }).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                                                ₱{getDailyPay({ ...log, employee: selectedPayoutStaff }).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                                             </td>
                                                         </tr>
                                                     ));
@@ -3185,7 +3170,7 @@ const HRISPage = ({ user }) => {
                                         <div className="col-md-5 text-end">
                                             <div className="text-white-50 small mb-1">Total Net Liquidation</div>
                                             <h2 className="fw-bold text-white mb-0 lh-1">
-                                                ₱{(selectedPayoutStaff.netAmount + payoutAdjustments.bonus - payoutAdjustments.deductions).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                ₱{(selectedPayoutStaff.netAmount + payoutAdjustments.bonus - payoutAdjustments.deductions).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                             </h2>
                                         </div>
                                     </div>

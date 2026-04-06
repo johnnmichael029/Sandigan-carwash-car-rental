@@ -8,7 +8,7 @@ const inventorySchema = new mongoose.Schema({
     reorderPoint: { type: Number, default: 500 }, // Notify admin when stock is below this
     costPerUnit: { type: Number, default: 0 }, // Cost to buy 1 unit (e.g. ₱0.10/ml)
     lastRestocked: { type: Date, default: Date.now },
-    supplier: { type: String, default: '' }
+    supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', default: null }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Inventory', inventorySchema);

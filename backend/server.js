@@ -169,6 +169,8 @@ app.use('/api/budgets', budgetRoutes);
 app.use('/api/forecast', forecastRoutes);
 app.use('/api/ledger', ledgerRoutes);
 app.use('/api/leaves', require('./routes/leaveRoutes'));
+app.use('/api/purchase-orders', require('./routes/purchaseOrderRoutes'));
+app.use('/api/stock-movements', require('./routes/stockMovementRoutes'));
 
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {

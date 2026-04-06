@@ -493,7 +493,7 @@ const updateBooking = async (req, res) => {
                 action: 'booking_updated',
                 message: `${actorName} updated booking details for ${booking.firstName} ${booking.lastName}`,
                 bookingId: booking._id,
-                meta: { customer: `${firstName} ${lastName}` }
+                meta: { customer: `${booking.firstName} ${booking.lastName}` }
             });
             const io = req.app.get('io');
             if (io) {

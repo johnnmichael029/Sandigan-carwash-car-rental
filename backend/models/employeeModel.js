@@ -45,7 +45,7 @@ const employeeSchema = new Schema({
     baseSalary: { type: Number, default: 0 },
     salaryFrequency: { type: String, enum: ['Daily', 'Weekly', 'Bi-Weekly', 'Monthly'], default: 'Weekly' },
     nonTaxableAllowance: { type: Number, default: 0 }, // e.g., Load or NT Allowance from Tenex
-    
+
     // Government Identifiers (Required for Payslips)
     sssNo: { type: String },
     tinNo: { type: String },
@@ -58,9 +58,10 @@ const employeeSchema = new Schema({
 
     // Leave Balances
     leaveBalances: {
-        sickLeave:     { allocated: { type: Number, default: 5 }, used: { type: Number, default: 0 } },
+        sickLeave: { allocated: { type: Number, default: 5 }, used: { type: Number, default: 0 } },
         vacationLeave: { allocated: { type: Number, default: 5 }, used: { type: Number, default: 0 } }
     },
+    restDay: { type: String, default: 'Sunday' },
     skills: [{ type: String }],
     evaluations: [{
         rating: { type: Number, min: 1, max: 5 },
@@ -73,7 +74,6 @@ const employeeSchema = new Schema({
 // ── CRITICAL: Convert empty-string emails to null before save ──
 // MongoDB's sparse unique index only skips null/undefined — empty strings ""
 // are treated as real values and cause duplicate key errors (11000).
-// NOTE: Mongoose 9+ removed the `next` callback — just return from the function.
 employeeSchema.pre('validate', function () {
     if (this.email !== undefined && this.email !== null && this.email.trim() === '') {
         this.email = null;

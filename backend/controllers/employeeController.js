@@ -52,7 +52,7 @@ const createEmployee = async (req, res) => {
         fullName, email, password, role, age, address, phone,
         baseSalary, salaryFrequency, status,
         hasAccount = true, shiftType = 'None', shiftStartTime,
-        hiredDate
+        hiredDate, restDay
     } = req.body;
 
     // Default shift times if not provided
@@ -108,7 +108,8 @@ const createEmployee = async (req, res) => {
             baseSalary: baseSalary ? Number(baseSalary) : 0,
             salaryFrequency: salaryFrequency || 'Monthly',
             status: status || 'Active',
-            hiredDate: hiredDate ? new Date(hiredDate) : undefined
+            hiredDate: hiredDate ? new Date(hiredDate) : undefined,
+            restDay: restDay || 'Sunday'
         });
 
         console.log(`[EMPLOYEE_CREATE] ✅ SUCCESS — "${fullName}" saved as ${newEmployeeId} (email: ${newEmployee.email || 'none'})`);
@@ -152,7 +153,10 @@ const updateEmployee = async (req, res) => {
         fullName, email, role, password, age, address, phone,
         baseSalary, salaryFrequency, status,
         hasAccount, shiftType, shiftStartTime,
-        hiredDate
+        hiredDate,
+        nonTaxableAllowance,
+        sssNo, tinNo, philhealthNo, pagibigNo,
+        restDay
     } = req.body;
 
     // // Safety: prevent admin from demoting their own account
@@ -189,6 +193,14 @@ const updateEmployee = async (req, res) => {
         if (shiftType !== undefined) updateFields.shiftType = shiftType;
         if (shiftStartTime !== undefined) updateFields.shiftStartTime = shiftStartTime;
         if (hiredDate !== undefined) updateFields.hiredDate = hiredDate ? new Date(hiredDate) : null;
+
+        // Government IDs & Allowances
+        if (nonTaxableAllowance !== undefined) updateFields.nonTaxableAllowance = nonTaxableAllowance ? Number(nonTaxableAllowance) : 0;
+        if (sssNo !== undefined) updateFields.sssNo = sssNo;
+        if (tinNo !== undefined) updateFields.tinNo = tinNo;
+        if (philhealthNo !== undefined) updateFields.philhealthNo = philhealthNo;
+        if (pagibigNo !== undefined) updateFields.pagibigNo = pagibigNo;
+        if (restDay !== undefined) updateFields.restDay = restDay;
 
         // ── Ensure empty-string emails are stored as null  ──
         // findByIdAndUpdate bypasses Mongoose pre-validate hooks, so we must do it here.

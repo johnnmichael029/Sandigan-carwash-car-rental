@@ -462,7 +462,7 @@ const CRMPage = ({ user }) => {
                                     </tr>
                                 ) : (
                                     filteredCustomers.map(client => (
-                                        <tr key={client._id} style={{ cursor: 'pointer' }} onClick={() => handleOpen360(client)} className="hover-shadow-sm">
+                                        <tr key={client._id} style={{ cursor: 'pointer' }} onClick={() => handleOpen360(client)}>
                                             <td className="ps-4 py-3">
                                                 <div className="d-flex align-items-center gap-3">
                                                     <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm" style={{ width: 40, height: 40, background: 'var(--brand-dark)', fontSize: '0.9rem' }}>

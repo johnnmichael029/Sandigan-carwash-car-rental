@@ -1,9 +1,10 @@
 const Inventory = require('../models/inventoryModel');
 const { createLog } = require('./activityLogController');
+const { logMovement } = require('./stockMovementController');
 
 exports.getInventory = async (req, res) => {
     try {
-        const items = await Inventory.find().sort({ name: 1 });
+        const items = await Inventory.find().populate('supplier', 'name contactPerson').sort({ name: 1 });
         res.status(200).json(items);
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
@@ -12,6 +13,19 @@ exports.addInventoryItem = async (req, res) => {
     try {
         const item = await Inventory.create(req.body);
         
+        if (item.currentStock > 0) {
+            await logMovement({
+                inventoryItem: item._id,
+                type: 'Inbound',
+                quantity: item.currentStock,
+                previousStock: 0,
+                newStock: item.currentStock,
+                reason: 'Initial Stock Addition',
+                performedBy: req.user ? req.user.id : null,
+                performedByName: req.user ? req.user.fullName : 'System'
+            });
+        }
+
         // Audit Log
         if (req.user) {
             await createLog({
@@ -32,12 +46,28 @@ exports.addInventoryItem = async (req, res) => {
 exports.updateInventoryItem = async (req, res) => {
     try {
         const { id } = req.params;
+        const oldItem = await Inventory.findById(id);
+        
         const allowed = ['name', 'category', 'currentStock', 'unit', 'reorderPoint', 'costPerUnit', 'supplier'];
         const updates = {};
         allowed.forEach(field => { if (req.body[field] !== undefined) updates[field] = req.body[field]; });
         if (updates.currentStock !== undefined) updates.lastRestocked = Date.now();
         
         const item = await Inventory.findByIdAndUpdate(id, updates, { returnDocument: 'after', runValidators: true });
+        
+        if (oldItem && updates.currentStock !== undefined && updates.currentStock !== oldItem.currentStock) {
+            const diff = item.currentStock - oldItem.currentStock;
+            await logMovement({
+                inventoryItem: item._id,
+                type: 'Adjustment',
+                quantity: diff,
+                previousStock: oldItem.currentStock,
+                newStock: item.currentStock,
+                reason: 'Manual Stock Adjustment',
+                performedBy: req.user ? req.user.id : null,
+                performedByName: req.user ? req.user.fullName : 'System'
+            });
+        }
         
         // Audit Log
         if (req.user && item) {
