@@ -1,5 +1,6 @@
 const ServiceRecipe = require('../models/serviceRecipeModel');
 const Inventory = require('../models/inventoryModel');
+const Asset = require('../models/assetModel');
 const { logMovement } = require('./stockMovementController');
 
 // GET all recipes (with inventory item details populated)
@@ -7,6 +8,7 @@ exports.getRecipes = async (req, res) => {
     try {
         const recipes = await ServiceRecipe.find()
             .populate('ingredients.inventoryItem', 'name unit costPerUnit currentStock')
+            .populate('equipmentUsed', 'name category')
             .sort({ category: 1, serviceType: 1, vehicleType: 1 });
         res.status(200).json(recipes);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -21,9 +23,9 @@ exports.upsertRecipe = async (req, res) => {
 
         const recipe = await ServiceRecipe.findOneAndUpdate(
             { category: recipeCategory, serviceType, vehicleType: recipeVehicleType },
-            { category: recipeCategory, serviceType, vehicleType: recipeVehicleType, ingredients },
+            { category: recipeCategory, serviceType, vehicleType: recipeVehicleType, ingredients, equipmentUsed: req.body.equipmentUsed || [] },
             { upsert: true, returnDocument: 'after', runValidators: true }
-        ).populate('ingredients.inventoryItem', 'name unit costPerUnit');
+        ).populate('ingredients.inventoryItem', 'name unit costPerUnit').populate('equipmentUsed', 'name category');
         res.status(200).json(recipe);
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
@@ -40,7 +42,7 @@ exports.deleteRecipe = async (req, res) => {
 exports.updateRecipe = async (req, res) => {
     try {
         const recipe = await ServiceRecipe.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after', runValidators: true })
-            .populate('ingredients.inventoryItem', 'name unit costPerUnit');
+            .populate('ingredients.inventoryItem', 'name unit costPerUnit').populate('equipmentUsed', 'name category');
         res.status(200).json(recipe);
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
@@ -69,6 +71,13 @@ exports.deductStockForBooking = async ({ serviceTypes, vehicleType }) => {
         }
 
         if (!recipe) continue;
+
+        // Increment equipment usage
+        if (recipe.equipmentUsed && recipe.equipmentUsed.length > 0) {
+            for (const assetId of recipe.equipmentUsed) {
+                await Asset.findByIdAndUpdate(assetId, { $inc: { usageCounter: 1 } });
+            }
+        }
 
         for (const ingredient of recipe.ingredients) {
             const item = ingredient.inventoryItem;

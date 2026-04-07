@@ -12,17 +12,21 @@ const RecipeBuilder = ({ inventoryItems, products, onUpdate, categories = [] }) 
     const [serviceType, setServiceType] = useState('');
     const [vehicleType, setVehicleType] = useState('All');
     const [ingredients, setIngredients] = useState([{ inventoryItem: '', quantityUsed: '' }]);
+    const [equipmentUsed, setEquipmentUsed] = useState([]);
+    const [assets, setAssets] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
     const [editingId, setEditingId] = useState(null);
 
     const fetchData = async () => {
         try {
-            const [recipesRes, pricingRes] = await Promise.all([
+            const [recipesRes, pricingRes, assetsRes] = await Promise.all([
                 axios.get(`${API_BASE}/service-recipes`, { headers: authHeaders(), withCredentials: true }),
-                axios.get(`${API_BASE}/pricing`, { headers: authHeaders(), withCredentials: true })
+                axios.get(`${API_BASE}/pricing`, { headers: authHeaders(), withCredentials: true }),
+                axios.get(`${API_BASE}/assets`, { headers: authHeaders(), withCredentials: true })
             ]);
             setRecipes(recipesRes.data);
             setDynamicPricing(pricingRes.data.dynamicPricing || []);
+            setAssets(assetsRes.data || []);
         } catch (err) { console.error('Error fetching recipe data:', err); }
     };
 
@@ -49,10 +53,10 @@ const RecipeBuilder = ({ inventoryItems, products, onUpdate, categories = [] }) 
         const validIngredients = ingredients.filter(i => i.inventoryItem && i.quantityUsed);
         setIsSaving(true);
         try {
-            const payload = { category, serviceType, vehicleType, ingredients: validIngredients };
+            const payload = { category, serviceType, vehicleType, ingredients: validIngredients, equipmentUsed: equipmentUsed.filter(e => e) };
             if (editingId) await axios.patch(`${API_BASE}/service-recipes/${editingId}`, payload, { headers: authHeaders(), withCredentials: true });
             else await axios.post(`${API_BASE}/service-recipes`, payload, { headers: authHeaders(), withCredentials: true });
-            setEditingId(null); setIngredients([{ inventoryItem: '', quantityUsed: '' }]); fetchData();
+            setEditingId(null); setIngredients([{ inventoryItem: '', quantityUsed: '' }]); setEquipmentUsed([]); fetchData();
             if (onUpdate) onUpdate();
             Swal.fire({ title: 'Recipe Saved!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#002525', color: '#fff' });
         } catch (err) { Swal.fire('Error', 'Save failed', 'error'); }
@@ -111,10 +115,22 @@ const RecipeBuilder = ({ inventoryItems, products, onUpdate, categories = [] }) 
                                 </div>
                             ))}
                             <button type="button" onClick={() => setIngredients([...ingredients, { inventoryItem: '', quantityUsed: '' }])} className="btn btn-sm btn-link brand-primary text-decoration-none fw-bold" style={{ fontSize: '0.8rem' }}>+ Add Ingredient</button>
+                            {equipmentUsed.map((assetId, i) => (
+                                <div key={i} className="d-flex gap-2 mb-2 align-items-center">
+                                    <select className="form-select" value={assetId} onChange={e => { const copy = [...equipmentUsed]; copy[i] = e.target.value; setEquipmentUsed(copy); }}>
+                                        <option value="">-- Equipment --</option>
+                                        {assets.map(a => <option key={a._id} value={a._id}>{a.name}</option>)}
+                                    </select>
+                                    <button type="button" onClick={() => setEquipmentUsed(equipmentUsed.filter((_, idx) => idx !== i))} className="btn btn-sm text-danger p-1 border-0 bg-transparent" title="Remove Equipment">
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+                            <button type="button" onClick={() => setEquipmentUsed([...equipmentUsed, ''])} className="btn btn-sm btn-link brand-primary text-decoration-none fw-bold d-block" style={{ fontSize: '0.8rem' }}>+ Add Equipment <span className="small text-muted">(Optional)</span></button>
                         </div>
                         <div className="card-footer bg-white border-top d-flex gap-2 py-3">
                             {editingId && (
-                                <button type="button" onClick={() => { setEditingId(null); setCategory('Service'); setVehicleType('All'); setServiceType(''); setIngredients([{ inventoryItem: '', quantityUsed: '' }]); }} className="btn btn-light w-50 rounded-3">Cancel</button>
+                                <button type="button" onClick={() => { setEditingId(null); setCategory('Service'); setVehicleType('All'); setServiceType(''); setIngredients([{ inventoryItem: '', quantityUsed: '' }]); setEquipmentUsed([]); }} className="btn btn-light w-50 rounded-3">Cancel</button>
                             )}
                             <button type="submit" className={`btn btn-save ${editingId ? 'w-50' : 'w-100'} rounded-3 shadow-sm`}>{editingId ? 'Update Recipe' : 'Save Recipe'}</button>
                         </div>
@@ -144,6 +160,11 @@ const RecipeBuilder = ({ inventoryItems, products, onUpdate, categories = [] }) 
                                                 </span>
                                             );
                                         })}
+                                        {r.equipmentUsed && r.equipmentUsed.map((equip, idx) => (
+                                            <span key={`equip-${idx}`} className="badge rounded-pill border fw-normal" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontSize: '0.65rem' }}>
+                                                {equip?.name || 'Equipment'}
+                                            </span>
+                                        ))}
                                     </div>
                                 </div>
                                 <div className="d-flex gap-1">
@@ -153,6 +174,7 @@ const RecipeBuilder = ({ inventoryItems, products, onUpdate, categories = [] }) 
                                         setVehicleType(r.vehicleType || 'All');
                                         setServiceType(r.serviceType);
                                         setIngredients(r.ingredients.map(ing => ({ inventoryItem: ing.inventoryItem?._id || ing.inventoryItem, quantityUsed: ing.quantityUsed })));
+                                        setEquipmentUsed(r.equipmentUsed ? r.equipmentUsed.map(e => e._id || e) : []);
                                     }} className="btn btn-sm border-0 p-1">
                                         <img src={editIcon} style={{ width: 14 }} alt="Edit" title='Edit Recipe' />
                                     </button>

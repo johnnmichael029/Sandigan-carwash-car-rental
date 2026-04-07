@@ -267,7 +267,7 @@ const HRISPage = ({ user }) => {
     const [historySearch, setHistorySearch] = useState('');
     const [historySearchDebounced, setHistorySearchDebounced] = useState('');
     const [historyPage, setHistoryPage] = useState(1);
-    const historyPerPage = 8;
+    const historyPerPage = 6;
 
     const [performanceRating, setPerformanceRating] = useState(5);
     const [performanceComment, setPerformanceComment] = useState('');

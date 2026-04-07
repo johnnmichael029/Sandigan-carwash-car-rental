@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import sandiganLogo from '../../assets/logo/sandigan-logo.png';
@@ -25,7 +25,7 @@ import HRISPage from '../../components/admin/hr/HRISModule';
 import InventoryPage from '../../components/admin/inventory/InventoryManager';
 import CRMPage from '../../components/admin/crm/CRMModule';
 import PromotionsPage from '../../components/admin/crm/PromotionManager';
-import ModulePlaceholder from '../../components/admin/overview/ComingSoonPlaceholder';
+import OperationsPage from '../../components/admin/operations/OperationsModule';
 import ServiceSettingsPage from '../../components/admin/inventory/ServiceManager';
 
 const ERP_ITEMS = ['finance', 'hris', 'inventory', 'crm', 'promotions', 'operations', 'accounts-payable'];
@@ -129,7 +129,7 @@ const AdminDashboard = () => {
             case 'inventory': return <InventoryPage user={user} />;
             case 'crm': return <CRMPage user={user} />;
             case 'promotions': return <PromotionsPage user={user} />;
-            case 'operations': return <ModulePlaceholder title="Project & Operations Management" icon="⚙️" description="Manage tasks, workflows, and operational efficiency." />;
+            case 'operations': return <OperationsPage user={user} />;
             case 'accounts-payable': return <VendorPayables />;
             case 'settings': return <ServiceSettingsPage user={user} />;
             default: return <AdminOverview user={user} onNavigate={setToggleActive} />;

@@ -15,6 +15,7 @@ const serviceRecipeSchema = new mongoose.Schema({
     serviceType: { type: String, required: true }, // e.g. 'Wash', 'Wax', 'SMC Card'
     vehicleType:  { type: String, default: 'All' }, // 'All', 'Sedan', 'SUV', 'N/A' (products use 'N/A')
     ingredients: [ingredientSchema],
+    equipmentUsed: [{ type: mongoose.Schema.Types.ObjectId, ref: 'asset' }] // Optional fixed assets used
 }, { timestamps: true });
 
 // Unique per category + service + vehicle combo

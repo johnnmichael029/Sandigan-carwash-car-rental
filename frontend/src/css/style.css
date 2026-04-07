@@ -120,6 +120,14 @@ html {
     background-color: var(--background-brand-linear);
 }
 
+.background-active-sidebar {
+    background-color: var(--border-outline-color);
+}
+
+.background-active-sidebar-hover:hover {
+    background-color: var(--border-outline-color);
+}
+
 .border-outline-color {
     border-color: var(--border-outline-color);
 }

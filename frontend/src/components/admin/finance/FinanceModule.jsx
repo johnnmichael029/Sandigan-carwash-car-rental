@@ -1015,7 +1015,7 @@ const FinancePage = ({ user, onNavigate }) => {
 
                                 <div className="row g-4">
                                     <div className="col-lg-8">
-                                        <div className="card border-0 shadow-sm rounded-4 overflow-hidden d-flex flex-column" style={{ minHeight: '600px' }}>
+                                        <div className="card border-0 shadow-sm rounded-4 overflow-hidden d-flex flex-column" style={{ minHeight: 580 }}>
                                             <div className="card-header bg-white py-3 border-bottom">
                                                 <div className="d-flex flex-wrap gap-3 justify-content-between align-items-center">
                                                     <div>

@@ -60,6 +60,19 @@ const bookingSchema = new Schema({
         ref: 'employee',
         default: null
     },
+    bayId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'bay',
+        default: null
+    },
+    actualStartTime: {
+        type: Date,
+        default: null
+    },
+    actualEndTime: {
+        type: Date,
+        default: null
+    },
     commission: {
         type: Number,
         default: 0

@@ -44,7 +44,7 @@ const getBookings = async (req, res) => {
             };
         }
 
-        const bookings = await Booking.find(filter).sort({ createdAt: -1 }).limit(200);
+        const bookings = await Booking.find(filter).sort({ createdAt: -1 }).limit(200).populate('bayId', 'name');
         res.status(200).json(bookings);
     }
     catch (err) {
@@ -58,7 +58,7 @@ const getBookings = async (req, res) => {
 const getBooking = async (req, res) => {
     const { id } = req.params;
     try {
-        const booking = await Booking.findById(id);
+        const booking = await Booking.findById(id).populate('bayId', 'name');
         if (!booking) {
             return res.status(404).json({ error: "Booking not found." });
         }
@@ -129,8 +129,10 @@ const createBooking = async (req, res) => {
             promoDiscount: promoDiscountVal,
             purchasedProducts,
             assignedTo: req.body.assignedTo || null,
-            detailer: req.body.detailer || null
+            detailer: req.body.detailer || null,
+            bayId: req.body.bayId || null
         });
+        await booking.populate('bayId', 'name');
 
         // Create a notification for this booking
         const serviceName = Array.isArray(serviceType) ? serviceType.join(', ') : serviceType;
@@ -248,6 +250,25 @@ const updateBooking = async (req, res) => {
             updateQuery.$push = { statusLogs: { status: req.body.status, timestamp: new Date() } };
         }
 
+        const Bay = require('../models/bayModel');
+        const oldBayId = currentBooking.bayId;
+        const newBayId = req.body.bayId !== undefined ? req.body.bayId : oldBayId;
+        const finalStatus = req.body.status || currentBooking.status;
+
+        // If bay changed, free the old bay immediately
+        if (oldBayId && oldBayId.toString() !== (newBayId ? newBayId.toString() : '')) {
+            await Bay.findByIdAndUpdate(oldBayId, { status: 'Available' }, { returnDocument: 'after', runValidators: true });
+        }
+
+        // Update the new bay's status based on the final booking status
+        if (newBayId) {
+            if (finalStatus === 'In-progress') {
+                await Bay.findByIdAndUpdate(newBayId, { status: 'Occupied' }, { returnDocument: 'after', runValidators: true });
+            } else if (['Completed', 'Cancelled', 'Pending', 'Confirmed', 'Queued'].includes(finalStatus)) {
+                await Bay.findByIdAndUpdate(newBayId, { status: 'Available' }, { returnDocument: 'after', runValidators: true });
+            }
+        }
+
         // If bookingTime changed, regenerate a fresh batchId to prevent duplicate sequences
         if (req.body.bookingTime && req.body.bookingTime !== currentBooking.bookingTime) {
             try {
@@ -287,7 +308,6 @@ const updateBooking = async (req, res) => {
         }
 
         // --- ERP Phase 2: Handle Detailer Commission ---
-        const finalStatus = req.body.status || currentBooking.status;
         const priceChanged = !!(req.body.vehicleType || req.body.serviceType);
         const statusJustCompleted = (req.body.status === 'Completed' && currentBooking.status !== 'Completed');
 
@@ -301,6 +321,7 @@ const updateBooking = async (req, res) => {
             // Calculate commission only on the service portion (Total Price minus Products)
             const commissionablePrice = Math.max(0, finalPrice - retailTotal);
             updateQuery.$set.commission = commissionablePrice * commissionRate;
+            const bayStatus = req.body.status;
             if (statusJustCompleted) updateQuery.$set.commissionStatus = 'Unpaid';
 
             // ERP Phase 3+: On first completion — deduct inventory, record expenses, revenue, update CRM
@@ -452,7 +473,7 @@ const updateBooking = async (req, res) => {
             }
         }
 
-        const booking = await Booking.findByIdAndUpdate(id, updateQuery, { returnDocument: 'after' });
+        const booking = await Booking.findByIdAndUpdate(id, updateQuery, { returnDocument: 'after' }).populate('bayId', 'name');
 
         // Resolve actor from JWT
         let actorName = 'Unknown Staff';
@@ -599,11 +620,11 @@ const getEmployeeHistory = async (req, res) => {
 
         // Map to frontend expectations
         const mappedHistory = bookings.map(b => {
-             const retailTotal = (b.purchasedProducts || []).reduce((s, p) => s + (Number(p.price || 0) * Number(p.quantity || 0)), 0);
-             const commissionablePrice = Math.max(0, (b.totalPrice || 0) - retailTotal);
-             const currentComm = commissionablePrice * commissionRate;
+            const retailTotal = (b.purchasedProducts || []).reduce((s, p) => s + (Number(p.price || 0) * Number(p.quantity || 0)), 0);
+            const commissionablePrice = Math.max(0, (b.totalPrice || 0) - retailTotal);
+            const currentComm = commissionablePrice * commissionRate;
 
-             return {
+            return {
                 _id: b._id,
                 createdAt: b.createdAt,
                 bookingId: b.batchId || b._id.toString().slice(-6).toUpperCase(),
@@ -612,7 +633,7 @@ const getEmployeeHistory = async (req, res) => {
                 commission: currentComm,
                 price: b.totalPrice || 0,
                 isAttendance: false
-             };
+            };
         });
 
         res.status(200).json({

@@ -179,12 +179,12 @@ const ActivityLogPage = () => {
                         <button
                             key={f.key}
                             onClick={() => setActiveModule(f.key)}
-                            className={`btn btn-sm btn-save ${activeModule === f.key ? '  text-white border-0 shadow-sm' : 'border text-muted'}`}
+                            className={`btn btn-sm px-4 rounded-pill ${activeModule === f.key ? ' btn-save text-white border-0 shadow-sm' : 'btn-active text-muted border'}`}
                             style={{
                                 fontSize: '0.78rem',
                                 borderRadius: '20px',
-                                px: '15px',
-                                background: activeModule === f.key ? '#23A0CE' : '#fff'
+                                px: '15px'
+
                             }}
                         >
                             {f.label}

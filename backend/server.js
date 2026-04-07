@@ -1,3 +1,4 @@
+// Sandigan API Server - v1.0.1
 if (process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
 }
@@ -37,6 +38,9 @@ const billCategoryRoutes = require('./routes/billCategoryRoutes');
 const budgetRoutes = require('./routes/budgetRoutes');
 const forecastRoutes = require('./routes/forecastRoutes');
 const ledgerRoutes = require('./routes/ledgerRoutes');
+const bayRoutes = require('./routes/bayRoutes');
+const assetRoutes = require('./routes/assetRoutes');
+const maintenanceRoutes = require('./routes/maintenanceRoutes');
 
 const path = require('path');
 
@@ -104,7 +108,16 @@ const io = new Server(server, {
 app.set('io', io);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // This is for parsing JSON bodies in POST requests
-app.use(cookieParser()); // <--- Required for CSRF protection and authentication
+app.use(cookieParser());// <--- Required for CSRF protection and authentication
+
+// Debug logger for all API requests
+app.use('/api', (req, res, next) => {
+    console.log(`[API_REQUEST] ${req.method} ${req.originalUrl}`);
+    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+        console.log('  └─ Body:', JSON.stringify(req.body, null, 2));
+    }
+    next();
+});
 
 // --- CSRF Protection (Double Submit Cookie Pattern) ---
 const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
@@ -171,6 +184,9 @@ app.use('/api/ledger', ledgerRoutes);
 app.use('/api/leaves', require('./routes/leaveRoutes'));
 app.use('/api/purchase-orders', require('./routes/purchaseOrderRoutes'));
 app.use('/api/stock-movements', require('./routes/stockMovementRoutes'));
+app.use('/api/bays', bayRoutes);
+app.use('/api/assets', assetRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
 
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {

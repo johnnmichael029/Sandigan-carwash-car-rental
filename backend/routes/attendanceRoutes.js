@@ -16,7 +16,7 @@ router.post('/approve-ot', requireAuth, adminOnly, attendanceController.approveO
 /**
  * Get today's attendance status
  */
-router.get('/today', requireAuth, adminOnly, attendanceController.getTodayStatus);
+router.get('/today', requireAuth, attendanceController.getTodayStatus);
 
 /**
  * Get all attendance logs (Admin Only)

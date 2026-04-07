@@ -283,7 +283,10 @@ const InventoryPage = ({ user }) => {
                             <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
                                 <div className="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                                     <h6 className="mb-0 fw-bold text-dark-secondary">Supply Inventory List</h6>
-                                    <button onClick={() => setShowAddModal(true)} className="btn btn-register-item btn-primary btn-sm px-3 rounded-pill shadow-sm">+ New Item</button>
+                                    <button onClick={() => setShowAddModal(true)} className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
+                                        style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600 }}>
+                                        + New Item
+                                    </button>
                                 </div>
                                 <div className="card-body p-0">
                                     <div className="table-responsive">

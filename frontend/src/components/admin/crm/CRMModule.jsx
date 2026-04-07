@@ -420,7 +420,7 @@ const CRMPage = ({ user }) => {
                     <button
                         key={tab}
                         onClick={() => setFilterTab(tab)}
-                        className={`btn btn-sm px-4 rounded-pill ${filterTab === tab ? 'btn-primary shadow-sm text-white' : 'btn-light text-muted border'}`}
+                        className={`btn btn-sm px-4 rounded-pill ${filterTab === tab ? 'btn-save btn-active shadow-sm text-white' : 'btn-active text-muted border'}`}
                         style={{ fontSize: '0.8rem', fontWeight: filterTab === tab ? '600' : '400' }}
                     >
                         {tab}
