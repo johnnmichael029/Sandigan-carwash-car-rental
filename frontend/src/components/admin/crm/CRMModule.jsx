@@ -680,6 +680,9 @@ const CRMPage = ({ user }) => {
                                         </div>
                                     )}
                                 </div>
+                                <div className="modal-footer border-0 p-4 pt-2">
+                                    <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setSelectedClient(null)} style={{ fontWeight: 600 }}>Close</button>
+                                </div>
                             </div>
                         </div>
                     </div>

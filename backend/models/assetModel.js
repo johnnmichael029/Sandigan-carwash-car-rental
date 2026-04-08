@@ -37,7 +37,21 @@ const assetSchema = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'bay',
         default: null // If stationed at a specific bay
-    }
+    },
+    description: {
+        type: String,
+        default: ''
+    },
+    lastServiceDate: {
+        type: Date,
+        default: null
+    },
+    maintenanceLogs: [{
+        date: { type: Date, default: Date.now },
+        description: { type: String, required: true },
+        performedBy: { type: String, default: 'System' },
+        laborCost: { type: Number, default: 0 }
+    }]
 }, { timestamps: true });
 
 const Asset = mongoose.model('asset', assetSchema);

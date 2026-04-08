@@ -168,7 +168,7 @@ const ServiceSettingsPage = ({ user }) => {
                         <div className="card-header bg-white border-bottom py-3">
                             <h6 className="mb-0 fw-bold text-dark-secondary">Select Vehicle</h6>
                         </div>
-                        <ul className="list-group list-group-flush" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                        <ul className="list-group list-group-flush" style={{ maxHeight: '700px', overflowY: 'auto' }}>
                             {vehicles.map(v => (
                                 <li
                                     key={v._id}

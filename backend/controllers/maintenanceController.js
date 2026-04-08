@@ -138,11 +138,20 @@ const completeMaintenanceProject = async (req, res) => {
             await expense.save();
         }
 
-        // 4. Restore the Asset status to Active & reset its usage counter
+        // 4. Restore the Asset status to Active, reset its usage counter & ADD to maintenance log
         if (project.assetId) {
-            await Asset.findByIdAndUpdate(project.assetId._id || project.assetId, {
+            const assetIdentifier = project.assetId._id || project.assetId;
+            const logEntry = {
+                date: new Date(),
+                description: `Maintenance Completed: ${project.title}. ${project.description || ''}`,
+                performedBy: project.assignedPersonnel?.fullName || 'System',
+                laborCost: Number(project.laborCost) || 0
+            };
+
+            await Asset.findByIdAndUpdate(assetIdentifier, {
                 status: 'Active',
-                usageCounter: 0
+                usageCounter: 0,
+                $push: { maintenanceLogs: logEntry }
             }, { returnDocument: 'after', runValidators: true });
         }
 

@@ -53,6 +53,7 @@ exports.updateRecipe = async (req, res) => {
  */
 exports.deductStockForBooking = async ({ serviceTypes, vehicleType }) => {
     let totalSupplyCost = 0;
+    const processedAssets = new Set();
 
     for (const serviceType of serviceTypes) {
         let recipe = await ServiceRecipe.findOne({
@@ -72,10 +73,14 @@ exports.deductStockForBooking = async ({ serviceTypes, vehicleType }) => {
 
         if (!recipe) continue;
 
-        // Increment equipment usage
+        // Increment equipment usage (Only once per asset per booking)
         if (recipe.equipmentUsed && recipe.equipmentUsed.length > 0) {
             for (const assetId of recipe.equipmentUsed) {
-                await Asset.findByIdAndUpdate(assetId, { $inc: { usageCounter: 1 } });
+                const idStr = assetId.toString();
+                if (!processedAssets.has(idStr)) {
+                    await Asset.findByIdAndUpdate(assetId, { $inc: { usageCounter: 1 } });
+                    processedAssets.add(idStr);
+                }
             }
         }
 

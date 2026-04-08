@@ -263,8 +263,8 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC }) =
                 bayId: (!formData.bayId || formData.bayId === '') ? null : formData.bayId
             };
             await axios.patch(`${API_BASE}/booking/${booking._id}`, payload, { headers: authHeaders(), withCredentials: true });
-            showToast('Booking details updated successfully.');
-            onSave(); // Re-fetch data and close
+            if (showToast) showToast('Booking details updated successfully.');
+            if (onSave) onSave(); // Re-fetch data and close
         } catch (err) {
             Swal.fire('Error', err.response?.data?.error || 'Failed to update booking details.', 'error');
         } finally {
@@ -395,12 +395,18 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC }) =
                                     </div>
                                     <div className="col-12 col-sm-6 text-start">
                                         <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Sandigan Membership Card (SMC)</label>
-                                        <div className="d-flex gap-2">
+                                        <div className="d-flex align-items-center gap-2">
                                             <input type="text" name="smcId" className="form-control form-control-sm shadow-none font-monospace text-uppercase" placeholder="Scan SMC ID" value={formData.smcId} onChange={handleChange} disabled={!editMode} />
-                                            {editMode && (
+                                            {editMode ? (
                                                 <button type="button" className="btn btn-sm btn-outline-primary shadow-none px-2" onClick={() => handleSMCVerification()} disabled={isVerifyingSMC || !formData.smcId}>
                                                     {isVerifyingSMC ? '...' : 'Verify'}
                                                 </button>
+                                            ) : (
+                                                booking.smcId && (
+                                                    <button type="button" className="btn btn-sm btn-link text-decoration-none p-0 text-primary fw-bold" style={{ fontSize: '0.75rem' }} onClick={() => onSMC && onSMC(booking._id)}>
+                                                        View Details
+                                                    </button>
+                                                )
                                             )}
                                         </div>
                                         {smcDiscountInfo.isValid && <small className="text-success d-block mt-1 fw-bold" style={{ fontSize: '0.7rem' }}>SMC Active: {smcDiscountInfo.percentage}% Off</small>}

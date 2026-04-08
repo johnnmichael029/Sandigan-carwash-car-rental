@@ -292,12 +292,12 @@ const BookingManagement = ({ employee, onNavigate }) => {
                                                 disabled={booking.status === 'Completed' || booking.status === 'Cancelled'}
                                                 onChange={(e) => handleStatusChange(booking._id, e.target.value, booking.batchId)}
                                             >
-                                                <option value="Pending" disabled={['Confirmed', 'Queued', 'Completed', 'In-progress'].includes(booking.status)}>🟡 Pending</option>
-                                                <option value="Confirmed" disabled={['Queued', 'Completed', 'In-progress'].includes(booking.status)}>🔵 Confirmed</option>
-                                                <option value="Queued" disabled={['Pending', 'Completed', 'In-progress'].includes(booking.status)}>🟣 Queued</option>
-                                                <option value="In-progress" disabled={['Pending', 'Completed'].includes(booking.status)}>🟠 In-progress</option>
-                                                <option value="Completed" >🟢 Completed</option>
-                                                <option value="Cancelled" disabled={['In-progress']}>🔴 Cancelled</option>
+                                                <option value="Pending" disabled={['Confirmed', 'Queued', 'Completed', 'In-progress', 'Cancelled'].includes(booking.status)}>🟡 Pending</option>
+                                                <option value="Confirmed" disabled={['Queued', 'Completed', 'In-progress', 'Cancelled'].includes(booking.status)}>🔵 Confirmed</option>
+                                                <option value="Queued" disabled={['Pending', 'Completed', 'In-progress', 'Cancelled'].includes(booking.status)}>🟣 Queued</option>
+                                                <option value="In-progress" disabled={['Pending', 'Completed', 'Cancelled'].includes(booking.status)}>🟠 In-progress</option>
+                                                <option value="Completed" disabled={['Pending', 'Queued', 'Cancelled'].includes(booking.status)}>🟢 Completed</option>
+                                                <option value="Cancelled" disabled={['In-progress', 'Completed'].includes(booking.status)}>🔴 Cancelled</option>
                                             </select>
                                         </td>
                                         <td>
@@ -361,15 +361,17 @@ const BookingManagement = ({ employee, onNavigate }) => {
             {selectedBooking && (
                 <BookingModal
                     booking={selectedBooking}
-                    onClose={() => {
+                    showToast={showToast}
+                    onSave={() => {
                         setSelectedBooking(null);
                         fetchBookings();
                     }}
+                    onClose={() => setSelectedBooking(null)}
                     onPrint={(booking) => {
                         setReceiptBooking(booking);
                         setIsReceiptModalOpen(true);
                     }}
-                    onShowSMC={handleShowSMC}
+                    onSMC={handleShowSMC}
                 />
             )}
 

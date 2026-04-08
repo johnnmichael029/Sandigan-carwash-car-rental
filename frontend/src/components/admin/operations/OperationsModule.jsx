@@ -38,16 +38,63 @@ const OperationsModule = ({ user }) => {
     useEffect(() => { fetchAll(); }, []);
 
     // KPI calculations
-    const availableBays = bays.filter(b => b.status === 'Available').length;
-    const maintenanceBays = bays.filter(b => b.status === 'Maintenance').length;
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const monthlyMaintenanceTotal = projects
+        .filter(p => p.status === 'Completed' && p.updatedAt)
+        .filter(p => {
+            const d = new Date(p.updatedAt);
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        })
+        .reduce((sum, p) => {
+            const labor = Number(p.laborCost) || 0;
+            const parts = (p.partsUsed || []).reduce((s, part) => s + (Number(part.costPerUnit) * Number(part.quantity)), 0);
+            return sum + labor + parts;
+        }, 0);
+
+    const assetAvailability = assets.length > 0 ? Math.round((assets.filter(a => a.status === 'Active').length / assets.length) * 100) : 100;
     const degradedAssets = assets.filter(a => a.status === 'Degraded').length;
     const activeProjects = projects.filter(p => p.status === 'Pending' || p.status === 'In Progress').length;
 
     const kpiCards = [
-        { title: 'Available Bays', value: availableBays.toLocaleString(), icon: '🟢', color: '#22c55e', bg: 'linear-gradient(135deg,#22c55e15,#22c55e05)', dot: '#22c55e', desc: `Out of ${bays.length} total bays` },
-        { title: 'Bays in Maint.', value: maintenanceBays.toLocaleString(), icon: '🔧', color: '#f43f5e', bg: 'linear-gradient(135deg,#f43f5e15,#f43f5e05)', dot: '#f43f5e', desc: 'Bays currently offline' },
-        { title: 'Degraded Assets', value: degradedAssets.toLocaleString(), icon: '⚠️', color: '#f59e0b', bg: 'linear-gradient(135deg,#f59e0b15,#f59e0b05)', dot: '#f59e0b', desc: 'Equipment needing service' },
-        { title: 'Active Projects', value: activeProjects.toLocaleString(), icon: '📋', color: '#3b82f6', bg: 'linear-gradient(135deg,#3b82f615,#3b82f605)', dot: '#3b82f6', desc: 'Repairs in progress' },
+        { 
+            title: 'Maint. Spend (Mo)', 
+            value: `₱${monthlyMaintenanceTotal.toLocaleString()}`, 
+            icon: '💰', 
+            color: '#10b981', 
+            bg: 'linear-gradient(135deg,#10b98115,#10b98105)', 
+            dot: '#10b981', 
+            desc: 'Total costs for this month' 
+        },
+        { 
+            title: 'Equip. Availability', 
+            value: `${assetAvailability}%`, 
+            icon: '⚡', 
+            color: '#8b5cf6', 
+            bg: 'linear-gradient(135deg,#8b5cf615,#8b5cf605)', 
+            dot: '#8b5cf6', 
+            desc: 'Ratio of active assets' 
+        },
+        { 
+            title: 'Critical Health', 
+            value: degradedAssets.toLocaleString(), 
+            icon: '⚠️', 
+            color: '#f59e0b', 
+            bg: 'linear-gradient(135deg,#f59e0b15,#f59e0b05)', 
+            dot: '#f59e0b', 
+            desc: 'Assets needing intervention' 
+        },
+        { 
+            title: 'Active Projects', 
+            value: activeProjects.toLocaleString(), 
+            icon: '📋', 
+            color: '#3b82f6', 
+            bg: 'linear-gradient(135deg,#3b82f615,#3b82f605)', 
+            dot: '#3b82f6', 
+            desc: 'Ongoing service requests' 
+        },
     ];
     return (
         <div className="animate-fade-in ">

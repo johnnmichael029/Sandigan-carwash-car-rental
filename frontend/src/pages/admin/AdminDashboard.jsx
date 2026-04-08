@@ -27,6 +27,9 @@ import CRMPage from '../../components/admin/crm/CRMModule';
 import PromotionsPage from '../../components/admin/crm/PromotionManager';
 import OperationsPage from '../../components/admin/operations/OperationsModule';
 import ServiceSettingsPage from '../../components/admin/inventory/ServiceManager';
+import adminLogoutIcon from '../../assets/icon/employee-logout.png'
+import collapseIcon from '../../assets/icon/collapse.png'
+import logoIcon from '../../assets/logo/logo.png'
 
 const ERP_ITEMS = ['finance', 'hris', 'inventory', 'crm', 'promotions', 'operations', 'accounts-payable'];
 
@@ -42,6 +45,7 @@ const AdminDashboard = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [toggleActive, setToggleActive] = useState('dashboard');
     const [isERPOpen, setIsERPOpen] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     /* ── Rehydrate + role guard ── */
     useEffect(() => {
@@ -102,7 +106,6 @@ const AdminDashboard = () => {
 
         const resetTimer = () => {
             clearTimeout(timeoutId);
-            // 15 minutes = 15 * 60 * 1000 = 900000 ms
             timeoutId = setTimeout(() => {
                 handleLogout(true);
             }, 900000);
@@ -111,13 +114,12 @@ const AdminDashboard = () => {
         const events = ['mousemove', 'keydown', 'wheel', 'click', 'scroll', 'touchstart'];
         events.forEach(event => window.addEventListener(event, resetTimer));
 
-        resetTimer(); // Initialize on mount
+        resetTimer();
 
         return () => {
             clearTimeout(timeoutId);
             events.forEach(event => window.removeEventListener(event, resetTimer));
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const renderContent = () => {
@@ -144,83 +146,146 @@ const AdminDashboard = () => {
         );
     }
 
+    const sidebarWidth = isCollapsed ? '85px' : '260px';
+
     return (
-        <div className="container-fluid p-0">
-            <div className="d-flex w-100">
+        <div className="container-fluid p-0 font-poppins" style={{ height: '100vh', overflow: 'hidden' }}>
+            <div className="d-flex w-100" style={{ height: '100vh', overflow: 'hidden' }}>
 
                 {/* ─── SIDEBAR ─── */}
-                <nav className="sidebar-container sidebar vh-100 d-flex flex-column" style={{ position: 'sticky', top: 0 }}>
+                <nav className="sidebar-container d-flex flex-column shadow" style={{
+                    width: sidebarWidth,
+                    minWidth: sidebarWidth,
+                    height: '100vh',
+                    transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    zIndex: 1001,
+                    overflow: 'visible',
+                    position: 'relative',
+                    flexShrink: 0
+                }}>
 
-                    {/* Logo */}
-                    <div className="brand-container border-bottom w-100 d-flex justify-content-center align-items-center">
-                        <img className="sandigan-logo" src={sandiganLogo} alt="Sandigan Logo" style={{ width: '65%', objectFit: 'contain' }} />
+                    {/* Floating Collapse Button */}
+                    <div
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className="shadow d-flex align-items-center justify-content-center"
+                        style={{
+                            position: 'absolute',
+                            right: '-15px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '40px',
+                            height: '40px',
+                            backgroundColor: '#002525',
+                            borderRadius: '50%',
+                            cursor: 'pointer',
+                            border: '1px solid #23A0CE',
+                            zIndex: 1002,
+                            transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(-50%) scale(1)'}
+                    >
+                        <img
+                            src={collapseIcon}
+                            alt="Toggle"
+                            style={{
+                                width: '18px',
+                                opacity: 0.8,
+                                transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)'
+                            }}
+                        />
                     </div>
 
-                    {/* Nav links */}
-                    <ul className="nav flex-column w-100 flex-grow-1 pt-2" style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
+                    {/* Logo Section */}
+                    <div className="brand-container border-bottom w-100 d-flex justify-content-center align-items-center px-2">
+                        <img
+                            className="sandigan-logo transition-all"
+                            src={isCollapsed ? logoIcon : sandiganLogo}
+                            alt="Sandigan Logo"
+                            style={{
+                                width: isCollapsed ? '35px' : '50%',
+                                objectFit: 'contain',
+                                transition: 'all 0.3s ease'
+                            }}
+                        />
+                    </div>
+
+                    {/* Navigation Links */}
+                    <ul className="nav flex-column w-100 flex-grow-1 pt-3 overflow-x-hidden pt-2 custom-sidebar-scroll" style={{
+                        listStyleType: 'none',
+                        padding: 0,
+                        margin: 0,
+                        overflowY: 'auto',
+                        overflowX: 'hidden'
+                    }}>
 
                         {/* Dashboard */}
-                        <li className="nav-item w-100">
+                        <li className="nav-item w-100 mb-1">
                             <button
-                                id="admin-nav-dashboard"
-                                className={`nav-link ps-4 w-100 d-flex align-items-center ${toggleActive === 'dashboard' ? 'active' : ''}`}
+                                className={`nav-link w-100 d-flex align-items-center transition-all ${toggleActive === 'dashboard' ? 'active' : ''}`}
                                 onClick={() => setToggleActive('dashboard')}
+                                style={{ paddingLeft: isCollapsed ? '32px' : '24px' }}
                             >
-                                <img className="pe-2" src={dashboardIcon} alt="Dashboard Icon" />
-                                Dashboard
+                                <img src={dashboardIcon} style={{ width: 20, minWidth: 20 }} alt="Dashboard" />
+                                {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap">Dashboard</span>}
                             </button>
                         </li>
 
-                        {/* Activity Log nav item — standalone, before ERP */}
-                        <li className="nav-item w-100">
+                        {/* Activity Log */}
+                        <li className="nav-item w-100 mb-1">
                             <button
-                                id="admin-nav-activity-log"
-                                className={`nav-link ps-4 w-100 d-flex align-items-center ${toggleActive === 'activity-log' ? 'active' : ''}`}
+                                className={`nav-link w-100 d-flex align-items-center transition-all ${toggleActive === 'activity-log' ? 'active' : ''}`}
                                 onClick={() => setToggleActive('activity-log')}
+                                style={{ paddingLeft: isCollapsed ? '32px' : '24px' }}
                             >
-                                <img className="pe-2" src={activityLogs} alt="Activity Log Icon" />
-                                Activity Log
+                                <img src={activityLogs} style={{ width: 20, minWidth: 20 }} alt="Logs" />
+                                {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap">Activity Log</span>}
                             </button>
                         </li>
 
-                        {/* Enterprise Management (ERP parent) */}
-                        <li className="nav-item w-100">
+                        {/* Enterprise Management */}
+                        <li className="nav-item w-100 mb-1">
                             <div
-                                id="admin-nav-erp"
-                                className={`nav-link ps-4 d-flex justify-content-between align-items-center ${ERP_ITEMS.includes(toggleActive) ? 'active' : ''}`}
-                                onClick={() => setIsERPOpen(prev => !prev)}
-                                style={{ cursor: 'pointer' }}
+                                className={`nav-link d-flex justify-content-between align-items-center transition-all ${ERP_ITEMS.includes(toggleActive) ? 'active' : ''}`}
+                                onClick={() => {
+                                    if (isCollapsed) setIsCollapsed(false);
+                                    setIsERPOpen(prev => !prev);
+                                }}
+                                style={{ cursor: 'pointer', paddingLeft: isCollapsed ? '32px' : '24px' }}
                             >
-                                <div className="d-flex align-items-center gap-2">
-                                    <img src={carService} alt="ERP Icon" />
-                                    <span>Enterprise Management</span>
+                                <div className="d-flex align-items-center">
+                                    <img src={carService} style={{ width: 20, minWidth: 20 }} alt="ERP" />
+                                    {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap">Enterprise Management</span>}
                                 </div>
-                                <img
-                                    src={isERPOpen ? upArrow : downArrow}
-                                    alt={isERPOpen ? 'Collapse' : 'Expand'}
-                                    style={{ width: '12px', marginRight: '12px' }}
-                                />
+                                {!isCollapsed && (
+                                    <img
+                                        src={isERPOpen ? upArrow : downArrow}
+                                        alt="toggle"
+                                        style={{ width: '10px', marginRight: '8px', opacity: 0.6 }}
+                                    />
+                                )}
                             </div>
                         </li>
 
-                        {/* ERP Sub-menu */}
-                        {isERPOpen && (
-                            <li className="nav-item w-100 animate-fade-in" style={{ height: 'auto' }}>
-                                <ul style={{ listStyleType: 'none', padding: 0, margin: 0, width: '100%' }}>
+                        {/* Sub Menu */}
+                        {isERPOpen && !isCollapsed && (
+                            <li className="w-100 animate-fade-in" >
+                                <ul className="ps-0 w-100">
                                     {[
-                                        { key: 'finance', icon: <img src={financeIcon} style={{ width: '16px' }} alt="Finance Icon" />, label: 'Finance' },
-                                        { key: 'accounts-payable', icon: <img src={accountPayableIcon} style={{ width: '16px' }} alt="Account Payable Icon" />, label: 'Vendor Payables' },
-                                        { key: 'hris', icon: <img src={humanResourcIcon} style={{ width: '16px' }} alt="HRIS Icon" />, label: 'HRIS' },
-                                        { key: 'inventory', icon: <img src={inventoryIcon} style={{ width: '16px' }} alt="Inventory Icon" />, label: 'Inventory' },
-                                        { key: 'crm', icon: <img src={salesIcon} style={{ width: '16px' }} alt="CRM Icon" />, label: 'CRM' },
-                                        { key: 'promotions', icon: <img src={promotionIcon} style={{ width: '16px' }} alt="Promos Icon" />, label: 'Promotions' },
-                                        { key: 'operations', icon: <img src={operationIcon} style={{ width: '16px' }} alt="Operations Icon" />, label: 'Operations' },
+                                        { key: 'finance', icon: <img src={financeIcon} style={{ width: '16px' }} alt="" />, label: 'Finance' },
+                                        { key: 'accounts-payable', icon: <img src={accountPayableIcon} style={{ width: '16px' }} alt="" />, label: 'Payables' },
+                                        { key: 'hris', icon: <img src={humanResourcIcon} style={{ width: '16px' }} alt="" />, label: 'HRIS' },
+                                        { key: 'inventory', icon: <img src={inventoryIcon} style={{ width: '16px' }} alt="" />, label: 'Inventory' },
+                                        { key: 'crm', icon: <img src={salesIcon} style={{ width: '16px' }} alt="" />, label: 'CRM' },
+                                        { key: 'promotions', icon: <img src={promotionIcon} style={{ width: '16px' }} alt="" />, label: 'Promotions' },
+                                        { key: 'operations', icon: <img src={operationIcon} style={{ width: '16px' }} alt="" />, label: 'Operations' },
                                     ].map(item => (
-                                        <li className="nav-item w-100" key={item.key}>
+                                        <li key={item.key}>
                                             <button
-                                                id={`admin-nav-${item.key}`}
                                                 className={`nav-link ps-5 w-100 d-flex align-items-center gap-2 ${toggleActive === item.key ? 'active' : ''}`}
                                                 onClick={() => setToggleActive(item.key)}
+                                                style={{ fontSize: '0.8rem', height: '40px' }}
                                             >
                                                 {item.icon} {item.label}
                                             </button>
@@ -231,52 +296,63 @@ const AdminDashboard = () => {
                         )}
 
                         {/* Service Settings */}
-                        <li className="nav-item w-100">
+                        <li className="nav-item w-100 mb-1">
                             <button
-                                id="admin-nav-settings"
-                                className={`nav-link ps-4 w-100 d-flex align-items-center ${toggleActive === 'settings' ? 'active' : ''}`}
+                                className={`nav-link w-100 d-flex align-items-center transition-all ${toggleActive === 'settings' ? 'active' : ''}`}
                                 onClick={() => setToggleActive('settings')}
+                                style={{ paddingLeft: isCollapsed ? '32px' : '24px' }}
                             >
-                                <img className="pe-2" style={{ width: '24px' }} src={settingsIcon} alt="Settings Icon" />
-                                Service Settings
+                                <img src={settingsIcon} style={{ width: 20, minWidth: 20 }} alt="Settings" />
+                                {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap">Service Settings</span>}
                             </button>
                         </li>
 
                     </ul>
 
-                    {/* Footer: user info + logout */}
-                    <div className="border-top p-3">
-                        <div className="d-flex align-items-center gap-2 mb-2 ps-1">
+                    {/* Footer Section */}
+                    <div className="border-top p-3 transition-all mt-auto" style={{ background: 'rgba(0,0,0,0.1)', flexShrink: 0 }}>
+                        <div className={`d-flex align-items-center ${isCollapsed ? 'justify-content-center' : 'gap-3'} mb-3`}>
                             <div style={{
-                                width: 32, height: 32, borderRadius: '50%',
+                                width: 34, height: 34, borderRadius: '50%',
                                 background: 'rgba(0, 232, 233, 0.12)',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                color: '#00e8e9', fontWeight: 600, fontSize: '0.8rem', flexShrink: 0,
+                                color: '#00e8e9', fontWeight: 600, fontSize: '0.85rem', flexShrink: 0,
+                                border: '1px solid rgba(0, 232, 233, 0.2)'
                             }}>
                                 {user?.fullName?.charAt(0)?.toUpperCase() ?? 'A'}
                             </div>
-                            <div style={{ overflow: 'hidden' }}>
-                                <p className="mb-0 text-secondary font-poppins" style={{ fontSize: '0.8rem', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {user?.fullName ?? 'Administrator'}
-                                </p>
-                                <p className="mb-0 font-poppins text-light-gray300" style={{ fontSize: '0.7rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    Admin
-                                </p>
-                            </div>
+                            {!isCollapsed && (
+                                <div style={{ overflow: 'hidden' }} className="animate-fade-in">
+                                    <p className="mb-0 text-white opacity-90 text-nowrap" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                        {user?.fullName ?? 'Administrator'}
+                                    </p>
+                                    <p className="mb-0 text-light-gray300" style={{ fontSize: '0.65rem' }}>Full Admin Control</p>
+                                </div>
+                            )}
                         </div>
                         <button
-                            id="admin-btn-logout"
-                            className="btn btn-outline-danger btn-sm w-100"
+                            className={`btn btn-outline-danger btn-sm w-100 d-flex align-items-center ${isCollapsed ? 'justify-content-center' : 'justify-content-center'} gap-2`}
                             onClick={handleLogout}
-                            style={{ fontSize: '0.8rem', borderColor: 'var(--border-outline-color)' }}
+                            style={{
+                                fontSize: '0.8rem',
+                                border: isCollapsed ? 'none' : '1px solid var(--border-outline-color)',
+                                padding: isCollapsed ? '8px 0' : '8px 12px'
+                            }}
+                            title={isCollapsed ? 'Log Out' : ''}
                         >
-                            Log Out
+                            <img src={adminLogoutIcon} alt="" style={{ width: 16 }} />
+                            {!isCollapsed && <span className="animate-fade-in">Log Out</span>}
                         </button>
                     </div>
                 </nav>
 
-                {/* ─── MAIN CONTENT ─── */}
-                <main className="right-content-container flex-grow-1 pt-4 px-4" style={{ minHeight: '100vh', background: 'var(--background-light-primary)' }}>
+                {/* Main Content Area */}
+                <main className="right-content-container flex-grow-1 pt-4 px-4" style={{
+                    height: '100vh',
+                    overflowY: 'auto',
+                    background: 'var(--background-light-primary)',
+                    transition: 'all 0.3s ease'
+                }}>
                     {renderContent()}
                 </main>
 
@@ -284,6 +360,5 @@ const AdminDashboard = () => {
         </div>
     );
 };
-
 
 export default AdminDashboard;
