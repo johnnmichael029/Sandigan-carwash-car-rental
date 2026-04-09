@@ -10,9 +10,14 @@ import { QRCodeCanvas } from 'qrcode.react';
 import editIcon from '../../../assets/icon/edit.png';
 import deleteIcon from '../../../assets/icon/delete.png';
 import AdminModalWrapper from '../shared/AdminModalWrapper';
+import SharedSearchBar from '../shared/SharedSearchBar';
+import { filterDataBySearch } from '../shared/searchUtils';
+import leftArrowIcon from '../../../assets/icon/left-arrow.png';
+import rightArrowIcon from '../../../assets/icon/right-arrow.png';
+import getPaginationRange from '../getPaginationRange';
 import sandiganLogo from '../../../assets/logo/sandigan-logo.png';
 
-const CRMPage = ({ user }) => {
+const CRMPage = ({ user, isDark }) => {
     const [customers, setCustomers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
@@ -22,6 +27,8 @@ const CRMPage = ({ user }) => {
     const [clientStats, setClientStats] = useState(null); // Fetch detailed history when viewing 360
     const [isSavingNotes, setIsSavingNotes] = useState(false);
     const [notesText, setNotesText] = useState('');
+    const [page, setPage] = useState(1);
+    const PER_PAGE = 4;
 
     // Add Client State
     const [showAddClientModal, setShowAddClientModal] = useState(false);
@@ -332,18 +339,28 @@ const CRMPage = ({ user }) => {
     const avgLtv = totalClients > 0 ? customers.reduce((sum, c) => sum + (c.lifetimeSpend || 0), 0) / totalClients : 0;
     const smcMembersCount = customers.filter(c => c.activeTags?.includes('SMC')).length;
 
-    const filteredCustomers = customers.filter(c => {
-        const matchesSearch = c.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            c.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            c.email.toLowerCase().includes(searchTerm.toLowerCase());
-        if (!matchesSearch) return false;
-        if (filterTab === 'All') return true;
-        if (filterTab === 'VIP') return c.activeTags?.includes('VIP');
-        if (filterTab === 'SMC') return c.activeTags?.includes('SMC');
-        if (filterTab === 'Churn Risk') return c.activeTags?.includes('Churn Risk');
-        if (filterTab === 'New Arrivals') return c.activeTags?.includes('New Customer');
-        return true;
-    });
+    const searchedCustomers = useMemo(() => {
+        return filterDataBySearch(customers, searchTerm, ['firstName', 'lastName', 'email', 'phone', 'notes']);
+    }, [customers, searchTerm]);
+
+    const filteredCustomers = useMemo(() => {
+        return searchedCustomers.filter(c => {
+            if (filterTab === 'All') return true;
+            if (filterTab === 'VIP') return c.activeTags?.includes('VIP');
+            if (filterTab === 'SMC') return c.activeTags?.includes('SMC');
+            if (filterTab === 'Churn Risk') return c.activeTags?.includes('Churn Risk');
+            if (filterTab === 'New Arrivals') return c.activeTags?.includes('New Customer');
+            return true;
+        });
+    }, [searchedCustomers, filterTab]);
+
+    const totalPages = Math.ceil(filteredCustomers.length / PER_PAGE);
+    const paginatedCustomers = useMemo(() => {
+        return filteredCustomers.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+    }, [filteredCustomers, page]);
+
+    // Reset page on filter/search change
+    useEffect(() => { setPage(1); }, [searchTerm, filterTab]);
 
     if (isLoading) return <div className="p-4"><CRMSkeleton /></div>;
 
@@ -352,7 +369,7 @@ const CRMPage = ({ user }) => {
             {/* Header */}
             <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
                 <div>
-                    <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>Client Relations (CRM)</h4>
+                    <h4 className="mb-0 font-poppins" style={{ fontWeight: 700, color: 'var(--theme-content-text)' }}>Client Relations (CRM)</h4>
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Track client loyalty, lifetime value, and retention</p>
                 </div>
                 <div className="d-flex gap-2">
@@ -395,7 +412,7 @@ const CRMPage = ({ user }) => {
                     { title: "SMC Members", value: smcMembersCount.toLocaleString(), icon: "", color: "#f43f5e", bg: "linear-gradient(135deg,#f43f5e15,#f43f5e05)", dot: "#f43f5e", desc: "Active SMC Members" },
                 ].map((card, idx) => (
                     <div className="col-6 col-md-3" key={idx}>
-                        <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden" style={{ background: '#fff' }}>
+                        <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden" style={{ background: 'var(--theme-card-bg)' }}>
                             <div style={{ position: 'absolute', top: '-15%', right: '-10%', width: '80px', height: '80px', background: card.color, filter: 'blur(30px)', opacity: 0.15 }} />
                             <div className="p-3 position-relative">
                                 <div className="position-absolute top-0 end-0 p-3">
@@ -405,9 +422,9 @@ const CRMPage = ({ user }) => {
                                     style={{ width: '40px', height: '40px', background: card.bg, fontSize: '1.2rem' }}>
                                     {card.icon}
                                 </div>
-                                <p className="font-poppins mb-1" style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#9ca3af' }}>{card.title}</p>
+                                <p className="font-poppins mb-1" style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--theme-content-text-secondary)' }}>{card.title}</p>
                                 <h3 className="mb-1 font-poppins fw-bold" style={{ color: card.color, fontSize: '1.6rem', lineHeight: 1 }}>{card.value}</h3>
-                                <small style={{ color: '#9ca3af', fontSize: '0.72rem' }}>{card.desc}</small>
+                                <small style={{ color: 'var(--theme-content-text-secondary)', fontSize: '0.72rem' }}>{card.desc}</small>
                             </div>
                         </div>
                     </div>
@@ -429,22 +446,21 @@ const CRMPage = ({ user }) => {
             </div>
 
             {/* Client Directory */}
-            <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-                <div className="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-                    <h6 className="mb-0 fw-bold text-dark-secondary">Customer Directory</h6>
-                    <input
-                        type="text"
-                        className="form-control form-control-sm rounded-pill px-3 bg-light border-0 w-100"
+            <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style={{ minHeight: 474 }}>
+                <div className="card-header border-bottom py-3 d-flex justify-content-between align-items-center" style={{ background: 'var(--theme-card-header-bg)' }}>
+                    <h6 className="mb-0 fw-bold" style={{ color: 'var(--theme-content-text)' }}>Customer Directory</h6>
+                    <SharedSearchBar
+                        searchTerm={searchTerm}
+                        onDebouncedSearch={(val) => setSearchTerm(val)}
                         placeholder="Search by name, email..."
-                        style={{ maxWidth: '280px' }}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        debounceDelay={400}
+                        width="280px"
                     />
                 </div>
                 <div className="card-body p-0">
                     <div className="table-responsive">
                         <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.85rem' }}>
-                            <thead className="bg-light font-poppins text-muted small">
+                            <thead className="small" style={{ background: 'var(--theme-card-header-bg)', color: 'var(--theme-content-text)' }}>
                                 <tr>
                                     <th className="ps-4 py-3">Client Profile</th>
                                     <th>Total Spend</th>
@@ -454,14 +470,14 @@ const CRMPage = ({ user }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredCustomers.length === 0 ? (
+                                {paginatedCustomers.length === 0 ? (
                                     <tr>
                                         <td colSpan="5" className="p-5 text-center text-muted">
                                             No clients found.
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredCustomers.map(client => (
+                                    paginatedCustomers.map(client => (
                                         <tr key={client._id} style={{ cursor: 'pointer' }} onClick={() => handleOpen360(client)}>
                                             <td className="ps-4 py-3">
                                                 <div className="d-flex align-items-center gap-3">
@@ -502,12 +518,52 @@ const CRMPage = ({ user }) => {
                         </table>
                     </div>
                 </div>
+                {/* Standard Pagination Footer */}
+                {filteredCustomers.length > PER_PAGE && (
+                    <div className="card-footer border-top py-3 d-flex justify-content-between align-items-center" style={{ background: 'var(--theme-card-bg)' }}>
+                        <div className="text-muted" style={{ fontSize: '0.8rem' }}>
+                            Showing {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, filteredCustomers.length)} of {filteredCustomers.length}
+                        </div>
+                        <div className="d-flex align-items-center gap-1">
+                            <button
+                                className="btn btn-sm p-0 rounded-circle border-0"
+                                disabled={page === 1}
+                                onClick={() => setPage(page - 1)}
+                                style={{ width: '30px', height: '30px', background: page === 1 ? 'transparent' : 'var(--theme-badge-muted-bg)', opacity: page === 1 ? 0.3 : 1 }}
+                            >
+                                <img src={leftArrowIcon} style={{ width: '9px' }} alt="prev" />
+                            </button>
+                            {getPaginationRange(page, totalPages).map((p, idx) => (
+                                p === '...' ? (
+                                    <span key={`dot-${idx}`} className="px-1 text-muted" style={{ fontSize: '0.8rem' }}>...</span>
+                                ) : (
+                                    <button
+                                        key={`p-${p}`}
+                                        onClick={() => setPage(p)}
+                                        className={`btn btn-sm p-0 rounded-circle border-0 fw-bold transition-all ${page === p ? 'btn-save text-white shadow-sm' : 'text-muted'}`}
+                                        style={{ width: '30px', height: '30px', fontSize: '0.78rem', background: page === p ? '' : 'transparent' }}
+                                    >
+                                        {p}
+                                    </button>
+                                )
+                            ))}
+                            <button
+                                className="btn btn-sm p-0 rounded-circle border-0"
+                                disabled={page >= totalPages}
+                                onClick={() => setPage(page + 1)}
+                                style={{ width: '30px', height: '30px', background: page >= totalPages ? 'transparent' : 'var(--theme-badge-muted-bg)', opacity: page >= totalPages ? 0.3 : 1 }}
+                            >
+                                <img src={rightArrowIcon} style={{ width: '9px' }} alt="next" />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Client 360 Slide-out Modal */}
             {selectedClient && (
                 <AdminModalWrapper show={!!selectedClient} onClose={() => setSelectedClient(null)} dialogStyle={{ maxWidth: '800px' }}>
-                    <div className="modal-content border-0 rounded-4 shadow overflow-hidden">
+                    <div className="modal-content border-0 rounded-4 shadow overflow-hidden" style={{ background: 'var(--theme-card-bg)' }}>
                         {/* Modal Header Profile */}
                         <div className="modal-header border-0 pb-4 pt-5 px-5 position-relative" style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
                             <button type="button" className="btn-close btn-close-white position-absolute top-0 end-0 m-3" onClick={() => setSelectedClient(null)} />
@@ -542,7 +598,7 @@ const CRMPage = ({ user }) => {
                         <div className="modal-body p-0">
                             <div className="row g-0">
                                 {/* Left Column */}
-                                <div className="col-md-5 p-4 border-end bg-light" style={{ minHeight: '420px' }}>
+                                <div className="col-md-5 p-4 border-end" style={{ minHeight: '420px', background: 'var(--theme-card-header-bg)' }}>
                                     <h6 className="fw-bold text-dark-secondary mb-3">Quick Actions</h6>
                                     <div className="d-flex gap-2 mb-4">
                                         {selectedClient.email === 'walkin@example.com' ? (
@@ -553,7 +609,7 @@ const CRMPage = ({ user }) => {
                                         ) : (
                                             <>
                                                 <a href={`mailto:${selectedClient.email}`} className="btn btn-save btn-sm flex-fill rounded-3 shadow-sm text-decoration-none">Send Email</a>
-                                                <a href={`tel:${selectedClient.phone}`} className="btn btn-call btn-sm flex-fill rounded-3 text-decoration-none">Call</a>
+                                                <a href={`tel:${selectedClient.phone}`} className="btn btn-call btn-sm flex-fill rounded-3 text-decoration-none" style={{ color: 'var(--theme-text-secondary)' }}>Call</a>
                                             </>
                                         )}
                                     </div>
@@ -562,7 +618,7 @@ const CRMPage = ({ user }) => {
                                     <h6 className="fw-bold text-dark-secondary mb-2">Membership</h6>
                                     <div className="mb-4">
                                         {selectedClient.hasSMC ? (
-                                            <div className="d-flex align-items-center gap-2 p-2 px-3 border rounded-3 bg-white" style={{ borderColor: '#22c55e', borderLeft: '4px solid #22c55e' }}>
+                                            <div className="d-flex align-items-center gap-2 p-2 px-3 border rounded-3" style={{ borderColor: '#22c55e', borderLeft: '4px solid #22c55e', background: 'var(--theme-card-bg)' }}>
                                                 <div className="flex-grow-1">
                                                     <div className="fw-bold d-flex align-items-center gap-1" style={{ fontSize: '0.85rem', color: '#d97706' }}>SMC Active</div>
                                                     <div className="text-muted" style={{ fontSize: '0.75rem', fontFamily: 'monospace' }}>{selectedClient.smcId}</div>
@@ -594,9 +650,9 @@ const CRMPage = ({ user }) => {
                                                     className="badge rounded-pill border-0"
                                                     style={{
                                                         fontSize: '0.72rem', cursor: 'pointer', padding: '6px 12px', fontWeight: 600,
-                                                        background: isActive ? tag.color : '#f1f5f9',
-                                                        color: isActive ? tag.textColor : '#64748b',
-                                                        border: `1.5px solid ${isActive ? tag.color : '#e2e8f0'}`,
+                                                        background: isActive ? tag.color : 'var(--theme-badge-muted-bg)',
+                                                        color: isActive ? tag.textColor : 'var(--theme-content-text-secondary)',
+                                                        border: `1.5px solid ${isActive ? tag.color : 'var(--theme-content-border)'}`,
                                                         opacity: isActive ? 1 : 0.75,
                                                     }}
                                                     title={tag.description || ''}
@@ -622,7 +678,7 @@ const CRMPage = ({ user }) => {
                                         placeholder="Add instructions or preferences..."
                                         value={notesText}
                                         onChange={(e) => setNotesText(e.target.value)}
-                                        style={{ fontSize: '0.85rem', resize: 'none' }}
+                                        style={{ fontSize: '0.85rem', resize: 'none', background: 'var(--theme-card-bg)', color: 'var(--theme-content-text)' }}
                                     />
                                     <button
                                         onClick={handleSaveNotes}
@@ -637,7 +693,7 @@ const CRMPage = ({ user }) => {
                                             <h6 className="fw-bold text-dark-secondary mb-2">Known Vehicles</h6>
                                             <div className="d-flex flex-wrap gap-2">
                                                 {selectedClient.vehicles.map(v => (
-                                                    <span key={v} className="badge bg-white text-dark border rounded-pill px-3 py-2 shadow-sm" style={{ fontSize: '0.75rem' }}>{v}</span>
+                                                    <span key={v} className="badge border rounded-pill px-3 py-2 shadow-sm" style={{ fontSize: '0.75rem', color: 'var(--theme-content-text)', background: 'var(--theme-card-bg)' }}>{v}</span>
                                                 ))}
                                             </div>
                                         </div>
@@ -645,7 +701,7 @@ const CRMPage = ({ user }) => {
                                 </div>
 
                                 {/* Right Column (Transaction History) */}
-                                <div className="col-md-7 p-4 bg-white">
+                                <div className="col-md-7 p-4" style={{ background: 'var(--theme-card-bg)' }}>
                                     <h6 className="fw-bold text-dark-secondary mb-3">Transaction Timeline</h6>
                                     {!clientStats ? (
                                         <div className="text-center p-4"><div className="spinner-border text-primary spinner-border-sm" /> Loading history...</div>
@@ -654,8 +710,8 @@ const CRMPage = ({ user }) => {
                                     ) : (
                                         <div style={{ maxHeight: '680px', overflowY: 'auto' }} className="pe-2 custom-scrollbar">
                                             {clientStats.history.map((booking, idx) => (
-                                                <div key={booking._id} className="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom border-light">
-                                                    <div className="rounded-circle bg-light d-flex align-items-center justify-content-center text-muted" style={{ width: 32, height: 32, flexShrink: 0, fontSize: '0.8rem' }}>
+                                                <div key={booking._id} className="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom" style={{ borderColor: 'var(--theme-content-border)' }}>
+                                                    <div className="rounded-circle d-flex align-items-center justify-content-center text-muted" style={{ width: 32, height: 32, flexShrink: 0, fontSize: '0.8rem', background: 'var(--theme-card-header-bg)' }}>
                                                         {clientStats.history.length - idx}
                                                     </div>
                                                     <div className="flex-grow-1">
@@ -667,11 +723,11 @@ const CRMPage = ({ user }) => {
                                                             <small className="text-muted">{new Date(booking.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</small>
                                                             <div className="d-flex gap-1 align-items-center overflow-hidden" style={{ maxWidth: '60%' }}>
                                                                 {booking.purchasedProducts?.length > 0 && booking.purchasedProducts.map((p, pIdx) => (
-                                                                    <span key={pIdx} className="badge bg-white text-dark-gray400 border rounded-pill px-2" style={{ fontSize: '0.6rem', fontWeight: 500 }}>
+                                                                    <span key={pIdx} className="badge border rounded-pill px-2" style={{ fontSize: '0.6rem', fontWeight: 500, background: 'var(--theme-card-bg)', color: 'var(--theme-content-text-secondary)' }}>
                                                                         {p.productName} x{p.quantity}
                                                                     </span>
                                                                 ))}
-                                                                <span className="badge bg-light text-dark rounded-pill ms-1" style={{ fontSize: '0.65rem' }}>{booking.vehicleType}</span>
+                                                                <span className="badge rounded-pill ms-1" style={{ fontSize: '0.65rem', background: 'var(--theme-card-header-bg)', color: 'var(--theme-content-text)' }}>{booking.vehicleType}</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -681,7 +737,7 @@ const CRMPage = ({ user }) => {
                                     )}
                                 </div>
                                 <div className="modal-footer border-0 p-4 pt-2">
-                                    <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setSelectedClient(null)} style={{ fontWeight: 600 }}>Close</button>
+                                    <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setSelectedClient(null)} style={{ fontWeight: 600, background: isDark ? 'var(--theme-bg-secondary)' : '' }}>Close</button>
                                 </div>
                             </div>
                         </div>

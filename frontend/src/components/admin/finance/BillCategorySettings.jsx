@@ -1,6 +1,6 @@
 import CategoryManager from '../shared/CategoryManager';
 
-const BillCategoryManager = ({ show, onClose, onUpdate }) => {
+const BillCategoryManager = ({ show, onClose, onUpdate, isDark }) => {
     return (
         <CategoryManager
             show={show}
@@ -10,6 +10,7 @@ const BillCategoryManager = ({ show, onClose, onUpdate }) => {
             title="Bill Type Library"
             subtitle="Define scalable categories for recurring business costs"
             itemName="Type"
+            isDark={isDark}
         />
     );
 };

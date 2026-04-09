@@ -1,6 +1,6 @@
 import TopHeader from './TopHeader';
 
-const CarRentManagement = ({ employee }) => (
+const CarRentManagement = ({ employee, isDark }) => (
     <div>
         <TopHeader
             employee={employee}
@@ -10,7 +10,7 @@ const CarRentManagement = ({ employee }) => (
         {/* Car rental table goes here */}
         <div
             className="rounded-4 p-4 d-flex align-items-center justify-content-center"
-            style={{ minHeight: 300, background: '#fff', border: '1px dashed rgba(0,0,0,0.15)', color: '#A3A3A3', fontSize: '0.9rem' }}
+            style={{ minHeight: 300, background: 'var(--theme-card-bg)', border: '1px dashed var(--theme-content-border)', color: 'var(--theme-content-text-secondary)', fontSize: '0.9rem' }}
         >
             🚗 Car rentals table coming soon
         </div>

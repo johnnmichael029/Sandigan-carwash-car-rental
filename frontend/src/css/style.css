@@ -62,15 +62,244 @@ html {
     --font-poppins: 'Poppins', sans-serif;
 }
 
-/* Light Theme */
-[light-theme="light"] {
-    --brand-primary: #23A0CE;
-    --brand-accent: #00e8e9;
-    --text-primary: #0a0a0a;
-    --text-secondary: #666666;
-    --background-primary: #ffffff;
-    --background-light-primary: #FAFAFA;
-    --background-light-secondary: #f5f5f5;
+/* ── Light Theme ── */
+[data-theme="light"] {
+    --theme-main-bg: #F0F4F8;
+    --theme-content-bg: #ffffff;
+    --theme-content-text: #0a0a0a;
+    --theme-content-text-secondary: #525252;
+    --theme-content-border: rgba(0, 0, 0, 0.08);
+    --theme-card-bg: #ffffff;
+    --theme-card-header-bg: #ffffff;
+    --theme-table-row-hover: rgba(35, 160, 206, 0.04);
+    --theme-input-bg: #f8fafc;
+    --theme-input-border: #e2e8f0;
+    --theme-badge-muted-bg: #f1f5f9;
+    --theme-badge-muted-text: #334155;
+    --theme-modal-bg: #ffffff;
+    --theme-dropdown-bg: #ffffff;
+    --theme-hr-color: rgba(0, 0, 0, 0.08);
+}
+
+/* ── Dark Theme ── */
+[data-theme="dark"] {
+    --theme-main-bg: #0f172a;
+    --theme-content-bg: #1e293b;
+    --theme-content-text: #e2e8f0;
+    --theme-content-text-secondary: #94a3b8;
+    --theme-content-border: rgba(255, 255, 255, 0.08);
+    --theme-card-bg: #253347;
+    --theme-card-header-bg: #1e293b;
+    --theme-table-row-hover: rgba(35, 160, 206, 0.08);
+    --theme-input-bg: #1e293b;
+    --theme-input-border: rgba(255, 255, 255, 0.12);
+    --theme-badge-muted-bg: rgba(255, 255, 255, 0.07);
+    --theme-badge-muted-text: #cbd5e1;
+    --theme-modal-bg: #1e293b;
+    --theme-dropdown-bg: #253347;
+    --theme-hr-color: rgba(255, 255, 255, 0.08);
+    --theme-bg-secondary: #253347;
+}
+
+/* ── Theme: Outer background ── */
+[data-theme="dark"] .background-light-primary {
+    background-color: var(--theme-main-bg) !important;
+}
+
+/* ── Theme: Floating main content card ── */
+[data-theme="dark"] .right-content-container {
+    background-color: var(--theme-content-bg) !important;
+}
+
+/* ── Theme: Bootstrap Cards ── */
+[data-theme="dark"] .card {
+    background-color: var(--theme-card-bg) !important;
+    border-color: var(--theme-content-border) !important;
+    color: var(--theme-content-text);
+}
+
+[data-theme="dark"] .card-header {
+    background-color: var(--theme-card-header-bg) !important;
+    border-bottom-color: var(--theme-content-border) !important;
+    color: var(--theme-content-text);
+}
+
+[data-theme="dark"] .card-footer {
+    background-color: var(--theme-card-header-bg) !important;
+    border-top-color: var(--theme-content-border) !important;
+}
+
+/* ── Theme: Tables ── */
+[data-theme="dark"] .table {
+    color: var(--theme-content-text);
+    border-color: var(--theme-content-border);
+}
+
+[data-theme="dark"] .table> :not(caption)>*>* {
+    background-color: var(--theme-card-bg);
+    border-bottom-color: var(--theme-content-border);
+    color: var(--theme-content-text);
+}
+
+[data-theme="dark"] .table-hover>tbody>tr:hover>* {
+    background-color: var(--theme-table-row-hover) !important;
+    color: var(--theme-content-text);
+}
+
+[data-theme="dark"] .table thead th,
+[data-theme="dark"] .table th {
+    background-color: var(--theme-card-header-bg) !important;
+    border-color: var(--theme-content-border) !important;
+    color: var(--theme-content-text-secondary) !important;
+}
+
+/* ── Theme: Form Controls ── */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: var(--theme-input-bg) !important;
+    border-color: var(--theme-input-border) !important;
+    color: var(--theme-content-text) !important;
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background-color: var(--theme-input-bg) !important;
+    border-color: #23A0CE !important;
+    color: var(--theme-content-text) !important;
+    box-shadow: 0 0 0 0.2rem rgba(35, 160, 206, 0.2);
+}
+
+[data-theme="dark"] .form-control::placeholder {
+    color: var(--theme-content-text-secondary) !important;
+}
+
+[data-theme="dark"] .input-group-text {
+    background-color: var(--theme-input-bg) !important;
+    border-color: var(--theme-input-border) !important;
+    color: var(--theme-content-text-secondary) !important;
+}
+
+/* ── Theme: Modal dialogs ── */
+[data-theme="dark"] .modal-content {
+    background-color: var(--theme-modal-bg) !important;
+    color: var(--theme-content-text);
+    border-color: var(--theme-content-border);
+}
+
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer {
+    border-color: var(--theme-content-border);
+}
+
+[data-theme="dark"] .modal-header .btn-close {
+    filter: invert(1);
+}
+
+/* ── Theme: Text & Headings ── */
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6 {
+    color: var(--theme-content-text);
+}
+
+[data-theme="dark"] .text-dark-secondary,
+[data-theme="dark"] .text-dark-primary {
+    color: var(--theme-content-text) !important;
+}
+
+[data-theme="dark"] .text-muted {
+    color: var(--theme-content-text-secondary) !important;
+}
+
+[data-theme="dark"] label {
+    color: var(--theme-content-text-secondary);
+}
+
+/* ── Theme: Badges & Pills ── */
+[data-theme="dark"] .badge.bg-light,
+[data-theme="dark"] .bg-light {
+    background-color: var(--theme-badge-muted-bg) !important;
+    color: var(--theme-badge-muted-text) !important;
+}
+
+[data-theme="dark"] .bg-white {
+    background-color: var(--theme-card-bg) !important;
+}
+
+/* ── Theme: Borders & Dividers ── */
+[data-theme="dark"] .border-bottom,
+[data-theme="dark"] .border-top,
+[data-theme="dark"] hr {
+    border-color: var(--theme-content-border) !important;
+}
+
+/* ── Theme: Dropdown menus ── */
+[data-theme="dark"] .dropdown-menu {
+    background-color: var(--theme-dropdown-bg);
+    border-color: var(--theme-content-border);
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: var(--theme-content-text);
+}
+
+[data-theme="dark"] .dropdown-item:hover {
+    background-color: var(--theme-table-row-hover);
+    color: #23A0CE;
+}
+
+/* ── Theme: Buttons ── */
+[data-theme="dark"] .btn-light {
+    background-color: var(--theme-badge-muted-bg) !important;
+    border-color: var(--theme-content-border) !important;
+    color: var(--theme-content-text) !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+    border-color: var(--theme-content-border);
+    color: var(--theme-content-text-secondary);
+}
+
+/* ── Theme: List groups ── */
+[data-theme="dark"] .list-group-item {
+    background-color: var(--theme-card-bg);
+    border-color: var(--theme-content-border);
+    color: var(--theme-content-text);
+}
+
+/* ── Theme: Scrollbar ── */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--theme-main-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+/* Dark Theme Scrollbar */
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: var(--theme-main-bg);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 /* Global Styles */

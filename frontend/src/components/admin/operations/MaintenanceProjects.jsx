@@ -18,7 +18,7 @@ const MaintenanceProjects = ({ projects, assets, bays, employees, inventoryItems
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [page, setPage] = useState(1);
-    const PER_PAGE = 6;
+    const PER_PAGE = 5;
 
     useEffect(() => {
         const handler = setTimeout(() => setDebouncedSearch(search), 300);
@@ -132,7 +132,7 @@ const MaintenanceProjects = ({ projects, assets, bays, employees, inventoryItems
 
             </div>
 
-            <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 d-flex flex-column" style={{ minHeight: 560 }}>
+            <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 d-flex flex-column" style={{ minHeight: 500 }}>
                 <div className="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                     <h6 className="mb-0 fw-bold text-dark-secondary">Maintenance Projects</h6>
                     <button className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
@@ -215,7 +215,7 @@ const MaintenanceProjects = ({ projects, assets, bays, employees, inventoryItems
                 </div>
 
                 {filtered.length > PER_PAGE && (
-                    <div className="card-footer bg-white border-top py-3 d-flex justify-content-between align-items-center mt-auto">
+                    <div className="card-footer border-top py-3 d-flex justify-content-between align-items-center mt-auto" style={{ background: 'var(--theme-card-bg)' }}>
                         <div className="text-muted" style={{ fontSize: '0.8rem' }}>
                             Showing {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, filtered.length)} of {filtered.length}
                         </div>

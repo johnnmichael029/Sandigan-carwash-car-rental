@@ -28,7 +28,7 @@ import { filterDataBySearch } from '../shared/searchUtils';
 import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import AdminModalWrapper from '../shared/AdminModalWrapper';
 
-const HRISPage = ({ user }) => {
+const HRISPage = ({ user, isDark }) => {
     const getEmpName = (emp) => emp?.fullName || emp?.fullname || 'Unknown Staff';
     const getEmpId = (emp) => emp?.employeeId || 'No ID';
 
@@ -1049,16 +1049,16 @@ const HRISPage = ({ user }) => {
 
                 <div className="d-flex gap-2">
                     {/* Pending bills badge on Settings button */}
-                    <div className="btn-group bg-light p-1 rounded-3">
-                        <button onClick={() => setHrTab('directory')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'directory' ? 'btn-white shadow-sm' : 'text-muted'}`}>
+                    <div className="btn-group p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
+                        <button onClick={() => setHrTab('directory')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'directory' ? 'shadow-sm' : 'text-muted'}`} style={{ background: hrTab === 'directory' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'directory' ? 'var(--theme-content-text)' : 'inherit' }}>
                             <img src={directoryIcon} alt="Directory Icon" style={{ width: '16px' }} />Directory</button>
-                        <button onClick={() => setHrTab('payroll')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'payroll' ? 'btn-white shadow-sm' : 'text-muted'}`}>
+                        <button onClick={() => setHrTab('payroll')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'payroll' ? 'shadow-sm' : 'text-muted'}`} style={{ background: hrTab === 'payroll' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'payroll' ? 'var(--theme-content-text)' : 'inherit' }}>
                             <img src={payrollIcon} alt="Payroll Icon" style={{ width: '16px' }} />Payroll</button>
-                        <button onClick={() => setHrTab('analytics')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'analytics' ? 'btn-white shadow-sm' : 'text-muted'}`}>
+                        <button onClick={() => setHrTab('analytics')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'analytics' ? 'shadow-sm' : 'text-muted'}`} style={{ background: hrTab === 'analytics' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'analytics' ? 'var(--theme-content-text)' : 'inherit' }}>
                             <img src={analyticsIcon} alt="Analytics Icon" style={{ width: '16px' }} />Analytics</button>
-                        <button onClick={() => setHrTab('attendance')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'attendance' ? 'btn-white shadow-sm' : 'text-muted'}`}>
+                        <button onClick={() => setHrTab('attendance')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'attendance' ? 'shadow-sm' : 'text-muted'}`} style={{ background: hrTab === 'attendance' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'attendance' ? 'var(--theme-content-text)' : 'inherit' }}>
                             <img src={attendanceIcon} alt="Attendance Icon" style={{ width: '16px' }} />Attendance History</button>
-                        <button onClick={() => setHrTab('leaves')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 position-relative ${hrTab === 'leaves' ? 'btn-white shadow-sm' : 'text-muted'}`}>
+                        <button onClick={() => setHrTab('leaves')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 position-relative ${hrTab === 'leaves' ? 'shadow-sm' : 'text-muted'}`} style={{ background: hrTab === 'leaves' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'leaves' ? 'var(--theme-content-text)' : 'inherit' }}>
                             {leaveLogs.filter(l => l.status === 'Pending').length > 0 && (
                                 <span className="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.5rem', padding: '2px 5px', marginTop: '4px' }}>{leaveLogs.filter(l => l.status === 'Pending').length}</span>
                             )}
@@ -1353,7 +1353,7 @@ const HRISPage = ({ user }) => {
                                     { title: 'Rejected', value: leaveLogs.filter(l => l.status === 'Rejected').length, color: '#ef4444', bg: 'linear-gradient(135deg,#ef444415,#ef444405)', dot: '#ef4444', icon: '❌', desc: 'Denied or revoked requests' },
                                 ].map((card, i) => (
                                     <div className="col-6 col-md-3" key={i}>
-                                        <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden" style={{ background: '#fff' }}>
+                                        <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden" style={{ background: 'var(--theme-card-bg)' }}>
                                             {/* Decorative soft glow */}
                                             <div style={{ position: 'absolute', top: '-15%', right: '-10%', width: '80px', height: '80px', background: card.color, filter: 'blur(30px)', opacity: 0.15 }} />
                                             <div className="p-3 position-relative">
@@ -1385,7 +1385,7 @@ const HRISPage = ({ user }) => {
 
                         {/* Filter + Search Bar */}
                         <div className="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
-                            <div className="btn-group bg-light p-1 rounded-pill shadow-none">
+                            <div className="btn-group p-1 rounded-pill shadow-none" style={{ background: 'var(--theme-input-bg)' }}>
                                 {['All', 'Pending', 'Approved', 'Rejected'].map(f => (
                                     <button key={f} onClick={() => setLeaveFilter(f)} className={`btn btn-sm px-3 rounded-pill border-0 ${leaveFilter === f ? 'btn-save shadow-sm' : 'text-muted'}`} style={{ fontSize: '0.8rem' }}>{f}</button>
                                 ))}
@@ -1556,9 +1556,9 @@ const HRISPage = ({ user }) => {
                             <button onClick={() => setPayrollSubTab('history')} className={`btn btn-sm px-4 rounded-pill border-0 ${payrollSubTab === 'history' ? 'btn-save shadow-sm' : 'text-muted'}`}>Recent Payout Ledger</button>
                         </div>
                         {payrollSubTab === 'review' && (
-                            <div className="btn-group shadow-sm">
+                            <div className="btn-group shadow-sm ">
                                 {['today', 'week', 'month'].map(p => (
-                                    <button key={p} onClick={() => setPayrollPeriod(p)} className={`btn btn-sm ${payrollPeriod === p ? 'btn-primary' : 'btn-outline-secondary'} text-capitalize`}>{p}</button>
+                                    <button key={p} onClick={() => setPayrollPeriod(p)} className={`btn btn-sm btn-active ${payrollPeriod === p ? 'btn-save' : 'btn-outline-secondary'} text-capitalize`}>{p}</button>
                                 ))}
                             </div>
                         )}
@@ -2136,7 +2136,7 @@ const HRISPage = ({ user }) => {
                                 <button onClick={() => setShowHolidayModal(true)} className="btn btn-sm btn-outline-secondary px-3 rounded-pill shadow-sm category-tags">
                                     Manage Holidays
                                 </button>
-                                <button onClick={fetchAttendance} className="btn btn-sm btn-light shadow-sm px-3 rounded-pill text-muted d-flex align-items-center justify-content-center">
+                                <button onClick={fetchAttendance} className="btn btn-sm  shadow-sm px-3 rounded-pill text-muted d-flex align-items-center justify-content-center" style={{ background: 'var(--theme-card-bg)' }}>
                                     <img src={refreshIcon} alt="Refresh" style={{ width: 14 }} />
                                 </button>
                             </div>
@@ -3000,7 +3000,7 @@ const HRISPage = ({ user }) => {
                         </div>
 
                         <div className="modal-footer border-0 p-4 pt-2">
-                            <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setShowHistory(false)}>Close Summary</button>
+                            <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setShowHistory(false)} style={{ background: isDark ? 'var(--theme-bg-secondary)' : '' }}>Close Summary</button>
                         </div>
                     </div>
                 </AdminModalWrapper>
@@ -3285,7 +3285,7 @@ const HRISPage = ({ user }) => {
                                 <button type="button" className="btn-close shadow-none" onClick={() => setShowAttendanceModal(false)} />
                             </div>
                             <div className="modal-body px-4 py-3">
-                                <p className="text-muted small mb-4">Correcting attendance for <b className="text-dark">{getEmpName(editingAttendance.employee)}</b> on <b className="text-dark">{new Date(editingAttendance.dateStr).toLocaleDateString()}</b></p>
+                                <p className="text-muted small mb-4">Correcting attendance for <b className="text-dark-secondary">{getEmpName(editingAttendance.employee)}</b> on <b className="text-dark-secondary">{new Date(editingAttendance.dateStr).toLocaleDateString()}</b></p>
 
                                 <div className="mb-3">
                                     <label className="form-label small fw-bold text-muted text-uppercase">Clock In Timestamp</label>
@@ -3399,7 +3399,7 @@ const HRISPage = ({ user }) => {
                                     <div className="bg-light p-4 border-bottom d-flex justify-content-between align-items-center">
                                         <div>
                                             <small className="text-muted text-uppercase fw-bold ls-1" style={{ fontSize: '0.6rem' }}>Total Daily Payout</small>
-                                            <h2 className="fw-bold mb-0 text-dark" style={{ color: '#059669' }}>₱{totalPay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h2>
+                                            <h2 className="fw-bold mb-0 " style={{ color: '#059669' }}>₱{totalPay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h2>
                                         </div>
                                         <div className="text-end">
                                             <span className={`badge rounded-pill ${log.holidayType && log.holidayType !== 'None' ? (log.holidayType === 'Regular' ? 'bg-danger' : 'bg-warning text-dark') : 'bg-secondary'}`}>
@@ -3416,20 +3416,20 @@ const HRISPage = ({ user }) => {
 
                                             <div className="d-flex justify-content-between mb-3">
                                                 <div className="small text-muted">Clock In</div>
-                                                <div className="fw-bold text-dark">{new Date(log.clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                <div className="fw-bold">{new Date(log.clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                             </div>
                                             <div className="d-flex justify-content-between mb-3">
                                                 <div className="small text-muted">Clock Out</div>
-                                                <div className="fw-bold text-dark">{new Date(log.clockOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                <div className="fw-bold">{new Date(log.clockOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                             </div>
                                             <div className="d-flex justify-content-between mb-3">
                                                 <div className="small text-muted">Wall-Clock Duration</div>
-                                                <div className="fw-bold text-dark">{Math.floor((new Date(log.clockOutTime) - new Date(log.clockInTime)) / 3600000)}h {Math.floor(((new Date(log.clockOutTime) - new Date(log.clockInTime)) % 3600000) / 60000)}m</div>
+                                                <div className="fw-bold">{Math.floor((new Date(log.clockOutTime) - new Date(log.clockInTime)) / 3600000)}h {Math.floor(((new Date(log.clockOutTime) - new Date(log.clockInTime)) % 3600000) / 60000)}m</div>
                                             </div>
 
-                                            <div className="alert alert-info py-2 px-3 rounded-3 border-0 mt-4 mb-0" style={{ fontSize: '0.75rem', backgroundColor: '#f0f9ff' }}>
-                                                <div className="fw-bold text-dark-secondary mb-1"><i className="bi bi-info-circle me-1"></i> Calculation Notes</div>
-                                                <ul className="mb-0 ps-3">
+                                            <div className="alert py-2 px-3 rounded-3 mt-4 mb-0" style={{ fontSize: '0.75rem', backgroundColor: 'var(--theme-card-bg)', border: '1px dashed #dee2e6' }}>
+                                                <div className="fw-bold  mb-1"><i className="bi bi-info-circle me-1" style={{ color: 'var(--theme-content-text)' }}></i> Calculation Notes</div>
+                                                <ul className="mb-0 ps-3 text-muted" style={{ fontSize: '0.72rem', color: 'var(--theme-content-text)' }}>
                                                     {emp.shiftType === 'Morning' && <li>1h Lunch break deducted (12PM-1PM).</li>}
                                                     {emp.shiftType === 'Night' && <li>1h Smart break deducted (12AM-1AM).</li>}
                                                     {regMins >= 480 && <li>Regular pay capped at strictly 8 hours.</li>}
@@ -3500,7 +3500,7 @@ const HRISPage = ({ user }) => {
                                                     {ndMins > 0 && (
                                                         <tr>
                                                             <td className="py-2">
-                                                                <div className="fw-semibold text-dark">Night Differential</div>
+                                                                <div className="fw-semibold">Night Differential</div>
                                                                 <small className="text-muted">10PM - 6AM @ 10% Extra</small>
                                                             </td>
                                                             <td className="text-center">{(ndMins / 60).toFixed(1)}h @ ₱{(hourlyRate * 0.1).toFixed(2)}</td>
@@ -3510,8 +3510,8 @@ const HRISPage = ({ user }) => {
                                                 </tbody>
                                                 <tfoot>
                                                     <tr className="border-top" style={{ borderTopWidth: '2px !important' }}>
-                                                        <td colSpan="2" className="pt-3 fw-bold text-dark fs-5 text-end">Net Daily Pay:</td>
-                                                        <td className="pt-3 fw-bold text-dark fs-5 text-end" style={{ color: '#059669' }}>₱{totalPay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                        <td colSpan="2" className="pt-3 fw-bold fs-5 text-end" style={{ color: 'var(--theme-text-primary)' }}>Net Daily Pay:</td>
+                                                        <td className="pt-3 fw-bold fs-5 text-end" style={{ color: '#059669' }}>₱{totalPay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                     </tr>
                                                 </tfoot>
                                             </table>
@@ -3519,7 +3519,7 @@ const HRISPage = ({ user }) => {
                                     </div>
                                 </div>
                                 <div className="modal-footer border-0 p-4 pt-2">
-                                    <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setShowCompModal(false)}>Close Breakdown</button>
+                                    <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setShowCompModal(false)} style={{ background: isDark ? 'var(--theme-bg-secondary)' : '' }}>Close Breakdown</button>
                                 </div>
                             </div>
                         </AdminModalWrapper>

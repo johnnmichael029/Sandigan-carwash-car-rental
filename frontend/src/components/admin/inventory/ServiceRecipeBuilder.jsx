@@ -155,7 +155,7 @@ const RecipeBuilder = ({ inventoryItems, products, onUpdate, categories = [] }) 
                                         {r.ingredients.map((ing, idx) => {
                                             const itemCatMatch = categories.find(c => c.name === ing.inventoryItem?.category) || { color: '#f8f9fa', textColor: '#6c757d' };
                                             return (
-                                                <span key={idx} className="badge rounded-pill border fw-normal" style={{ background: itemCatMatch.color, color: itemCatMatch.textColor, fontSize: '0.65rem' }}>
+                                                <span key={idx} className="badge rounded-pill border fw-normal bg-light " style={{ background: itemCatMatch.color, color: itemCatMatch.textColor, fontSize: '0.65rem' }}>
                                                     {ing.inventoryItem?.name || 'Item'}: {ing.quantityUsed}{ing.inventoryItem?.unit || ''}
                                                 </span>
                                             );

@@ -3,6 +3,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { io } from 'socket.io-client';
 import { API_BASE, authHeaders } from '../../../api/config';
+
 import TopHeader from './TopHeader';
 import BookingModal from './BookingModal';
 import ReceiptModal from './ReceiptModal';
@@ -19,7 +20,7 @@ import rightArrowIcon from '../../../assets/icon/right-arrow.png';
    status updates, and modal triggers.
    ───────────────────────────────────────────── */
 
-const BookingManagement = ({ employee, onNavigate }) => {
+const BookingManagement = ({ employee, onNavigate, onShowSMC, isDark }) => {
     // 1. Create state to store all bookings and loading status
     const [bookings, setBookings] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -33,7 +34,7 @@ const BookingManagement = ({ employee, onNavigate }) => {
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 12;
+    const itemsPerPage = 10;
     const [searchTerm, setSearchTerm] = useState('');
 
     const handleShowSMC = (bookingId) => {
@@ -224,16 +225,24 @@ const BookingManagement = ({ employee, onNavigate }) => {
                 subtitle="View and update all carwash bookings"
                 onNavigate={onNavigate}
             />
+            <div className="d-flex justify-content-end align-items-center mb-4">
 
+                <SharedSearchBar
+                    placeholder="Search customer or ID..."
+                    onDebouncedSearch={(val) => setSearchTerm(val)}
+                    debounceDelay={400}
+                />
+            </div>
             {/* 4. Display Loading State or Table */}
-            <div className="rounded-4 p-4 shadow-sm" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)' }}>
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h6 className="fw-bold mb-0 text-dark-secondary">Active Bookings</h6>
-                    <SharedSearchBar
-                        placeholder="Search customer or ID..."
-                        onDebouncedSearch={(val) => setSearchTerm(val)}
-                        debounceDelay={400}
-                    />
+            <div className="rounded-4 p-3 shadow-sm overflow-hidden d-flex flex-column" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)', minHeight: 670 }}>
+
+                <div className="card-header bg-white py-2 border-bottom d-flex justify-content-between align-items-center">
+                    <h6 className="fw-bold mb-0" style={{ color: 'var(--theme-content-text)' }}>Active Bookings</h6>
+                    <button className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
+                        style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600 }}
+                        onClick={() => setIsCreateModalOpen(true)}>
+                        + Add New Booking
+                    </button>
                 </div>
 
                 {isLoading ? (
@@ -246,69 +255,71 @@ const BookingManagement = ({ employee, onNavigate }) => {
                         No bookings found.
                     </div>
                 ) : (
-                    <div className="table-responsive">
-                        <table className="table table-hover align-middle">
-                            <thead className="table-light">
-                                <tr>
-                                    <th>Booking ID</th>
-                                    <th>Customer Name</th>
-                                    <th>Service</th>
-                                    <th>Bay</th>
-                                    <th>Total Price</th>
-                                    <th>Date & Time</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {/* Loop through sliced bookings */}
-                                {filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((booking) => (
-                                    <tr key={booking._id}>
-                                        <td>{booking.batchId || booking._id.substring(0, 8)}</td>
-                                        <td>{booking.firstName} {booking.lastName}</td>
-                                        <td>{Array.isArray(booking.serviceType) ? booking.serviceType.join(', ') : booking.serviceType}</td>
-                                        <td>
-                                            {booking.bayId?.name ? (
-                                                <span className="badge bg-light border text-dark-secondary px-2 py-1" style={{ fontSize: '0.75rem' }}>
-                                                    {booking.bayId.name}
-                                                </span>
-                                            ) : (
-                                                <span className="text-muted small">None</span>
-                                            )}
-                                        </td>
-                                        <td>₱{booking.totalPrice.toLocaleString()}</td>
-                                        <td>{formatTo12Hour(booking.bookingTime)} {new Date(booking.createdAt).toLocaleDateString()}</td>
-                                        <td>
-                                            <select
-                                                className={`form-select form-select-sm fw-medium shadow-none ${booking.status === 'Completed' ? 'border-success text-success' :
-                                                    booking.status === 'Queued' ? 'border-primary text-queued' :
-                                                        booking.status === 'Confirmed' ? 'border-info text-info' :
-                                                            booking.status === 'Cancelled' ? 'border-danger text-danger' :
-                                                                booking.status === 'In-progress' ? 'border-warning text-in-progress' :
-                                                                    'border-warning text-warning'
-                                                    }`}
-                                                style={{ minWidth: '120px', cursor: booking.status === 'Completed' || booking.status === 'Cancelled' ? 'not-allowed' : 'pointer' }}
-                                                value={booking.status || 'Pending'}
-                                                disabled={booking.status === 'Completed' || booking.status === 'Cancelled'}
-                                                onChange={(e) => handleStatusChange(booking._id, e.target.value, booking.batchId)}
-                                            >
-                                                <option value="Pending" disabled={['Confirmed', 'Queued', 'Completed', 'In-progress', 'Cancelled'].includes(booking.status)}>🟡 Pending</option>
-                                                <option value="Confirmed" disabled={['Queued', 'Completed', 'In-progress', 'Cancelled'].includes(booking.status)}>🔵 Confirmed</option>
-                                                <option value="Queued" disabled={['Pending', 'Completed', 'In-progress', 'Cancelled'].includes(booking.status)}>🟣 Queued</option>
-                                                <option value="In-progress" disabled={['Pending', 'Completed', 'Cancelled'].includes(booking.status)}>🟠 In-progress</option>
-                                                <option value="Completed" disabled={['Pending', 'Queued', 'Cancelled'].includes(booking.status)}>🟢 Completed</option>
-                                                <option value="Cancelled" disabled={['In-progress', 'Completed'].includes(booking.status)}>🔴 Cancelled</option>
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <div className="d-flex gap-2 justify-content-center">
-                                                <button className="btn btn-action btn-sm border-outline-primary brand-primary" onClick={() => setSelectedBooking(booking)}>View / Edit</button>
-                                            </div>
-                                        </td>
+                    <>
+                        <div className="table-responsive flex-grow-1">
+                            <table className="table table-hover align-middle">
+                                <thead className="table-light">
+                                    <tr>
+                                        <th>Booking ID</th>
+                                        <th>Customer Name</th>
+                                        <th>Service</th>
+                                        <th>Bay</th>
+                                        <th>Total Price</th>
+                                        <th>Date & Time</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {/* Loop through sliced bookings */}
+                                    {filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((booking) => (
+                                        <tr key={booking._id}>
+                                            <td>{booking.batchId || booking._id.substring(0, 8)}</td>
+                                            <td>{booking.firstName} {booking.lastName}</td>
+                                            <td>{Array.isArray(booking.serviceType) ? booking.serviceType.join(', ') : booking.serviceType}</td>
+                                            <td>
+                                                {booking.bayId?.name ? (
+                                                    <span className="badge bg-light border text-dark-secondary px-2 py-1" style={{ fontSize: '0.75rem' }}>
+                                                        {booking.bayId.name}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-muted small">None</span>
+                                                )}
+                                            </td>
+                                            <td>₱{booking.totalPrice.toLocaleString()}</td>
+                                            <td>{formatTo12Hour(booking.bookingTime)} {new Date(booking.createdAt).toLocaleDateString()}</td>
+                                            <td>
+                                                <select
+                                                    className={`form-select form-select-sm fw-medium shadow-none ${booking.status === 'Completed' ? 'border-success text-success' :
+                                                        booking.status === 'Queued' ? 'border-primary text-queued' :
+                                                            booking.status === 'Confirmed' ? 'border-info text-info' :
+                                                                booking.status === 'Cancelled' ? 'border-danger text-danger' :
+                                                                    booking.status === 'In-progress' ? 'border-warning text-in-progress' :
+                                                                        'border-warning text-warning'
+                                                        }`}
+                                                    style={{ minWidth: '120px', cursor: booking.status === 'Completed' || booking.status === 'Cancelled' ? 'not-allowed' : 'pointer' }}
+                                                    value={booking.status || 'Pending'}
+                                                    disabled={booking.status === 'Completed' || booking.status === 'Cancelled'}
+                                                    onChange={(e) => handleStatusChange(booking._id, e.target.value, booking.batchId)}
+                                                >
+                                                    <option value="Pending" disabled={['Confirmed', 'Queued', 'Completed', 'In-progress', 'Cancelled'].includes(booking.status)}>🟡 Pending</option>
+                                                    <option value="Confirmed" disabled={['Queued', 'Completed', 'In-progress', 'Cancelled'].includes(booking.status)}>🔵 Confirmed</option>
+                                                    <option value="Queued" disabled={['Pending', 'Completed', 'In-progress', 'Cancelled'].includes(booking.status)}>🟣 Queued</option>
+                                                    <option value="In-progress" disabled={['Pending', 'Completed', 'Cancelled'].includes(booking.status)}>🟠 In-progress</option>
+                                                    <option value="Completed" disabled={['Pending', 'Queued', 'Cancelled'].includes(booking.status)}>🟢 Completed</option>
+                                                    <option value="Cancelled" disabled={['In-progress', 'Completed'].includes(booking.status)}>🔴 Cancelled</option>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <div className="d-flex gap-2 justify-content-center">
+                                                    <button className="btn btn-action btn-sm border-outline-primary brand-primary" onClick={() => setSelectedBooking(booking)}>View / Edit</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
 
                         {/* Pagination Controls */}
                         {filteredBookings.length > itemsPerPage && (
@@ -331,9 +342,9 @@ const BookingManagement = ({ employee, onNavigate }) => {
                                         {getPaginationRange(currentPage, Math.ceil(filteredBookings.length / itemsPerPage)).map((pg, idx) => (
                                             <li key={idx} className={`page-item ${currentPage === pg ? 'active' : ''} ${pg === '...' ? 'disabled' : ''}`}>
                                                 <button
-                                                    className={`page-link rounded-circle border-0 shadow-none d-flex align-items-center justify-content-center ${currentPage === pg ? 'brand-primary text-white' : 'text-dark-secondary'}`}
+                                                    className={`page-link rounded-circle border-0 shadow-none d-flex align-items-center justify-content-center ${currentPage === pg ? 'brand-primary text-white' : ''}`}
                                                     onClick={() => pg !== '...' && setCurrentPage(pg)}
-                                                    style={{ width: '32px', height: '32px', background: currentPage === pg ? '#23A0CE' : 'transparent' }}
+                                                    style={{ width: '32px', height: '32px', background: currentPage === pg ? '#23A0CE' : 'transparent', color: currentPage === pg ? '#fff' : 'var(--theme-content-text)' }}
                                                 >
                                                     {pg}
                                                 </button>
@@ -353,7 +364,8 @@ const BookingManagement = ({ employee, onNavigate }) => {
                                 </nav>
                             </div>
                         )}
-                    </div>
+                    </>
+
                 )}
             </div>
 
@@ -372,6 +384,7 @@ const BookingManagement = ({ employee, onNavigate }) => {
                         setIsReceiptModalOpen(true);
                     }}
                     onSMC={handleShowSMC}
+                    onSMCById={handleFetchSMCById}
                 />
             )}
 
@@ -401,15 +414,7 @@ const BookingManagement = ({ employee, onNavigate }) => {
             )}
 
             {/* Fixed Create Button */}
-            <div className="position-fixed bottom-0 end-0 p-4" style={{ zIndex: 1050 }}>
-                <button
-                    className="btn btn-save rounded-circle shadow-lg d-flex align-items-center justify-content-center"
-                    style={{ width: '60px', height: '60px', fontSize: '24px' }}
-                    onClick={() => setIsCreateModalOpen(true)}
-                >
-                    +
-                </button>
-            </div>
+
         </div>
     );
 };

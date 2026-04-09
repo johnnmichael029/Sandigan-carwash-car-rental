@@ -14,7 +14,7 @@ import bookingsIcon from '../../../assets/icon/order.png';
 import bookingsCompleted from '../../../assets/icon/order-completed.png';
 import bookingsPending from '../../../assets/icon/order-pending.png';
 
-const DashboardOverview = ({ employee, onNavigate }) => {
+const DashboardOverview = ({ employee, onNavigate, isDark }) => {
     const [bookings, setBookings] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [chartFilter, setChartFilter] = useState('daily');
@@ -237,7 +237,7 @@ const DashboardOverview = ({ employee, onNavigate }) => {
             />
 
             {/* ATTENDANCE WIDGET */}
-            <div className="card border-0 shadow-sm rounded-4 mb-4" style={{ background: 'linear-gradient(135deg, #0d1b1b, #153232)' }}>
+            <div className="card border-0 shadow-sm rounded-4 mb-4" style={{ background: isDark ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'linear-gradient(135deg, #0d1b1b, #153232)' }}>
                 <div className="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div className="d-flex align-items-center gap-3">
                         <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px', background: 'rgba(35,160,206,0.15)', color: '#23A0CE' }}>
@@ -274,11 +274,10 @@ const DashboardOverview = ({ employee, onNavigate }) => {
                 {stats.map((stat) => (
                     <div className="col-sm-6 col-xl-3" key={stat.label}>
                         <div
-                            className="p-4 rounded-4 h-100 d-flex flex-column justify-content-between position-relative overflow-hidden"
+                            className="p-4 rounded-4 h-100 d-flex flex-column justify-content-between position-relative overflow-hidden shadow-sm"
                             style={{
-                                background: '#fff',
-                                border: '1px solid rgba(0,0,0,0.07)',
-                                boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+                                background: 'var(--theme-card-bg)',
+                                border: '1px solid var(--theme-content-border)',
                                 transition: 'transform 0.2s',
                             }}
                         >
@@ -290,10 +289,10 @@ const DashboardOverview = ({ employee, onNavigate }) => {
                                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: stat.color, display: 'inline-block', marginTop: 6 }} />
                             </div>
                             <div className="position-relative z-1">
-                                <p className="mb-1 text-dark-gray400 font-poppins" style={{ fontSize: '0.78rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                <p className="mb-1 font-poppins" style={{ fontSize: '0.78rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--theme-content-text-secondary)' }}>
                                     {stat.label}
                                 </p>
-                                <h3 className="mb-0 text-dark-secondary font-poppins" style={{ fontWeight: 700, color: stat.color }}>
+                                <h3 className="mb-0 font-poppins" style={{ fontWeight: 700, color: stat.color }}>
                                     {isLoading ? '...' : stat.value}
                                 </h3>
                             </div>
@@ -306,10 +305,10 @@ const DashboardOverview = ({ employee, onNavigate }) => {
             <div className="row g-4 mb-4">
                 {/* 1. Bar Chart: Revenue */}
                 <div className="col-12 col-xl-8">
-                    <div className="p-4 rounded-4 h-100 shadow-sm" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)' }}>
+                    <div className="p-4 rounded-4 h-100 shadow-sm" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
                         <div className="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
                             <div>
-                                <h6 className="fw-bold mb-1 text-dark-secondary font-poppins">Historical Revenue</h6>
+                                <h6 className="fw-bold mb-1 font-poppins">Historical Revenue</h6>
                                 <p className="mb-0 text-muted" style={{ fontSize: '0.8rem' }}>Tracks combined car wash earnings</p>
                             </div>
                             <div className="btn-group shadow-sm">
@@ -331,12 +330,19 @@ const DashboardOverview = ({ employee, onNavigate }) => {
                             <div style={{ height: 260, width: '100%' }}>
                                 <ResponsiveContainer>
                                     <BarChart data={chartData.historical} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} tickFormatter={(value) => `₱${value}`} />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#334155' : '#eee'} />
+                                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#888' }} axisLine={false} tickLine={false} />
+                                        <YAxis tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#888' }} axisLine={false} tickLine={false} tickFormatter={(value) => `₱${value}`} />
                                         <Tooltip
-                                            cursor={{ fill: 'rgba(35,160,206,0.05)' }}
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                            cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(35,160,206,0.05)' }}
+                                            contentStyle={{
+                                                borderRadius: '12px',
+                                                border: 'none',
+                                                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                                backgroundColor: isDark ? '#1e293b' : '#fff',
+                                                color: isDark ? '#f1f5f9' : '#0f172a'
+                                            }}
+                                            itemStyle={{ color: isDark ? '#f1f5f9' : '#0f172a' }}
                                             formatter={(value) => [`₱${value.toLocaleString()}`, 'Revenue']}
                                         />
                                         <Bar dataKey="revenue" fill="#23A0CE" radius={[4, 4, 0, 0]} maxBarSize={50} />
@@ -349,9 +355,9 @@ const DashboardOverview = ({ employee, onNavigate }) => {
 
                 {/* 2. Pie Chart: Service Popularity */}
                 <div className="col-12 col-xl-4">
-                    <div className="p-4 rounded-4 h-100 shadow-sm" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)' }}>
+                    <div className="p-4 rounded-4 h-100 shadow-sm" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
                         <div className="mb-2">
-                            <h6 className="fw-bold mb-1 text-dark-secondary font-poppins">Service Popularity</h6>
+                            <h6 className="fw-bold mb-1 font-poppins">Service Popularity</h6>
                             <p className="mb-0 text-muted" style={{ fontSize: '0.8rem' }}>Lifetime distribution</p>
                         </div>
                         {isLoading ? (
@@ -374,13 +380,20 @@ const DashboardOverview = ({ employee, onNavigate }) => {
                                             ))}
                                         </Pie>
                                         <Tooltip
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                            contentStyle={{
+                                                borderRadius: '12px',
+                                                border: 'none',
+                                                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                                backgroundColor: isDark ? '#1e293b' : '#fff',
+                                                color: isDark ? '#f1f5f9' : '#0f172a'
+                                            }}
+                                            itemStyle={{ color: isDark ? '#f1f5f9' : '#0f172a' }}
                                         />
                                         <Legend
                                             verticalAlign="bottom"
                                             height={36}
                                             iconType="circle"
-                                            wrapperStyle={{ fontSize: '0.8rem' }}
+                                            wrapperStyle={{ fontSize: '0.8rem', color: isDark ? '#94a3b8' : '#888' }}
                                         />
                                     </PieChart>
                                 </ResponsiveContainer>
@@ -391,9 +404,9 @@ const DashboardOverview = ({ employee, onNavigate }) => {
 
                 {/* 3. Line Chart: Booking Volume */}
                 <div className="col-12">
-                    <div className="p-4 rounded-4 shadow-sm" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)' }}>
+                    <div className="p-4 rounded-4 shadow-sm" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
                         <div className="mb-4">
-                            <h6 className="fw-bold mb-1 text-dark-secondary font-poppins">Booking Volume</h6>
+                            <h6 className="fw-bold mb-1 font-poppins">Booking Volume</h6>
                             <p className="mb-0 text-muted" style={{ fontSize: '0.8rem' }}>Tracks number of completed car wash bookings</p>
                         </div>
                         {isLoading ? (
@@ -402,11 +415,18 @@ const DashboardOverview = ({ employee, onNavigate }) => {
                             <div style={{ height: 260, width: '100%' }}>
                                 <ResponsiveContainer>
                                     <LineChart data={chartData.historical} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#334155' : '#eee'} />
+                                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#888' }} axisLine={false} tickLine={false} />
+                                        <YAxis tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#888' }} axisLine={false} tickLine={false} allowDecimals={false} />
                                         <Tooltip
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                            contentStyle={{
+                                                borderRadius: '12px',
+                                                border: 'none',
+                                                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                                backgroundColor: isDark ? '#1e293b' : '#fff',
+                                                color: isDark ? '#f1f5f9' : '#0f172a'
+                                            }}
+                                            itemStyle={{ color: isDark ? '#f1f5f9' : '#0f172a' }}
                                             formatter={(value) => [value, 'Cars Washed']}
                                         />
                                         <Line type="monotone" dataKey="volume" stroke="#22c55e" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />

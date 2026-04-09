@@ -11,7 +11,7 @@ import deleteIcon from '../../../assets/icon/delete.png';
 import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 
-const AssetTracker = ({ assets, bays, onRefresh }) => {
+const AssetTracker = ({ assets, bays, onRefresh, isDark }) => {
     const [showModal, setShowModal] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState(null);
@@ -20,7 +20,7 @@ const AssetTracker = ({ assets, bays, onRefresh }) => {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [page, setPage] = useState(1);
-    const PER_PAGE = 8;
+    const PER_PAGE = 5;
 
     useEffect(() => {
         const handler = setTimeout(() => setDebouncedSearch(search), 400);
@@ -87,7 +87,7 @@ const AssetTracker = ({ assets, bays, onRefresh }) => {
                 <SharedSearchBar searchTerm={search} onSearchChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search assets..." />
             </div>
 
-            <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 d-flex flex-column" style={{ minWidth: 560 }}>
+            <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 d-flex flex-column" style={{ minHeight: 500 }}>
                 <div className="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                     <h6 className="mb-0 fw-bold text-dark-secondary">Equipment & Assets</h6>
                     <button className="btn btn-save btn-sm text-white px-3 d-flex align-items-center gap-1 shadow-sm"
@@ -162,7 +162,7 @@ const AssetTracker = ({ assets, bays, onRefresh }) => {
             </div>
 
             {filtered.length > PER_PAGE && (
-                <div className="card-footer bg-white border-top py-3 d-flex justify-content-between align-items-center mt-auto shadow-sm rounded-4 mb-4">
+                <div className="card-footer border-top py-3 d-flex justify-content-between align-items-center mt-auto shadow-sm rounded-4 mb-4" style={{ background: 'var(--theme-card-bg)' }}>
                     <div className="text-muted" style={{ fontSize: '0.8rem' }}>
                         Showing {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, filtered.length)} of {filtered.length}
                     </div>
@@ -202,7 +202,7 @@ const AssetTracker = ({ assets, bays, onRefresh }) => {
             )}
 
             <AdminModalWrapper show={showModal} onClose={() => setShowModal(false)} size="md">
-                <div className="modal-content border-0 rounded-4 shadow text-dark-secondary bg-white">
+                <div className="modal-content border-0 rounded-4 shadow text-dark-secondary" style={{ background: 'var(--theme-card-bg)' }}>
                     <div className="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                         <h5 className="modal-title fw-bold text-dark-secondary">{editing ? 'Update Asset Details' : 'Register New Asset'}</h5>
                         <button type="button" className="btn-close shadow-none" onClick={() => setShowModal(false)} />
@@ -265,7 +265,7 @@ const AssetTracker = ({ assets, bays, onRefresh }) => {
 
             {/* Asset Details Modal */}
             <AdminModalWrapper show={showDetails} onClose={() => setShowDetails(false)} size="lg">
-                <div className="modal-content rounded-4 border-0 shadow-lg overflow-hidden bg-white text-dark-secondary">
+                <div className="modal-content rounded-4 border-0 shadow-lg overflow-hidden text-dark-secondary " style={{ background: 'var(--theme-card-bg)' }}>
                     {selectedAsset && (
                         <>
                             <div className="modal-header border-0 pt-4 px-4 pb-0 d-flex flex-column align-items-start" style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}>
@@ -317,7 +317,7 @@ const AssetTracker = ({ assets, bays, onRefresh }) => {
                                             </small>
                                         </div>
                                     </div>
-                                    <div className="col-md-7 ps-md-4 bg-white">
+                                    <div className="col-md-7 ps-md-4" style={{ background: 'var(--theme-card-bg)' }}>
                                         <h6 className="fw-bold text-muted small mb-3">MAINTENANCE & USAGE HISTORY</h6>
                                         {!selectedAsset ? (
                                             <div className="text-center p-4"><div className="spinner-border text-primary spinner-border-sm" /> Loading history...</div>
@@ -331,9 +331,9 @@ const AssetTracker = ({ assets, bays, onRefresh }) => {
                                                         {selectedAsset.maintenanceLogs.slice(0).reverse().map((log, i, arr) => {
                                                             const logIndex = arr.length - i;
                                                             return (
-                                                                <div key={i} className="py-3 d-flex align-items-center justify-content-between border-bottom hover-bg-light transition-all" style={{ background: i % 2 === 0 ? '#fff' : '#fcfcfc' }}>
+                                                                <div key={i} className="py-3 d-flex align-items-center justify-content-between border-bottom hover-bg-light transition-all" style={{ background: i % 2 === 0 ? 'var(--theme-card-bg)' : 'var(--theme-card-bg)' }}>
                                                                     <div className="d-flex align-items-center gap-3">
-                                                                        <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold text-muted" style={{ width: 40, height: 40, background: '#f1f5f9', fontSize: '0.85rem' }}>
+                                                                        <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold text-muted" style={{ width: 40, height: 40, background: 'var(--theme-card-header-bg)', fontSize: '0.85rem' }}>
                                                                             {logIndex}
                                                                         </div>
                                                                         <div>
@@ -371,13 +371,13 @@ const AssetTracker = ({ assets, bays, onRefresh }) => {
                                 </div>
                             </div>
                             <div className="modal-footer border-0 p-4 pt-2">
-                                <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setShowDetails(false)} >Close Details</button>
+                                <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setShowDetails(false)} style={{ background: isDark ? 'var(--theme-bg-secondary)' : '' }}>Close Details</button>
                             </div>
                         </>
                     )}
                 </div>
-            </AdminModalWrapper>
-        </div>
+            </AdminModalWrapper >
+        </div >
     );
 };
 

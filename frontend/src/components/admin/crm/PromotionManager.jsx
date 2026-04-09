@@ -15,7 +15,7 @@ import searchIcon from '../../../assets/icon/search.png';
 import AdminModalWrapper from '../shared/AdminModalWrapper';
 import SharedSearchBar from '../shared/SharedSearchBar';
 
-const PromotionsPage = () => {
+const PromotionsPage = ({ isDark }) => {
     const [activeTab, setActiveTab] = useState('manage'); // 'manage' | 'smc-history' | 'promo-history'
     const [promos, setPromos] = useState([]);
     const [smcLogs, setSmcLogs] = useState([]);

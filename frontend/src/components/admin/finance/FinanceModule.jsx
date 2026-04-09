@@ -26,7 +26,7 @@ import {
 
 const RevenueCategoryManager = RevenueCategorySettings;
 
-const FinancePage = ({ user, onNavigate }) => {
+const FinancePage = ({ user, onNavigate, isDark }) => {
     const [summary, setSummary] = useState({ totalRevenue: 0, totalCommissionOwed: 0, totalExpenses: 0, totalPayables: 0, netProfit: 0 });
     const [financePeriod, setFinancePeriod] = useState('all');
     const [expenses, setExpenses] = useState([]);
@@ -62,7 +62,7 @@ const FinancePage = ({ user, onNavigate }) => {
     // Revenue Pagination & Search State
     const [revSearchTerm, setRevSearchTerm] = useState('');
     const [revCurrentPage, setRevCurrentPage] = useState(1);
-    const revItemsPerPage = 8;
+    const revItemsPerPage = 6;
 
     const isFinanceMounted = useRef(false);
 
@@ -94,7 +94,7 @@ const FinancePage = ({ user, onNavigate }) => {
     // Expense Pagination & Search State
     const [expSearchTerm, setExpSearchTerm] = useState('');
     const [expCurrentPage, setExpCurrentPage] = useState(1);
-    const expItemsPerPage = 5;
+    const expItemsPerPage = 4;
 
     // Client-side filtered revenues
     const filteredRevenues = filterDataBySearch(revenues, revSearchTerm, ['title', 'category', 'reference', 'amount'], ['createdAt', 'date']);
@@ -490,14 +490,14 @@ const FinancePage = ({ user, onNavigate }) => {
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Automated Receivables, Expenses, and Profit Tracking</p>
                 </div>
                 <div className="d-flex gap-2">
-                    <div className="btn-group bg-light p-1 rounded-3">
-                        <button onClick={() => setActiveTab('overview')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${activeTab === 'overview' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`}>
+                    <div className="btn-group p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
+                        <button onClick={() => setActiveTab('overview')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${activeTab === 'overview' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`} style={{ background: activeTab === 'overview' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'overview' ? 'var(--theme-content-text)' : 'inherit' }}>
                             Overview</button>
-                        <button onClick={() => setActiveTab('revenues')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${activeTab === 'revenues' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`}>
+                        <button onClick={() => setActiveTab('revenues')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${activeTab === 'revenues' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`} style={{ background: activeTab === 'revenues' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'revenues' ? 'var(--theme-content-text)' : 'inherit' }}>
                             Income & Receivables</button>
                         <button onClick={() => onNavigate('accounts-payable')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 text-muted`}>
                             Accounts Payable</button>
-                        <button onClick={() => setActiveTab('recurring')} className={`btn btn-sm px-3 border-0 position-relative d-flex align-items-center gap-1 ${activeTab === 'recurring' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`}>
+                        <button onClick={() => setActiveTab('recurring')} className={`btn btn-sm px-3 border-0 position-relative d-flex align-items-center gap-1 ${activeTab === 'recurring' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`} style={{ background: activeTab === 'recurring' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'recurring' ? 'var(--theme-content-text)' : 'inherit' }}>
                             Recurring Bills
                             {pendingBills.length > 0 && (
                                 <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.6rem' }}>
@@ -505,11 +505,11 @@ const FinancePage = ({ user, onNavigate }) => {
                                 </span>
                             )}
                         </button>
-                        <button onClick={() => setActiveTab('budgets')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${activeTab === 'budgets' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`}>
+                        <button onClick={() => setActiveTab('budgets')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${activeTab === 'budgets' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`} style={{ background: activeTab === 'budgets' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'budgets' ? 'var(--theme-content-text)' : 'inherit' }}>
                             Budgets</button>
-                        <button onClick={() => setActiveTab('ledger')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${activeTab === 'ledger' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`}>
+                        <button onClick={() => setActiveTab('ledger')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${activeTab === 'ledger' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`} style={{ background: activeTab === 'ledger' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'ledger' ? 'var(--theme-content-text)' : 'inherit' }}>
                             General Ledger</button>
-                        <button onClick={() => setActiveTab('settings')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${activeTab === 'settings' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`}>
+                        <button onClick={() => setActiveTab('settings')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${activeTab === 'settings' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`} style={{ background: activeTab === 'settings' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'settings' ? 'var(--theme-content-text)' : 'inherit' }}>
                             Settings</button>
                     </div>
                     {activeTab === 'overview' && (
@@ -824,6 +824,7 @@ const FinancePage = ({ user, onNavigate }) => {
                                 show={showRevCategoryManager}
                                 onClose={() => setShowRevCategoryManager(false)}
                                 onUpdate={(cats) => { setRevenueCats(cats); fetchFinanceData(); }}
+                                isDark={isDark}
                             />
                         </div>
                         {/* ERP Mapping Section */}
@@ -1015,7 +1016,7 @@ const FinancePage = ({ user, onNavigate }) => {
 
                                 <div className="row g-4">
                                     <div className="col-lg-8">
-                                        <div className="card border-0 shadow-sm rounded-4 overflow-hidden d-flex flex-column" style={{ minHeight: 580 }}>
+                                        <div className="card border-0 shadow-sm rounded-4 overflow-hidden d-flex flex-column" style={{ minHeight: 490 }}>
                                             <div className="card-header bg-white py-3 border-bottom">
                                                 <div className="d-flex flex-wrap gap-3 justify-content-between align-items-center">
                                                     <div>
@@ -1063,12 +1064,12 @@ const FinancePage = ({ user, onNavigate }) => {
                                                                                     ))}
                                                                                 </div>
                                                                             )}
-                                                                            <span className="text-dark-gray200" style={{ fontSize: '0.7rem' }}>{exp.description}</span>
+                                                                            <span className="text-dark-gray200" style={{ fontSize: '0.7rem', color: 'var(--theme-content-text-secondary)' }}>{exp.description}</span>
                                                                         </td>
                                                                         <td>
                                                                             <span className="badge rounded-pill" style={{ background: 'rgba(35,160,206,0.1)', color: '#23A0CE', fontSize: '0.7rem' }}>{exp.category}</span>
                                                                         </td>
-                                                                        <td className="text-dark-gray200">{new Date(exp.date).toLocaleDateString()}</td>
+                                                                        <td className="text-dark-gray200" style={{ color: 'var(--theme-content-text-secondary)' }}>{new Date(exp.date).toLocaleDateString()}</td>
                                                                         <td className="fw-bold text-danger">- ₱{exp.amount.toLocaleString()}</td>
                                                                         <td className="pe-4 text-end">
                                                                             <button onClick={() => deleteExpense(exp._id)} className="btn btn-sm text-danger-hover p-0 border-0 bg-transparent">
@@ -1144,9 +1145,9 @@ const FinancePage = ({ user, onNavigate }) => {
                                                     <div className="progress-bar bg-success" style={{ width: `${100 - (commissionRate * 100)}%` }} />
                                                 </div>
                                             </div>
-                                            <div className="p-3 rounded-3" style={{ background: '#f8f9fa', border: '1px dashed #dee2e6' }}>
-                                                <p className="mb-1 text-dark-secondary fw-bold" style={{ fontSize: '0.8rem' }}>Admin Tip:</p>
-                                                <small className="text-muted d-block" style={{ fontSize: '0.72rem', lineHeight: 1.4 }}>
+                                            <div className="p-3 rounded-3" style={{ background: 'var(--theme-card-bg)', border: '1px dashed #dee2e6' }}>
+                                                <p className="mb-1 text-dark-secondary fw-bold" style={{ fontSize: '0.8rem', color: 'var(--theme-content-text)' }}>Admin Tip:</p>
+                                                <small className="text-muted d-block" style={{ fontSize: '0.72rem', lineHeight: 1.4, color: 'var(--theme-content-text)' }}>
                                                     Track all water and electricity bills under "Utilities" to get an accurate view of your net profit per wash.
                                                 </small>
                                             </div>
@@ -1181,7 +1182,7 @@ const FinancePage = ({ user, onNavigate }) => {
                                             />
                                         </div>
                                     </div>
-                                    <div className="card-body p-0 flex-grow-1 d-flex flex-column" style={{ minHeight: '521px' }}>
+                                    <div className="card-body p-0 flex-grow-1 d-flex flex-column" style={{ minHeight: 445 }}>
                                         {isRevLoading ? <div className="p-5 flex-grow-1"><ChartSkeleton /></div> : (
                                             <div className="table-responsive flex-grow-1">
                                                 <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.85rem' }}>
@@ -1537,6 +1538,7 @@ const FinancePage = ({ user, onNavigate }) => {
                 show={showBillCategoryManager}
                 onClose={() => setShowBillCategoryManager(false)}
                 onUpdate={(cats) => { setBillCategories(cats); fetchRecurringBills(); }}
+                isDark={isDark}
             />
 
             {

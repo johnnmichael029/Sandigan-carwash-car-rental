@@ -171,7 +171,7 @@ const PurchaseOrderManager = ({ vendors, inventoryItems, onUpdate }) => {
                                             </td>
                                             <td>
                                                 {po.items.map((item, i) => (
-                                                    <div key={i} className="text-truncate fw-bold text-dark-gray100" style={{ maxWidth: 180 }}>
+                                                    <div key={i} className="text-truncate fw-bold text-dark-gray100" style={{ maxWidth: 180, color: 'var(--theme-content-text)' }}>
                                                         {item.inventoryItem?.name || 'Unknown'} <span className="text-muted">({item.inventoryItem?.unit || '?'})</span>
                                                     </div>
                                                 ))}

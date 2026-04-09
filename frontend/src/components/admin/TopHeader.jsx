@@ -20,6 +20,7 @@ import employeeIcon from '../../assets/icon/employee.png';
 import refreshIcon from '../../assets/icon/refresh.png';
 import settingsIcon from '../../assets/icon/setting.png';
 import notifIcon from '../../assets/icon/notif.png';
+import darkThemeNotifIcon from '../../assets/icon/dark-theme-notif.png';
 
 const ACTION_META = {
     booking_created: { icon: bookingsIcon, color: '#23A0CE' },
@@ -59,7 +60,7 @@ const ACTION_META = {
     setting_updated: { icon: settingsIcon, color: '#64748b' },
 };
 
-const TopHeader = ({ user, title, subtitle, onNavigate }) => {
+const TopHeader = ({ user, title, subtitle, onNavigate, isDark }) => {
     const [logs, setLogs] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
@@ -115,13 +116,13 @@ const TopHeader = ({ user, title, subtitle, onNavigate }) => {
     return (
         <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
             <div>
-                <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>{title}</h4>
+                <h4 className="mb-0 font-poppins" style={{ fontWeight: 700, color: 'var(--theme-content-text)' }}>{title}</h4>
                 <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>{subtitle}</p>
             </div>
             <div className="d-flex align-items-center gap-4">
                 <div className="text-end">
                     <span className="font-poppins text-dark-gray400 d-block" style={{ fontSize: '0.85rem' }}>
-                        Welcome, <strong className="text-dark-secondary">{user?.fullName ?? 'Administrator'}</strong>
+                        Welcome, <strong style={{ color: 'var(--theme-content-text)' }}>{user?.fullName ?? 'Administrator'}</strong>
                     </span>
                     <span className="font-poppins d-block" style={{ fontSize: '0.75rem', color: '#a855f7', fontWeight: 600 }}>
                         Administrator
@@ -129,7 +130,7 @@ const TopHeader = ({ user, title, subtitle, onNavigate }) => {
                 </div>
                 <div className="position-relative" style={{ cursor: 'pointer' }}>
                     <div onClick={() => setIsOpen(!isOpen)} className="position-relative d-inline-block p-1">
-                        <img src={notifIcon} alt="Activity Log" style={{ width: '24px' }} />
+                        <img src={isDark ? darkThemeNotifIcon : notifIcon} alt="Activity Log" style={{ width: '24px' }} />
                         {unreadCount > 0 && (
                             <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.65rem' }}>
                                 {unreadCount > 9 ? '9+' : unreadCount}
@@ -137,9 +138,9 @@ const TopHeader = ({ user, title, subtitle, onNavigate }) => {
                         )}
                     </div>
                     {isOpen && (
-                        <div className="position-absolute dropdown-menu show shadow-lg rounded-3 mt-2" style={{ right: 0, width: '340px', left: 'auto', zIndex: 1050 }}>
-                            <div className="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
-                                <h6 className="mb-0 fw-bold text-dark-secondary">Activity Log</h6>
+                        <div className="position-absolute dropdown-menu show shadow-lg rounded-3 mt-2" style={{ right: 0, width: '340px', left: 'auto', zIndex: 1050, background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-content-border)' }}>
+                            <div className="p-3 border-bottom d-flex justify-content-between align-items-center" style={{ background: 'var(--theme-card-header-bg)' }}>
+                                <h6 className="mb-0 fw-bold" style={{ color: 'var(--theme-content-text)' }}>Activity Log</h6>
                                 <span className="badge rounded-pill" style={{ background: 'rgba(35,160,206,0.12)', color: '#23A0CE', fontSize: '0.7rem' }}>Live</span>
                             </div>
                             <div className="p-0" style={{ maxHeight: '320px', overflowY: 'auto' }}>
@@ -151,8 +152,8 @@ const TopHeader = ({ user, title, subtitle, onNavigate }) => {
                                         return (
                                             <div
                                                 key={log._id}
-                                                className={`p-3 border-bottom d-flex gap-2 align-items-start ${!log.isRead ? 'background-light-secondary' : 'background-light-primary'}`}
-                                                style={{ cursor: 'pointer' }}
+                                                className={`p-3 border-bottom d-flex gap-2 align-items-start`}
+                                                style={{ cursor: 'pointer', background: !log.isRead ? 'var(--theme-table-row-hover)' : 'transparent' }}
                                                 onClick={() => handleNotifClick(log)}
                                             >
                                                 <div style={{ width: 20, height: 20, flexShrink: 0, marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -163,7 +164,7 @@ const TopHeader = ({ user, title, subtitle, onNavigate }) => {
                                                     )}
                                                 </div>
                                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <p className="mb-0 font-poppins text-dark" style={{ fontSize: '0.82rem', lineHeight: 1.4 }}>{log.message}</p>
+                                                    <p className="mb-0 font-poppins" style={{ fontSize: '0.82rem', lineHeight: 1.4, color: 'var(--theme-content-text)' }}>{log.message}</p>
                                                     <small className="text-muted" style={{ fontSize: '0.68rem' }}>
                                                         {new Date(log.createdAt).toLocaleString('en-PH')}
                                                     </small>
@@ -177,8 +178,8 @@ const TopHeader = ({ user, title, subtitle, onNavigate }) => {
                                     })
                                 )}
                             </div>
-                            <div className="p-2 border-top d-flex justify-content-between bg-light">
-                                <button onClick={markAllRead} className="btn btn-sm btn-link brand-primary text-decoration-none" style={{ fontSize: '0.8rem' }}>Mark all read</button>
+                            <div className="p-2 border-top d-flex justify-content-between" style={{ background: 'var(--theme-dropdown-bg)' }}>
+                                <button onClick={markAllRead} className="btn btn-sm btn-link text-decoration-none" style={{ fontSize: '0.8rem', color: '#23A0CE' }}>Mark all read</button>
                                 <button onClick={handleViewAll} className="btn btn-sm btn-link text-decoration-none" style={{ fontSize: '0.8rem', color: '#23A0CE' }}>View All Activity →</button>
                             </div>
                         </div>

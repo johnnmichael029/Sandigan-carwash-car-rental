@@ -10,7 +10,7 @@ import searchIcon from '../../../assets/icon/search.png';
 import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 
-const MembershipManagement = ({ employee, onSMCRequest }) => {
+const MembershipManagement = ({ employee, onSMCRequest, isDark }) => {
     const [memberships, setMemberships] = useState([]);
     const [config, setConfig] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -18,7 +18,7 @@ const MembershipManagement = ({ employee, onSMCRequest }) => {
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 13;
+    const itemsPerPage = 11;
 
     // Renewal State
     const [lookupId, setLookupId] = useState('');
@@ -111,10 +111,10 @@ const MembershipManagement = ({ employee, onSMCRequest }) => {
         const dateStr = new Date(m.expiryDate).toLocaleDateString().toLowerCase();
         const status = new Date(m.expiryDate) < new Date() ? 'expired' : 'active';
 
-        return cid.includes(search) || 
-               name.includes(search) || 
-               dateStr.includes(search) || 
-               status.includes(search);
+        return cid.includes(search) ||
+            name.includes(search) ||
+            dateStr.includes(search) ||
+            status.includes(search);
     });
 
     // Pagination Logic
@@ -174,7 +174,7 @@ const MembershipManagement = ({ employee, onSMCRequest }) => {
                                     <small className="d-block mt-2">Expires: <b>{new Date(foundCard.smcExpiryDate).toLocaleDateString()}</b></small>
                                 </div>
 
-                                <div className="bg-light p-3 rounded-4 mb-4 border">
+                                <div className="p-3 rounded-4 mb-4 border" style={{ background: 'var(--theme-input-bg)', borderColor: 'var(--theme-content-border)' }}>
                                     <div className="form-check form-switch d-flex align-items-center gap-2 mb-3">
                                         <input
                                             className="form-check-input mt-0"
@@ -184,7 +184,7 @@ const MembershipManagement = ({ employee, onSMCRequest }) => {
                                             checked={isRegistering}
                                             onChange={e => setIsRegistering(e.target.checked)}
                                         />
-                                        <label className="form-check-label fw-bold small text-dark-secondary" htmlFor="personalizeSwitch" style={{ cursor: 'pointer' }}>
+                                        <label className="form-check-label fw-bold small" htmlFor="personalizeSwitch" style={{ cursor: 'pointer', color: 'var(--theme-content-text)' }}>
                                             Personalize / Linking Customer?
                                         </label>
                                     </div>
@@ -218,11 +218,11 @@ const MembershipManagement = ({ employee, onSMCRequest }) => {
 
                 {/* 2. Audit Logs Table */}
                 <div className="col-12 col-xl-8">
-                    <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden d-flex flex-column" style={{ minHeight: '808px' }}>
-                        <div className="card-header bg-white p-4 border-0 d-flex justify-content-between align-items-center">
-                            <h6 className="fw-bold mb-0 text-dark-secondary">SMC MEMBERSHIP AUDIT LOG</h6>
-                            <SharedSearchBar 
-                                placeholder="Search card or name..." 
+                    <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden d-flex flex-column" style={{ minHeight: 730 }}>
+                        <div className="p-4 border-0 d-flex justify-content-between align-items-center">
+                            <h6 className="fw-bold mb-0" style={{ color: 'var(--theme-content-text)' }}>SMC MEMBERSHIP AUDIT LOG</h6>
+                            <SharedSearchBar
+                                placeholder="Search card or name..."
                                 onDebouncedSearch={(val) => setSearchTerm(val)}
                                 debounceDelay={400}
                             />

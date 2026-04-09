@@ -13,7 +13,7 @@ import editBooking from '../../../assets/icon/edit-book.png';
 import bookDuration from '../../../assets/icon/duration.png';
 import inProgressBooking from '../../../assets/icon/in-progress.png';
 
-const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC }) => {
+const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onSMCById }) => {
     const [editMode, setEditMode] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [detailers, setDetailers] = useState([]);
@@ -341,327 +341,336 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC }) =
     return (
         <AdminModalWrapper show={!!booking} onClose={onClose} size="lg">
             <div className="modal-content rounded-4 shadow border-0 bg-white">
-                    <div className="modal-header border-bottom-0 pb-0 pt-4 px-4 d-flex align-items-start flex-wrap gap-2">
-                        <div>
-                            <h5 className="modal-title font-poppins text-dark-secondary fw-bold mb-0" style={{ fontSize: '1.25rem' }}>
-                                Booking Details <span className="fw-normal text-dark-secondary" style={{ fontSize: '0.75rem' }}>#{booking.batchId || booking._id.substring(0, 8)}</span>
-                            </h5>
-                            <div className="mt-1">
-                                <span className="badge rounded-pill px-3 py-2 font-poppins" style={{ background: 'rgba(35,160,206,0.1)', color: '#23A0CE', border: '1px solid rgba(35,160,206,0.3)', fontSize: '0.85rem', fontWeight: 600 }}>
-                                    Total: ₱{(editMode ? liveTotalPrice : storedTotalPrice).toLocaleString()}
-                                    {editMode && liveTotalPrice !== storedTotalPrice && storedTotalPrice > 0 && (
-                                        <span className="text-muted fw-normal ms-1" style={{ fontSize: '0.75rem' }}>(was ₱{storedTotalPrice.toLocaleString()})</span>
-                                    )}
-                                </span>
-                            </div>
+                <div className="modal-header border-bottom-0 pb-0 pt-4 px-4 d-flex align-items-start flex-wrap gap-2">
+                    <div>
+                        <h5 className="modal-title font-poppins text-dark-secondary fw-bold mb-0" style={{ fontSize: '1.25rem' }}>
+                            Booking Details <span className="fw-normal text-dark-secondary" style={{ fontSize: '0.75rem' }}>#{booking.batchId || booking._id.substring(0, 8)}</span>
+                        </h5>
+                        <div className="mt-1">
+                            <span className="badge rounded-pill px-3 py-2 font-poppins" style={{ background: 'rgba(35,160,206,0.1)', color: '#23A0CE', border: '1px solid rgba(35,160,206,0.3)', fontSize: '0.85rem', fontWeight: 600 }}>
+                                Total: ₱{(editMode ? liveTotalPrice : storedTotalPrice).toLocaleString()}
+                                {editMode && liveTotalPrice !== storedTotalPrice && storedTotalPrice > 0 && (
+                                    <span className="text-muted fw-normal ms-1" style={{ fontSize: '0.75rem' }}>(was ₱{storedTotalPrice.toLocaleString()})</span>
+                                )}
+                            </span>
                         </div>
-                        <button type="button" className="btn-close shadow-none ms-auto" onClick={onClose}></button>
                     </div>
-                    <div className="modal-body p-4">
-                        <div className="row g-4">
-                            {/* LEFT COLUMN: Customer & Edit Form */}
-                            <div className="col-md-7 border-end pe-4">
-                                <h6 className="fw-bold mb-3 font-poppins" style={{ fontSize: '0.9rem', color: '#23A0CE' }}>CUSTOMER INFORMATION</h6>
+                    <button type="button" className="btn-close shadow-none ms-auto" onClick={onClose}></button>
+                </div>
+                <div className="modal-body p-4">
+                    <div className="row g-4">
+                        {/* LEFT COLUMN: Customer & Edit Form */}
+                        <div className="col-md-7 border-end pe-4">
+                            <h6 className="fw-bold mb-3 font-poppins" style={{ fontSize: '0.9rem', color: '#23A0CE' }}>CUSTOMER INFORMATION</h6>
 
-                                <div className="row g-3">
-                                    <div className="col-12 col-sm-6">
-                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>First Name</label>
-                                        <input type="text" name="firstName" className="form-control form-control-sm shadow-none" value={formData.firstName} onChange={handleChange} disabled={!editMode} />
-                                    </div>
-                                    <div className="col-12 col-sm-6">
-                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Last Name</label>
-                                        <input type="text" name="lastName" className="form-control form-control-sm shadow-none" value={formData.lastName} onChange={handleChange} disabled={!editMode} />
-                                    </div>
-                                    <div className="col-12 mb-2">
-                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Email Address</label>
-                                        <input type="email" name="emailAddress" className="form-control form-control-sm shadow-none" value={formData.emailAddress} onChange={handleChange} disabled={!editMode} />
-                                    </div>
-                                    <div className="col-12 col-sm-6">
-                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Phone</label>
-                                        <input type="text" name="phoneNumber" className="form-control form-control-sm shadow-none" value={formData.phoneNumber} onChange={handleChange} disabled={!editMode} />
-                                    </div>
-                                    <div className="col-12 col-sm-6">
-                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Vehicle Type</label>
-                                        {editMode && dynamicPricingData.length > 0 ? (
-                                            <select name="vehicleType" className="form-select form-select-sm shadow-none" value={formData.vehicleType} onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value, serviceType: [] })}>
-                                                <option value="" disabled>-- Select Vehicle --</option>
-                                                {dynamicPricingData.map(v => (
-                                                    <option key={v._id} value={v.vehicleType}>{v.vehicleType}</option>
-                                                ))}
-                                            </select>
-                                        ) : (
-                                            <input type="text" name="vehicleType" className="form-control form-control-sm shadow-none" value={formData.vehicleType} onChange={handleChange} disabled={!editMode} />
-                                        )}
-                                    </div>
-                                    <div className="col-12 col-sm-6 text-start">
-                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Sandigan Membership Card (SMC)</label>
+                            <div className="row g-3">
+                                <div className="col-12 col-sm-6">
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>First Name</label>
+                                    <input type="text" name="firstName" className="form-control form-control-sm shadow-none" value={formData.firstName} onChange={handleChange} disabled={!editMode} />
+                                </div>
+                                <div className="col-12 col-sm-6">
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Last Name</label>
+                                    <input type="text" name="lastName" className="form-control form-control-sm shadow-none" value={formData.lastName} onChange={handleChange} disabled={!editMode} />
+                                </div>
+                                <div className="col-12 mb-2">
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Email Address</label>
+                                    <input type="email" name="emailAddress" className="form-control form-control-sm shadow-none" value={formData.emailAddress} onChange={handleChange} disabled={!editMode} />
+                                </div>
+                                <div className="col-12 col-sm-6">
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Phone</label>
+                                    <input type="text" name="phoneNumber" className="form-control form-control-sm shadow-none" value={formData.phoneNumber} onChange={handleChange} disabled={!editMode} />
+                                </div>
+                                <div className="col-12 col-sm-6">
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Vehicle Type</label>
+                                    {editMode && dynamicPricingData.length > 0 ? (
+                                        <select name="vehicleType" className="form-select form-select-sm shadow-none" value={formData.vehicleType} onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value, serviceType: [] })}>
+                                            <option value="" disabled>-- Select Vehicle --</option>
+                                            {dynamicPricingData.map(v => (
+                                                <option key={v._id} value={v.vehicleType}>{v.vehicleType}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input type="text" name="vehicleType" className="form-control form-control-sm shadow-none" value={formData.vehicleType} onChange={handleChange} disabled={!editMode} />
+                                    )}
+                                </div>
+                                <div className="col-12 col-sm-6 text-start">
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Sandigan Membership Card (SMC)</label>
+                                    <div className="d-flex align-items-center gap-2">
+                                        <input type="text" name="smcId" className="form-control form-control-sm shadow-none font-monospace text-uppercase" placeholder="Scan SMC ID" value={formData.smcId} onChange={handleChange} disabled={!editMode} />
                                         <div className="d-flex align-items-center gap-2">
-                                            <input type="text" name="smcId" className="form-control form-control-sm shadow-none font-monospace text-uppercase" placeholder="Scan SMC ID" value={formData.smcId} onChange={handleChange} disabled={!editMode} />
-                                            {editMode ? (
+                                            {editMode && (
                                                 <button type="button" className="btn btn-sm btn-outline-primary shadow-none px-2" onClick={() => handleSMCVerification()} disabled={isVerifyingSMC || !formData.smcId}>
                                                     {isVerifyingSMC ? '...' : 'Verify'}
                                                 </button>
-                                            ) : (
-                                                booking.smcId && (
-                                                    <button type="button" className="btn btn-sm btn-link text-decoration-none p-0 text-primary fw-bold" style={{ fontSize: '0.75rem' }} onClick={() => onSMC && onSMC(booking._id)}>
-                                                        View Details
-                                                    </button>
-                                                )
                                             )}
-                                        </div>
-                                        {smcDiscountInfo.isValid && <small className="text-success d-block mt-1 fw-bold" style={{ fontSize: '0.7rem' }}>SMC Active: {smcDiscountInfo.percentage}% Off</small>}
-                                        {smcDiscountInfo.error && <small className="text-danger d-block mt-1" style={{ fontSize: '0.7rem' }}>{smcDiscountInfo.error}</small>}
-                                    </div>
-                                    <div className="col-12 col-sm-6 text-start">
-                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Promo Code</label>
-                                        <div className="d-flex gap-2">
-                                            <input type="text" name="promoCode" className="form-control form-control-sm shadow-none font-monospace text-uppercase" placeholder="Enter Code" value={formData.promoCode} onChange={handleChange} disabled={!editMode} />
-                                            {editMode && (
-                                                <button type="button" className="btn btn-sm btn-outline-primary shadow-none px-2" onClick={() => handlePromoVerification()} disabled={isVerifyingPromo || !formData.promoCode}>
-                                                    {isVerifyingPromo ? '...' : 'Apply'}
+                                            {smcDiscountInfo.isValid && (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-save shadow-none px-2"
+                                                    onClick={() => {
+                                                        const currentInput = formData.smcId?.trim().toUpperCase();
+                                                        if (currentInput) {
+                                                            onSMCById && onSMCById(currentInput);
+                                                        }
+                                                    }}>
+                                                    View
                                                 </button>
                                             )}
                                         </div>
-                                        {promoInfo.isValid && <small className="text-success d-block mt-1 fw-bold" style={{ fontSize: '0.7rem' }}>Promo Active: -₱{promoInfo.discount.toLocaleString()}</small>}
-                                        {promoInfo.error && <small className="text-danger d-block mt-1" style={{ fontSize: '0.7rem' }}>{promoInfo.error}</small>}
                                     </div>
-                                    <div className="col-12">
-                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Services Requested</label>
-                                        {(!editMode && !activeVehicleData) ? (
-                                            <div className="d-flex flex-wrap gap-2">
-                                                {formData.serviceType.map(s => (
-                                                    <span key={s} className="badge bg-primary px-3 py-2 rounded-pill font-poppins">{s}</span>
-                                                ))}
+                                    {smcDiscountInfo.isValid && <small className="text-success d-block mt-1 fw-bold" style={{ fontSize: '0.7rem' }}>SMC Active: {smcDiscountInfo.percentage}% Off</small>}
+                                    {smcDiscountInfo.error && <small className="text-danger d-block mt-1" style={{ fontSize: '0.7rem' }}>{smcDiscountInfo.error}</small>}
+                                </div>
+                                <div className="col-12 col-sm-6 text-start">
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Promo Code</label>
+                                    <div className="d-flex gap-2">
+                                        <input type="text" name="promoCode" className="form-control form-control-sm shadow-none font-monospace text-uppercase" placeholder="Enter Code" value={formData.promoCode} onChange={handleChange} disabled={!editMode} />
+                                        {editMode && (
+                                            <button type="button" className="btn btn-sm btn-outline-primary shadow-none px-2" onClick={() => handlePromoVerification()} disabled={isVerifyingPromo || !formData.promoCode}>
+                                                {isVerifyingPromo ? '...' : 'Apply'}
+                                            </button>
+                                        )}
+                                    </div>
+                                    {promoInfo.isValid && <small className="text-success d-block mt-1 fw-bold" style={{ fontSize: '0.7rem' }}>Promo Active: -₱{promoInfo.discount.toLocaleString()}</small>}
+                                    {promoInfo.error && <small className="text-danger d-block mt-1" style={{ fontSize: '0.7rem' }}>{promoInfo.error}</small>}
+                                </div>
+                                <div className="col-12">
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Services Requested</label>
+                                    {(!editMode && !activeVehicleData) ? (
+                                        <div className="d-flex flex-wrap gap-2">
+                                            {formData.serviceType.map(s => (
+                                                <span key={s} className="badge bg-primary px-3 py-2 rounded-pill font-poppins">{s}</span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="row row-cols-2 row-cols-lg-4 g-2 mb-2">
+                                                {activeVehicleData?.services?.map(service => {
+                                                    const isSelected = formData.serviceType.includes(service.name);
+                                                    return (
+                                                        <div className="col" key={service.name}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => toggleService(service.name)}
+                                                                disabled={!editMode}
+                                                                className={`btn rounded-pill px-3 w-100 ${isSelected ? 'btn-primary text-white' : 'btn-outline-secondary text-dark-secondary'}`}
+                                                                style={{ opacity: isSelected || editMode ? 1 : 0.5, fontSize: '0.8rem' }}>
+                                                                {isSelected && <span className="me-1">✓</span>} {service.name}
+                                                                {editMode && <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{service.price}</span>}
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        ) : (
-                                            <>
-                                                <div className="row row-cols-2 row-cols-lg-4 g-2 mb-2">
-                                                    {activeVehicleData?.services?.map(service => {
-                                                        const isSelected = formData.serviceType.includes(service.name);
+                                            <label className="form-label brand-primary mb-1" style={{ fontSize: '0.8rem' }} >Add-ons</label>
+                                            {activeVehicleData?.addons?.length > 0 && (
+                                                <div className="row row-cols-2 row-cols-lg-2 g-2">
+                                                    {activeVehicleData.addons.map(addon => {
+                                                        const isSelected = formData.serviceType.includes(addon.name);
                                                         return (
-                                                            <div className="col" key={service.name}>
+                                                            <div className="col" key={addon.name}>
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => toggleService(service.name)}
+                                                                    onClick={() => toggleService(addon.name)}
                                                                     disabled={!editMode}
                                                                     className={`btn rounded-pill px-3 w-100 ${isSelected ? 'btn-primary text-white' : 'btn-outline-secondary text-dark-secondary'}`}
                                                                     style={{ opacity: isSelected || editMode ? 1 : 0.5, fontSize: '0.8rem' }}>
-                                                                    {isSelected && <span className="me-1">✓</span>} {service.name}
-                                                                    {editMode && <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{service.price}</span>}
+                                                                    {isSelected && <span className="me-1">✓</span>} {addon.name}
+                                                                    {editMode && <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{addon.price}</span>}
                                                                 </button>
                                                             </div>
                                                         );
                                                     })}
                                                 </div>
-                                                <label className="form-label brand-primary mb-1" style={{ fontSize: '0.8rem' }} >Add-ons</label>
-                                                {activeVehicleData?.addons?.length > 0 && (
-                                                    <div className="row row-cols-2 row-cols-lg-2 g-2">
-                                                        {activeVehicleData.addons.map(addon => {
-                                                            const isSelected = formData.serviceType.includes(addon.name);
-                                                            return (
-                                                                <div className="col" key={addon.name}>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => toggleService(addon.name)}
-                                                                        disabled={!editMode}
-                                                                        className={`btn rounded-pill px-3 w-100 ${isSelected ? 'btn-primary text-white' : 'btn-outline-secondary text-dark-secondary'}`}
-                                                                        style={{ opacity: isSelected || editMode ? 1 : 0.5, fontSize: '0.8rem' }}>
-                                                                        {isSelected && <span className="me-1">✓</span>} {addon.name}
-                                                                        {editMode && <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{addon.price}</span>}
-                                                                    </button>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                    {/* Purchased Retail Products — always visible */}
-                                    <div className="col-12">
-                                        <label className="form-label brand-primary mb-1 mt-1" style={{ fontSize: '0.8rem' }}>Retail / Products Bought</label>
-                                        <div className="d-flex flex-column gap-2">
-                                            {formData.purchasedProducts.length === 0 && !editMode && (
-                                                <span className="text-muted" style={{ fontSize: '0.75rem' }}>None</span>
                                             )}
-                                            {formData.purchasedProducts.map((p, idx) => (
-                                                <div key={idx} className="d-flex align-items-center justify-content-between p-2 rounded-3" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                                                    <div className="d-flex align-items-center gap-2">
-                                                        <span className="badge bg-secondary text-truncate" style={{ maxWidth: '130px' }}>{p.productName}</span>
-                                                        <span className="text-dark" style={{ fontSize: '0.75rem', fontWeight: 500 }}>x{p.quantity} (₱{(p.price * p.quantity).toLocaleString()})</span>
-                                                    </div>
-                                                    {editMode && <button type="button" className="btn btn-sm text-danger p-0 border-0 shadow-none" onClick={() => removeRetailProduct(idx)}>✖</button>}
-                                                </div>
-                                            ))}
-                                            {editMode && products.length > 0 && (
-                                                <div className="d-flex gap-2 align-items-center mt-1">
-                                                    <select className="form-select form-select-sm shadow-none w-auto flex-grow-1" id="retailSelect" style={{ fontSize: '0.75rem' }}>
-                                                        <option value="">-- Add Retail Item --</option>
-                                                        {products.map(prod => {
-                                                            const stock = getProductStock(prod);
-                                                            const outOfStock = stock !== null && stock <= 0;
-                                                            return (
-                                                                <option key={prod._id} value={prod._id} disabled={outOfStock}>
-                                                                    {prod.name} (₱{prod.basePrice}){stock !== null ? ` — Stock: ${stock}` : ''}{outOfStock ? ' [Out of Stock]' : ''}
-                                                                </option>
-                                                            );
-                                                        })}
-                                                    </select>
-                                                    <input
-                                                        type="number"
-                                                        id="retailQty"
-                                                        className="form-control form-control-sm shadow-none text-center"
-                                                        style={{ width: '55px', fontSize: '0.75rem' }}
-                                                        defaultValue="1"
-                                                        min="1"
-                                                        max={99}
-                                                    />
-                                                    <button type="button" className="btn btn-sm btn-outline-primary" style={{ fontSize: '0.75rem' }} onClick={addRetailProduct}>Add</button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="col-12 col-sm-6">
-                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Time Slot</label>
-                                        <select name="bookingTime" className="form-select form-select-sm shadow-none" value={formData.bookingTime} onChange={handleChange} disabled={!editMode}>
-                                            {availableHours.map((hourObj) => (
-                                                <option key={hourObj.raw} value={hourObj.raw}>
-                                                    {hourObj.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="col-12 col-sm-6">
-                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Assigned Detailer</label>
-                                        <select
-                                            name="assignedTo"
-                                            className="form-select form-select-sm shadow-none"
-                                            value={formData.assignedTo}
-                                            onChange={e => {
-                                                const selected = detailers.find(d => d._id === e.target.value);
-                                                setFormData(prev => ({
-                                                    ...prev,
-                                                    assignedTo: e.target.value,
-                                                    detailer: selected ? selected.fullName : ''
-                                                }));
-                                            }}
-                                            disabled={!editMode}
-                                        >
-                                            <option value="">—- Unassigned -—</option>
-                                            {detailers.map(d => (
-                                                <option key={d._id} value={d._id}>{d.fullName}</option>
-                                            ))}
-                                        </select>
-                                        {!editMode && !formData.assignedTo && (
-                                            <small className="text-warning d-block mt-1" style={{ fontSize: '0.72rem' }}>⚠ No detailer assigned</small>
+                                        </>
+                                    )}
+                                </div>
+                                {/* Purchased Retail Products — always visible */}
+                                <div className="col-12">
+                                    <label className="form-label brand-primary mb-1 mt-1" style={{ fontSize: '0.8rem' }}>Retail / Products Bought</label>
+                                    <div className="d-flex flex-column gap-2">
+                                        {formData.purchasedProducts.length === 0 && !editMode && (
+                                            <span className="text-muted" style={{ fontSize: '0.75rem' }}>None</span>
                                         )}
-                                    </div>
-                                    <div className="col-12 col-sm-6">
-                                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Assigned Bay</label>
-                                        <select
-                                            name="bayId"
-                                            className="form-select form-select-sm shadow-none"
-                                            value={formData.bayId}
-                                            onChange={handleChange}
-                                            disabled={!editMode}
-                                        >
-                                            <option value="">—- Unassigned -—</option>
-                                            {bays.map(b => (
-                                                <option key={b._id} value={b._id} disabled={(b.status === 'Maintenance' || b.status === 'Occupied') && b._id !== formData.bayId}>
-                                                    {b.name} ({b.status === 'Occupied' && b._id !== formData.bayId ? 'Unavailable' : b.status})
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {!editMode && !formData.bayId && (
-                                            <small className="text-warning d-block mt-1" style={{ fontSize: '0.72rem' }}>⚠ No bay assigned</small>
+                                        {formData.purchasedProducts.map((p, idx) => (
+                                            <div key={idx} className="d-flex align-items-center justify-content-between p-2 rounded-3" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <span className="badge bg-secondary text-truncate" style={{ maxWidth: '130px' }}>{p.productName}</span>
+                                                    <span className="text-dark" style={{ fontSize: '0.75rem', fontWeight: 500 }}>x{p.quantity} (₱{(p.price * p.quantity).toLocaleString()})</span>
+                                                </div>
+                                                {editMode && <button type="button" className="btn btn-sm text-danger p-0 border-0 shadow-none" onClick={() => removeRetailProduct(idx)}>✖</button>}
+                                            </div>
+                                        ))}
+                                        {editMode && products.length > 0 && (
+                                            <div className="d-flex gap-2 align-items-center mt-1">
+                                                <select className="form-select form-select-sm shadow-none w-auto flex-grow-1" id="retailSelect" style={{ fontSize: '0.75rem' }}>
+                                                    <option value="">-- Add Retail Item --</option>
+                                                    {products.map(prod => {
+                                                        const stock = getProductStock(prod);
+                                                        const outOfStock = stock !== null && stock <= 0;
+                                                        return (
+                                                            <option key={prod._id} value={prod._id} disabled={outOfStock}>
+                                                                {prod.name} (₱{prod.basePrice}){stock !== null ? ` — Stock: ${stock}` : ''}{outOfStock ? ' [Out of Stock]' : ''}
+                                                            </option>
+                                                        );
+                                                    })}
+                                                </select>
+                                                <input
+                                                    type="number"
+                                                    id="retailQty"
+                                                    className="form-control form-control-sm shadow-none text-center"
+                                                    style={{ width: '55px', fontSize: '0.75rem' }}
+                                                    defaultValue="1"
+                                                    min="1"
+                                                    max={99}
+                                                />
+                                                <button type="button" className="btn btn-sm btn-outline-primary" style={{ fontSize: '0.75rem' }} onClick={addRetailProduct}>Add</button>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* RIGHT COLUMN: Logs */}
-                            <div className="col-md-5 ps-3">
-                                <h6 className="fw-bold mb-3 font-poppins" style={{ fontSize: '0.9rem', color: '#23A0CE' }}>STATUS LOGS</h6>
-                                {!booking.statusLogs || booking.statusLogs.length === 0 ? (
-                                    <p className="text-muted font-poppins" style={{ fontSize: '0.85rem' }}>No status changes yet.</p>
-                                ) : (
-                                    <ul className="list-unstyled mb-0 ms-3">
-                                        {booking.statusLogs.map((log, i) => {
-                                            const isLast = i === booking.statusLogs.length - 1;
-
-                                            // Determine which icon matches the string
-                                            let iconSrc = null;
-                                            if (log.status === 'Pending') iconSrc = pendingBooking;
-                                            else if (log.status === 'Confirmed') iconSrc = confirmedBooking;
-                                            else if (log.status === 'Queued') iconSrc = queuedBooking;
-                                            else if (log.status === 'Completed') iconSrc = completedBooking;
-                                            else if (log.status === 'In-progress') iconSrc = inProgressBooking;
-
-                                            return (
-                                                <li key={i} className="position-relative pb-4" style={{ borderLeft: isLast ? '2px solid transparent' : '2px solid #23A0CE', paddingLeft: '28px' }}>
-                                                    {/* Central Circle with Icon */}
-                                                    <div className="position-absolute d-flex align-items-center justify-content-center bg-white"
-                                                        style={{ width: '34px', height: '34px', borderRadius: '50%', border: log.status === 'Cancelled' ? '2px solid #dc3545' : '2px solid #23A0CE', left: '-18px', top: '-4px', zIndex: 1 }}>
-                                                        {iconSrc ? (
-                                                            <img src={iconSrc} alt={log.status} style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
-                                                        ) : (
-                                                            <span style={{ color: log.status === 'Cancelled' ? '#dc3545' : '#23A0CE', fontWeight: 'bold', fontSize: '1.2rem', lineHeight: 1 }}>
-                                                                {log.status === 'Cancelled' ? '×' : '•'}
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Text Block */}
-                                                    <div className="fw-bold font-poppins text-dark" style={{ fontSize: '0.95rem', color: log.status === 'Cancelled' ? '#dc3545' : '#262626', paddingTop: '2px' }}>
-                                                        {log.status}
-                                                    </div>
-                                                    <div className="text-dark-gray300 font-poppins" style={{ fontSize: '0.78rem', marginTop: '0' }}>
-                                                        {new Date(log.timestamp).toLocaleString('en-PH', { dateStyle: 'short', timeStyle: 'short' })}
-                                                    </div>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                )}
-
-                                {durationText && (
-                                    <div className="mt-2 p-3 rounded-3 d-flex align-items-center gap-2" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', color: '#166534', fontSize: '0.85rem', fontWeight: 500 }}>
-                                        <img src={bookDuration} alt="" style={{ width: '24px' }} />
-                                        {durationText}
-                                    </div>
-                                )}
+                                <div className="col-12 col-sm-6">
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Time Slot</label>
+                                    <select name="bookingTime" className="form-select form-select-sm shadow-none" value={formData.bookingTime} onChange={handleChange} disabled={!editMode}>
+                                        {availableHours.map((hourObj) => (
+                                            <option key={hourObj.raw} value={hourObj.raw}>
+                                                {hourObj.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="col-12 col-sm-6">
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Assigned Detailer</label>
+                                    <select
+                                        name="assignedTo"
+                                        className="form-select form-select-sm shadow-none"
+                                        value={formData.assignedTo}
+                                        onChange={e => {
+                                            const selected = detailers.find(d => d._id === e.target.value);
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                assignedTo: e.target.value,
+                                                detailer: selected ? selected.fullName : ''
+                                            }));
+                                        }}
+                                        disabled={!editMode}
+                                    >
+                                        <option value="">—- Unassigned -—</option>
+                                        {detailers.map(d => (
+                                            <option key={d._id} value={d._id}>{d.fullName}</option>
+                                        ))}
+                                    </select>
+                                    {!editMode && !formData.assignedTo && (
+                                        <small className="text-warning d-block mt-1" style={{ fontSize: '0.72rem' }}>⚠ No detailer assigned</small>
+                                    )}
+                                </div>
+                                <div className="col-12 col-sm-6">
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Assigned Bay</label>
+                                    <select
+                                        name="bayId"
+                                        className="form-select form-select-sm shadow-none"
+                                        value={formData.bayId}
+                                        onChange={handleChange}
+                                        disabled={!editMode}
+                                    >
+                                        <option value="">—- Unassigned -—</option>
+                                        {bays.map(b => (
+                                            <option key={b._id} value={b._id} disabled={(b.status === 'Maintenance' || b.status === 'Occupied') && b._id !== formData.bayId}>
+                                                {b.name} ({b.status === 'Occupied' && b._id !== formData.bayId ? 'Unavailable' : b.status})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {!editMode && !formData.bayId && (
+                                        <small className="text-warning d-block mt-1" style={{ fontSize: '0.72rem' }}>⚠ No bay assigned</small>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div className="modal-footer border-top-0 pb-4 px-4 pt-1 justify-content-end gap-2">
-                        {editMode ? (
-                            <>
-                                <button className="btn btn-light rounded-pill px-4 shadow-sm font-poppins" style={{ fontSize: '0.85rem' }} onClick={() => setEditMode(false)}>Discard</button>
-                                <button className="btn rounded-pill px-4 shadow-sm font-poppins brand-primary" style={{ fontSize: '0.85rem' }} onClick={handleSave} disabled={isSaving}>
-                                    {isSaving ? 'Saving...' : 'Save Changes'}
-                                </button>
-                            </>
-                        ) : (
-                            // Hide Edit button entirely for terminal statuses
-                            !['Completed', 'Cancelled'].includes(booking.status) && (
-                                <button className="btn brand-primary rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2" style={{ fontSize: '0.85rem' }} onClick={() => setEditMode(true)}>
-                                    <img src={editBooking} alt="" style={{ width: '16px' }} />
-                                    Edit Details
-                                </button>
-                            )
-                        )}
 
-                        {booking.status === 'Completed' && (
-                            <div className="d-flex gap-2">
-                                <button className="btn btn-receipt btn-outline-primary rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2"
-                                    style={{ fontSize: '0.85rem', borderColor: '#23A0CE', color: 'var(--text-secondary)', backgroundColor: 'var(--brand-primary)' }}
-                                    onClick={() => onPrint(booking)}>
-                                    Generate Receipt
-                                </button>
-                            </div>
-                        )}
+                        {/* RIGHT COLUMN: Logs */}
+                        <div className="col-md-5 ps-3">
+                            <h6 className="fw-bold mb-3 font-poppins" style={{ fontSize: '0.9rem', color: '#23A0CE' }}>STATUS LOGS</h6>
+                            {!booking.statusLogs || booking.statusLogs.length === 0 ? (
+                                <p className="text-muted font-poppins" style={{ fontSize: '0.85rem' }}>No status changes yet.</p>
+                            ) : (
+                                <ul className="list-unstyled mb-0 ms-3">
+                                    {booking.statusLogs.map((log, i) => {
+                                        const isLast = i === booking.statusLogs.length - 1;
+
+                                        // Determine which icon matches the string
+                                        let iconSrc = null;
+                                        if (log.status === 'Pending') iconSrc = pendingBooking;
+                                        else if (log.status === 'Confirmed') iconSrc = confirmedBooking;
+                                        else if (log.status === 'Queued') iconSrc = queuedBooking;
+                                        else if (log.status === 'Completed') iconSrc = completedBooking;
+                                        else if (log.status === 'In-progress') iconSrc = inProgressBooking;
+
+                                        return (
+                                            <li key={i} className="position-relative pb-4" style={{ borderLeft: isLast ? '2px solid transparent' : '2px solid #23A0CE', paddingLeft: '28px' }}>
+                                                {/* Central Circle with Icon */}
+                                                <div className="position-absolute d-flex align-items-center justify-content-center bg-white"
+                                                    style={{ width: '34px', height: '34px', borderRadius: '50%', border: log.status === 'Cancelled' ? '2px solid #dc3545' : '2px solid #23A0CE', left: '-18px', top: '-4px', zIndex: 1 }}>
+                                                    {iconSrc ? (
+                                                        <img src={iconSrc} alt={log.status} style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
+                                                    ) : (
+                                                        <span style={{ color: log.status === 'Cancelled' ? '#dc3545' : '#23A0CE', fontWeight: 'bold', fontSize: '1.2rem', lineHeight: 1 }}>
+                                                            {log.status === 'Cancelled' ? '×' : '•'}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Text Block */}
+                                                <div className="fw-bold font-poppins text-dark" style={{ fontSize: '0.95rem', color: log.status === 'Cancelled' ? '#dc3545' : '#262626', paddingTop: '2px' }}>
+                                                    {log.status}
+                                                </div>
+                                                <div className="text-dark-gray300 font-poppins" style={{ fontSize: '0.78rem', marginTop: '0' }}>
+                                                    {new Date(log.timestamp).toLocaleString('en-PH', { dateStyle: 'short', timeStyle: 'short' })}
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+
+                            {durationText && (
+                                <div className="mt-2 p-3 rounded-3 d-flex align-items-center gap-2" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', color: '#166534', fontSize: '0.85rem', fontWeight: 500 }}>
+                                    <img src={bookDuration} alt="" style={{ width: '24px' }} />
+                                    {durationText}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
+                <div className="modal-footer border-top-0 pb-4 px-4 pt-1 justify-content-end gap-2">
+                    {editMode ? (
+                        <>
+                            <button className="btn btn-light rounded-pill px-4 shadow-sm font-poppins" style={{ fontSize: '0.85rem' }} onClick={() => setEditMode(false)}>Discard</button>
+                            <button className="btn rounded-pill px-4 shadow-sm font-poppins brand-primary" style={{ fontSize: '0.85rem' }} onClick={handleSave} disabled={isSaving}>
+                                {isSaving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </>
+                    ) : (
+                        // Hide Edit button entirely for terminal statuses
+                        !['Completed', 'Cancelled'].includes(booking.status) && (
+                            <button className="btn brand-primary rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2" style={{ fontSize: '0.85rem' }} onClick={() => setEditMode(true)}>
+                                <img src={editBooking} alt="" style={{ width: '16px' }} />
+                                Edit Details
+                            </button>
+                        )
+                    )}
+
+                    {booking.status === 'Completed' && (
+                        <div className="d-flex gap-2">
+                            <button className="btn btn-receipt btn-outline-primary rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2"
+                                style={{ fontSize: '0.85rem', borderColor: '#23A0CE', color: 'var(--text-secondary)', backgroundColor: 'var(--brand-primary)' }}
+                                onClick={() => onPrint(booking)}>
+                                Generate Receipt
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
         </AdminModalWrapper>
     );
 };

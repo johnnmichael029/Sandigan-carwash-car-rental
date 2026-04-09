@@ -12,7 +12,7 @@ import { API_BASE, authHeaders } from '../../api/config';
 import { TableSkeleton, VendorSkeleton } from '../../components/SkeletonLoaders';
 import AdminModalWrapper from '../../components/admin/shared/AdminModalWrapper';
 
-const VendorPayables = () => {
+const VendorPayables = ({ isDark }) => {
     const [vendors, setVendors] = useState([]);
     const [bills, setBills] = useState([]);
     const [summary, setSummary] = useState({ totalDebt: 0, overdueDebt: 0, upcomingDebt: 0, totalPaid: 0, count: 0 });

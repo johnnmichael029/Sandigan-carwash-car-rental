@@ -65,13 +65,13 @@ const TopHeader = ({ employee, title, subtitle, onNavigate }) => {
     return (
         <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
             <div>
-                <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>{title}</h4>
+                <h4 className="mb-0 font-poppins" style={{ fontWeight: 700, color: 'var(--theme-content-text)' }}>{title}</h4>
                 <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>{subtitle}</p>
             </div>
             <div className="d-flex align-items-center gap-4">
                 <div className="text-end">
                     <span className="font-poppins text-dark-gray400 d-block" style={{ fontSize: '0.85rem' }}>
-                        Welcome, <strong className="text-dark-secondary">{employee?.fullName ?? 'Employee'}</strong>
+                        Welcome, <strong style={{ color: 'var(--theme-content-text)' }}>{employee?.fullName ?? 'Employee'}</strong>
                     </span>
                 </div>
                 <div className="position-relative" style={{ cursor: 'pointer' }}>
@@ -85,9 +85,9 @@ const TopHeader = ({ employee, title, subtitle, onNavigate }) => {
                     </div>
 
                     {isOpen && (
-                        <div className="position-absolute dropdown-menu show shadow-lg rounded-3 mt-2" style={{ right: 0, width: '320px', left: 'auto', zIndex: 1050 }}>
-                            <div className="p-3 border-bottom bg-light">
-                                <h6 className="mb-0 fw-bold text-dark-secondary">Notifications</h6>
+                        <div className="position-absolute dropdown-menu show shadow-lg rounded-3 mt-2" style={{ right: 0, width: '320px', left: 'auto', zIndex: 1050, background: 'var(--theme-dropdown-bg)', border: '1px solid var(--theme-content-border)' }}>
+                            <div className="p-3 border-bottom" style={{ background: 'var(--theme-card-header-bg)' }}>
+                                <h6 className="mb-0 fw-bold" style={{ color: 'var(--theme-content-text)' }}>Notifications</h6>
                             </div>
                             <div className="p-0" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                                 {notifications.length === 0 ? (
@@ -95,16 +95,16 @@ const TopHeader = ({ employee, title, subtitle, onNavigate }) => {
                                 ) : (
                                     notifications.map((n) => (
                                         <div key={n._id}
-                                            className={`notification p-3 border-bottom ${!n.isRead ? 'background-light-secondary' : 'background-light-primary'}`}
+                                            className={`notification p-3 border-bottom`}
                                             onClick={() => handleNotifClick(n)}
-                                            style={{ cursor: 'pointer' }}>
-                                            <p className="mb-1 text-sm font-poppins text-dark" style={{ fontSize: '0.85rem' }}>{n.message}</p>
+                                            style={{ cursor: 'pointer', background: !n.isRead ? 'var(--theme-table-row-hover)' : 'transparent' }}>
+                                            <p className="mb-1 text-sm font-poppins" style={{ fontSize: '0.85rem', color: 'var(--theme-content-text)' }}>{n.message}</p>
                                             <small className="text-muted" style={{ fontSize: '0.7rem' }}>{new Date(n.createdAt).toLocaleString()}</small>
                                         </div>
                                     ))
                                 )}
                             </div>
-                            <div className="p-2 border-top d-flex justify-content-between bg-light">
+                            <div className="p-2 border-top d-flex justify-content-between" style={{ background: 'var(--theme-dropdown-bg)' }}>
                                 <button onClick={markAllRead} className="btn btn-sm btn-link brand-primary text-decoration-none" style={{ fontSize: '0.8rem' }}>Mark all read</button>
                                 <button onClick={deleteAll} className="btn btn-sm btn-link text-danger text-decoration-none" style={{ fontSize: '0.8rem' }}>Delete all</button>
                             </div>

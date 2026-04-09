@@ -59,7 +59,7 @@ const ACTION_META = {
     setting_updated: { icon: settingsIcon, color: '#64748b' },
 };
 
-const ActivityLogPage = () => {
+const ActivityLogPage = ({ isDark }) => {
     const [logs, setLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filterAction, setFilterAction] = useState('all');
@@ -163,7 +163,7 @@ const ActivityLogPage = () => {
             {/* Page header */}
             <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
                 <div>
-                    <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>Activity Log</h4>
+                    <h4 className="mb-0 font-poppins" style={{ fontWeight: 700, color: 'var(--theme-content-text)' }}>Activity Log</h4>
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>{todayDate} — Full Audit Trail</p>
                 </div>
                 <div className="d-flex gap-2">
@@ -200,7 +200,7 @@ const ActivityLogPage = () => {
             </div>
 
             {/* Log list */}
-            <div className="rounded-4 shadow-sm overflow-hidden d-flex flex-column" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)', minHeight: '745px' }}>
+            <div className="rounded-4 shadow-sm overflow-hidden d-flex flex-column" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)', minHeight: '745px' }}>
                 {isLoading ? (
                     <div className="p-0"><TableSkeleton /></div>
                 ) : currentItems.length === 0 ? (
@@ -213,8 +213,8 @@ const ActivityLogPage = () => {
                                 return (
                                     <div
                                         key={log._id}
-                                        className={`d-flex align-items-start gap-3 px-4 py-3 ${idx !== currentItems.length - 1 ? 'border-bottom' : ''} ${!log.isRead ? 'background-light-secondary' : ''}`}
-                                        style={{ transition: 'background 0.2s' }}
+                                        className={`d-flex align-items-start gap-3 px-4 py-3 ${idx !== currentItems.length - 1 ? 'border-bottom' : ''}`}
+                                        style={{ transition: 'background 0.2s', background: !log.isRead ? 'var(--theme-table-row-hover)' : 'transparent', borderColor: 'var(--theme-content-border)' }}
                                     >
                                         {/* Icon bubble */}
                                         <div style={{
@@ -232,7 +232,7 @@ const ActivityLogPage = () => {
 
                                         {/* Content */}
                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                            <p className="mb-0 font-poppins text-dark" style={{ fontSize: '0.87rem', lineHeight: 1.5 }}>
+                                            <p className="mb-0 font-poppins" style={{ fontSize: '0.87rem', lineHeight: 1.5, color: 'var(--theme-content-text)' }}>
                                                 {log.message}
                                             </p>
                                             <div className="d-flex gap-3 mt-1 flex-wrap">

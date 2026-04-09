@@ -9,7 +9,7 @@ import bayIcon from '../../../assets/icon/bay.png';
 import assetIcon from '../../../assets/icon/asset.png';
 import maintenanceIcon from '../../../assets/icon/maintenance.png';
 
-const OperationsModule = ({ user }) => {
+const OperationsModule = ({ user, isDark }) => {
     const [bays, setBays] = useState([]);
     const [assets, setAssets] = useState([]);
     const [projects, setProjects] = useState([]);
@@ -59,41 +59,41 @@ const OperationsModule = ({ user }) => {
     const activeProjects = projects.filter(p => p.status === 'Pending' || p.status === 'In Progress').length;
 
     const kpiCards = [
-        { 
-            title: 'Maint. Spend (Mo)', 
-            value: `₱${monthlyMaintenanceTotal.toLocaleString()}`, 
-            icon: '💰', 
-            color: '#10b981', 
-            bg: 'linear-gradient(135deg,#10b98115,#10b98105)', 
-            dot: '#10b981', 
-            desc: 'Total costs for this month' 
+        {
+            title: 'Maint. Spend (Mo)',
+            value: `₱${monthlyMaintenanceTotal.toLocaleString()}`,
+            icon: '💰',
+            color: '#10b981',
+            bg: 'linear-gradient(135deg,#10b98115,#10b98105)',
+            dot: '#10b981',
+            desc: 'Total costs for this month'
         },
-        { 
-            title: 'Equip. Availability', 
-            value: `${assetAvailability}%`, 
-            icon: '⚡', 
-            color: '#8b5cf6', 
-            bg: 'linear-gradient(135deg,#8b5cf615,#8b5cf605)', 
-            dot: '#8b5cf6', 
-            desc: 'Ratio of active assets' 
+        {
+            title: 'Equip. Availability',
+            value: `${assetAvailability}%`,
+            icon: '⚡',
+            color: '#8b5cf6',
+            bg: 'linear-gradient(135deg,#8b5cf615,#8b5cf605)',
+            dot: '#8b5cf6',
+            desc: 'Ratio of active assets'
         },
-        { 
-            title: 'Critical Health', 
-            value: degradedAssets.toLocaleString(), 
-            icon: '⚠️', 
-            color: '#f59e0b', 
-            bg: 'linear-gradient(135deg,#f59e0b15,#f59e0b05)', 
-            dot: '#f59e0b', 
-            desc: 'Assets needing intervention' 
+        {
+            title: 'Critical Health',
+            value: degradedAssets.toLocaleString(),
+            icon: '⚠️',
+            color: '#f59e0b',
+            bg: 'linear-gradient(135deg,#f59e0b15,#f59e0b05)',
+            dot: '#f59e0b',
+            desc: 'Assets needing intervention'
         },
-        { 
-            title: 'Active Projects', 
-            value: activeProjects.toLocaleString(), 
-            icon: '📋', 
-            color: '#3b82f6', 
-            bg: 'linear-gradient(135deg,#3b82f615,#3b82f605)', 
-            dot: '#3b82f6', 
-            desc: 'Ongoing service requests' 
+        {
+            title: 'Active Projects',
+            value: activeProjects.toLocaleString(),
+            icon: '📋',
+            color: '#3b82f6',
+            bg: 'linear-gradient(135deg,#3b82f615,#3b82f605)',
+            dot: '#3b82f6',
+            desc: 'Ongoing service requests'
         },
     ];
     return (
@@ -106,27 +106,27 @@ const OperationsModule = ({ user }) => {
                 </div>
 
                 {/* Tab Navigation matching HRIS design */}
-                <div className="d-flex gap-2 bg-light p-1 rounded-3">
+                <div className="d-flex gap-2 p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
                     <button
-                        className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'bays' ? 'bg-white shadow-sm fw-bold' : 'text-muted'}`}
+                        className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'bays' ? 'shadow-sm fw-bold' : 'text-muted'}`}
                         onClick={() => setActiveTab('bays')}
-                        style={{ fontSize: '0.85rem' }}
+                        style={{ fontSize: '0.85rem', background: activeTab === 'bays' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'bays' ? 'var(--theme-content-text)' : 'inherit' }}
                     >
                         <img src={bayIcon} alt="" style={{ width: 14 }} />
                         Bays
                     </button>
                     <button
-                        className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'assets' ? 'bg-white shadow-sm fw-bold' : 'text-muted'}`}
+                        className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'assets' ? 'shadow-sm fw-bold' : 'text-muted'}`}
                         onClick={() => setActiveTab('assets')}
-                        style={{ fontSize: '0.85rem' }}
+                        style={{ fontSize: '0.85rem', background: activeTab === 'assets' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'assets' ? 'var(--theme-content-text)' : 'inherit' }}
                     >
                         <img src={assetIcon} alt="" style={{ width: 14, filter: 'grayscale(1)' }} />
                         Assets
                     </button>
                     <button
-                        className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'maintenance' ? 'bg-white shadow-sm fw-bold' : 'text-muted'}`}
+                        className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'maintenance' ? 'shadow-sm fw-bold' : 'text-muted'}`}
                         onClick={() => setActiveTab('maintenance')}
-                        style={{ fontSize: '0.85rem' }}
+                        style={{ fontSize: '0.85rem', background: activeTab === 'maintenance' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'maintenance' ? 'var(--theme-content-text)' : 'inherit' }}
                     >
                         <img src={maintenanceIcon} alt="" style={{ width: 14 }} />Maintenance
                     </button>
@@ -140,7 +140,7 @@ const OperationsModule = ({ user }) => {
                 <div className="row g-3 mb-4">
                     {kpiCards.map((card, idx) => (
                         <div className="col-6 col-md-3" key={idx}>
-                            <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden" style={{ background: '#fff' }}>
+                            <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden" style={{ background: 'var(--theme-card-bg)' }}>
                                 <div style={{ position: 'absolute', top: '-15%', right: '-10%', width: '80px', height: '80px', background: card.color, filter: 'blur(30px)', opacity: 0.15 }} />
                                 <div className="p-3 position-relative">
                                     <div className="position-absolute top-0 end-0 p-3">
@@ -163,9 +163,9 @@ const OperationsModule = ({ user }) => {
             {/* Tab Content */}
             {isLoading ? <TableSkeleton /> : (
                 <div className="animate-fade-in">
-                    {activeTab === 'bays' && <BayManager bays={bays} onRefresh={fetchAll} />}
-                    {activeTab === 'assets' && <AssetTracker assets={assets} bays={bays} onRefresh={fetchAll} />}
-                    {activeTab === 'maintenance' && <MaintenanceProjects projects={projects} assets={assets} bays={bays} employees={employees} inventoryItems={inventoryItems} onRefresh={fetchAll} />}
+                    {activeTab === 'bays' && <BayManager bays={bays} onRefresh={fetchAll} isDark={isDark} />}
+                    {activeTab === 'assets' && <AssetTracker assets={assets} bays={bays} onRefresh={fetchAll} isDark={isDark} />}
+                    {activeTab === 'maintenance' && <MaintenanceProjects projects={projects} assets={assets} bays={bays} employees={employees} inventoryItems={inventoryItems} onRefresh={fetchAll} isDark={isDark} />}
                 </div>
             )}
         </div>

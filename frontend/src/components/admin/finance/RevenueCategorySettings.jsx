@@ -1,6 +1,6 @@
 import CategoryManager from '../shared/CategoryManager';
 
-const RevenueCategoryManager = ({ show, onClose, onUpdate }) => {
+const RevenueCategoryManager = ({ show, onClose, onUpdate, isDark }) => {
     return (
         <CategoryManager
             show={show}
@@ -10,6 +10,7 @@ const RevenueCategoryManager = ({ show, onClose, onUpdate }) => {
             title="Revenue Tag Library"
             subtitle="Manage unified income groups for financial reporting"
             itemName="Tag"
+            isDark={isDark}
         />
     );
 };

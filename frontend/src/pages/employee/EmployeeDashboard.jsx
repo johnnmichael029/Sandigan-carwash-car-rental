@@ -9,6 +9,15 @@ import downArrow from '../../assets/icon/down.png';
 import upArrow from '../../assets/icon/up.png';
 import carService from '../../assets/icon/car.png';
 import dashboard from '../../assets/icon/dashboard.png';
+import collapseIcon from '../../assets/icon/collapse.png';
+import logoIcon from '../../assets/logo/logo.png';
+import adminLogoutIcon from '../../assets/icon/employee-logout.png';
+import bookingIcon from '../../assets/icon/order.png';
+import carRentalIcon from '../../assets/icon/car-rental.png';
+import retailIcon from '../../assets/icon/retail.png';
+import membershipIcon from '../../assets/icon/membership.png';
+import darkTheme from '../../assets/icon/dark-theme.png';
+import lightTheme from '../../assets/icon/light-theme.png';
 
 // Components
 import DashboardOverview from '../../components/employee/dashboard/DashboardOverview';
@@ -30,6 +39,21 @@ const EmployeeDashboard = () => {
     const [employee, setEmployee] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [toggleActive, setToggleActive] = useState('dashboard');
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isDark, setIsDark] = useState(() => localStorage.getItem('sandigan-theme') === 'dark');
+
+    /* ── Theme sync ── */
+    useEffect(() => {
+        const theme = isDark ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('sandigan-theme', theme);
+    }, [isDark]);
+
+    /* ── Init theme on mount ── */
+    useEffect(() => {
+        const saved = localStorage.getItem('sandigan-theme') || 'light';
+        document.documentElement.setAttribute('data-theme', saved);
+    }, []);
 
     // Dropdown stays open when a child tab is already active
     const [isServicesOpen, setIsServicesOpen] = useState(
@@ -74,7 +98,6 @@ const EmployeeDashboard = () => {
     useEffect(() => {
         const stored = localStorage.getItem('employee');
 
-        // If employee data is missing or has no role, force re-login
         if (!stored) {
             localStorage.removeItem('employee');
             navigate('/login', { replace: true });
@@ -84,7 +107,6 @@ const EmployeeDashboard = () => {
         try {
             const parsed = JSON.parse(stored);
             if (!parsed.role) {
-                // Stale data from before the role fix — force re-login
                 localStorage.removeItem('employee');
                 navigate('/login', { replace: true });
                 return;
@@ -115,7 +137,6 @@ const EmployeeDashboard = () => {
                 confirmButtonColor: '#23A0CE',
                 confirmButtonText: 'OK',
             }).then(async () => {
-                // Clear the httpOnly auth cookie via the backend logout endpoint
                 await fetch(`${API_BASE}/employees/logout`, {
                     method: 'POST',
                     headers: authHeaders(),
@@ -137,7 +158,6 @@ const EmployeeDashboard = () => {
             confirmButtonText: 'Yes, log out',
         }).then(async (result) => {
             if (result.isConfirmed) {
-                // Clear the httpOnly auth cookie via the backend logout endpoint
                 await fetch(`${API_BASE}/employees/logout`, {
                     method: 'POST',
                     headers: authHeaders(),
@@ -155,7 +175,6 @@ const EmployeeDashboard = () => {
 
         const resetTimer = () => {
             clearTimeout(timeoutId);
-            // 15 minutes = 15 * 60 * 1000 = 900000 ms
             timeoutId = setTimeout(() => {
                 handleLogout(true);
             }, 900000);
@@ -164,7 +183,7 @@ const EmployeeDashboard = () => {
         const events = ['mousemove', 'keydown', 'wheel', 'click', 'scroll', 'touchstart'];
         events.forEach(event => window.addEventListener(event, resetTimer));
 
-        resetTimer(); // Initialize on mount
+        resetTimer();
 
         return () => {
             clearTimeout(timeoutId);
@@ -176,17 +195,17 @@ const EmployeeDashboard = () => {
     const renderContent = () => {
         switch (toggleActive) {
             case 'dashboard':
-                return <DashboardOverview employee={employee} onNavigate={setToggleActive} />;
+                return <DashboardOverview employee={employee} onNavigate={setToggleActive} isDark={isDark} />;
             case 'bookings':
-                return <BookingManagement employee={employee} onShowSMC={handleShowSMC} />;
+                return <BookingManagement employee={employee} onShowSMC={handleShowSMC} isDark={isDark} />;
             case 'car-rent':
-                return <CarRentManagement employee={employee} />;
+                return <CarRentManagement employee={employee} isDark={isDark} />;
             case 'retail':
-                return <RetailManagement employee={employee} onSMCRequest={handleFetchSMCById} />;
+                return <RetailManagement employee={employee} onSMCRequest={handleFetchSMCById} isDark={isDark} />;
             case 'membership':
-                return <MembershipManagement employee={employee} onSMCRequest={handleFetchSMCById} />;
+                return <MembershipManagement employee={employee} onSMCRequest={handleFetchSMCById} isDark={isDark} />;
             default:
-                return <DashboardOverview employee={employee} onNavigate={setToggleActive} />;
+                return <DashboardOverview employee={employee} onNavigate={setToggleActive} isDark={isDark} />;
         }
     };
 
@@ -203,152 +222,272 @@ const EmployeeDashboard = () => {
     }
 
     const isServiceActive = SERVICE_ITEMS.includes(toggleActive);
+    const sidebarWidth = isCollapsed ? '85px' : '260px';
 
     return (
-        <div className="container-fluid p-0">
-            <div className="d-flex w-100">
+        <div className="container-fluid p-0 font-poppins background-light-primary" style={{ height: '100vh', overflow: 'hidden' }}>
+            <div className="d-flex w-100 p-3 gap-3" style={{ height: '100vh', overflow: 'hidden' }}>
 
-                {/* ─── SIDEBAR ─── */}
-                <nav className="sidebar-container sidebar vh-100 d-flex flex-column" style={{ position: 'sticky', top: 0 }}>
+                {/* ─── FLOATING SIDEBAR ─── */}
+                <nav className="sidebar-container d-flex flex-column shadow-lg" style={{
+                    width: sidebarWidth,
+                    minWidth: sidebarWidth,
+                    height: 'calc(100vh - 32px)',
+                    transition: 'all 0.1s cubic-bezier(0.4, 0, 0.2, 1)',
+                    zIndex: 1001,
+                    overflow: 'visible',
+                    position: 'relative',
+                    flexShrink: 0,
+                    borderRadius: '24px',
+                    backgroundColor: '#002525'
+                }}>
+
+                    {/* Floating Collapse Button */}
+                    <div
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className="shadow d-flex align-items-center justify-content-center"
+                        style={{
+                            position: 'absolute',
+                            right: '-20px',
+                            top: '50px',
+                            transform: 'translateY(0)',
+                            width: '40px',
+                            height: '40px',
+                            backgroundColor: '#002525',
+                            borderRadius: '16px',
+                            cursor: 'pointer',
+                            border: '1px solid rgba(35,160,206,0.3)',
+                            zIndex: 1002,
+                            transition: 'all 0.1s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#23A0CE';
+                            e.currentTarget.style.borderColor = '#fff';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#002525';
+                            e.currentTarget.style.borderColor = 'rgba(35,160,206,0.3)';
+                        }}
+                    >
+                        <img
+                            src={collapseIcon}
+                            alt="Toggle"
+                            style={{
+                                width: '14px',
+                                opacity: 1,
+                                filter: 'brightness(0) invert(1)',
+                                transition: 'all 0.1s ease',
+                                transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)'
+                            }}
+                        />
+                    </div>
 
                     {/* Logo */}
-                    <div className="brand-container border-bottom w-100 d-flex justify-content-center align-items-center">
+                    <div className="brand-container border-bottom border-secondary-subtle w-100 d-flex justify-content-center align-items-center px-2 py-4">
                         <img
                             className="sandigan-logo"
-                            src={sandiganLogo}
+                            src={isCollapsed ? logoIcon : sandiganLogo}
                             alt="Sandigan Logo"
-                            style={{ width: '65%', objectFit: 'contain' }}
+                            style={{
+                                width: isCollapsed ? '32px' : '140px',
+                                objectFit: 'contain',
+                                transition: 'all 0.3s ease'
+                            }}
                         />
                     </div>
 
                     {/* Nav links */}
-                    <ul className="nav flex-column w-100 flex-grow-1 pt-2" style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
+                    <ul className="nav flex-column w-100 flex-grow-1 pt-3 custom-sidebar-scroll" style={{
+                        listStyleType: 'none',
+                        padding: '0 12px',
+                        margin: 0,
+                        overflowY: 'auto',
+                        overflowX: 'hidden'
+                    }}>
 
                         {/* Dashboard */}
-                        <li className="nav-item w-100">
+                        <li className="nav-item w-100 mb-2">
                             <button
                                 id="nav-dashboard"
-                                className={`nav-link ps-4 w-100 d-flex align-items-center ${toggleActive === 'dashboard' ? 'active' : ''}`}
+                                className={`nav-link w-100 d-flex align-items-center transition-all rounded-3 ${toggleActive === 'dashboard' ? 'active shadow-sm' : ''}`}
                                 onClick={() => setToggleActive('dashboard')}
+                                style={{
+                                    padding: '12px 16px',
+                                    justifyContent: isCollapsed ? 'center' : 'flex-start'
+                                }}
                             >
-                                <img className="pe-2" src={dashboard} alt="Dashboard Icon" />
-                                Dashboard
+                                <img src={dashboard} style={{ width: 22, minWidth: 22 }} alt="Dashboard Icon" />
+                                {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">Dashboard</span>}
                             </button>
                         </li>
 
                         {/* Services (parent) */}
-                        <li className="nav-item w-100">
+                        <li className="nav-item w-100 mb-2">
                             <div
                                 id="nav-services"
-                                className={`nav-link ps-4 d-flex justify-content-between align-items-center ${isServiceActive ? 'active' : ''}`}
-                                onClick={() => setIsServicesOpen((prev) => !prev)}
-                                style={{ cursor: 'pointer' }}
+                                className={`nav-link d-flex justify-content-between align-items-center transition-all rounded-3 ${isServiceActive ? 'active shadow-sm' : ''}`}
+                                onClick={() => {
+                                    if (isCollapsed) setIsCollapsed(false);
+                                    setIsServicesOpen(prev => !prev);
+                                }}
+                                style={{
+                                    padding: '12px 16px',
+                                    cursor: 'pointer',
+                                    justifyContent: isCollapsed ? 'center' : 'flex-start'
+                                }}
                             >
-                                <div className="d-flex align-items-center gap-2">
-                                    <img src={carService} alt="Car Service Icon" />
-                                    <span>Services</span>
+                                <div className="d-flex align-items-center">
+                                    <img src={carService} style={{ width: 22, minWidth: 22 }} alt="Car Service Icon" />
+                                    {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">Services</span>}
                                 </div>
-                                <img
-                                    src={isServicesOpen ? upArrow : downArrow}
-                                    alt={isServicesOpen ? 'Collapse' : 'Expand'}
-                                    style={{ width: '12px', marginRight: '12px' }}
-                                />
+                                {!isCollapsed && (
+                                    <img
+                                        src={isServicesOpen ? upArrow : downArrow}
+                                        alt={isServicesOpen ? 'Collapse' : 'Expand'}
+                                        style={{ width: '10px', marginLeft: '8px', opacity: 0.6 }}
+                                    />
+                                )}
                             </div>
                         </li>
 
-                        {/* Services sub-menu — valid HTML: li > ul > li */}
-                        {isServicesOpen && (
+                        {/* Services sub-menu */}
+                        {isServicesOpen && !isCollapsed && (
                             <li className="nav-item w-100 animate-fade-in" style={{ height: 'auto' }}>
-                                <ul style={{ listStyleType: 'none', padding: 0, margin: 0, width: '100%' }}>
-                                    <li className="nav-item w-100">
-                                        <button
-                                            id="nav-bookings"
-                                            className={`nav-link ps-5 w-100 d-flex align-items-center ${toggleActive === 'bookings' ? 'active' : ''}`}
-                                            onClick={() => setToggleActive('bookings')}
-                                        >
-                                            Bookings
-                                        </button>
-                                    </li>
-                                    <li className="nav-item w-100">
-                                        <button
-                                            id="nav-car-rent"
-                                            className={`nav-link ps-5 w-100 d-flex align-items-center ${toggleActive === 'car-rent' ? 'active' : ''}`}
-                                            onClick={() => setToggleActive('car-rent')}
-                                        >
-                                            Car Rent
-                                        </button>
-                                    </li>
-                                    <li className="nav-item w-100">
-                                        <button
-                                            id="nav-retail"
-                                            className={`nav-link ps-5 w-100 d-flex align-items-center gap-2 ${toggleActive === 'retail' ? 'active' : ''}`}
-                                            onClick={() => setToggleActive('retail')}
-                                        >
-                                            Retail Store
-                                        </button>
-                                    </li>
-                                    <li className="nav-item w-100">
-                                        <button
-                                            id="nav-membership"
-                                            className={`nav-link ps-5 w-100 d-flex align-items-center gap-2 ${toggleActive === 'membership' ? 'active' : ''}`}
-                                            onClick={() => setToggleActive('membership')}
-                                        >
-                                            Membership
-                                        </button>
-                                    </li>
+                                <ul className="ps-3 w-100 list-unstyled border-start ms-4 border-secondary-subtle">
+                                    {[
+                                        { key: 'bookings', label: 'Bookings', icon: <img src={bookingIcon} style={{ width: 18 }} alt="Booking Icon" /> },
+                                        { key: 'car-rent', label: 'Car Rent', icon: <img src={carRentalIcon} style={{ width: 18 }} alt="Car Rental Icon" /> },
+                                        { key: 'retail', label: 'Retail Store', icon: <img src={retailIcon} style={{ width: 18 }} alt="Retail Icon" /> },
+                                        { key: 'membership', label: 'Membership', icon: <img src={membershipIcon} style={{ width: 18 }} alt="Membership Icon" /> },
+                                    ].map(item => (
+                                        <li key={item.key} className="mb-1">
+                                            <button
+                                                id={`nav-${item.key}`}
+                                                className={`nav-link w-100 d-flex align-items-center rounded-2 gap-3 ${toggleActive === item.key ? 'active' : ''}`}
+                                                onClick={() => setToggleActive(item.key)}
+                                                style={{ fontSize: '0.85rem', padding: '8px 16px' }}
+                                            >
+                                                {item.icon} <span className="text-nowrap">{item.label}</span>
+                                            </button>
+                                        </li>
+                                    ))}
                                 </ul>
                             </li>
                         )}
                     </ul>
 
-                    {/* Logout button pinned to bottom */}
-                    <div className="border-top p-3">
-                        <div className="d-flex align-items-center gap-2 mb-2 ps-1">
-                            <div
-                                style={{
-                                    width: 32, height: 32, borderRadius: '50%',
-                                    background: 'rgba(0, 232, 233, 0.12)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    color: '#00e8e9', fontWeight: 600, fontSize: '0.8rem', flexShrink: 0,
-                                }}
-                            >
+                    {/* Footer — Profile Card + Logout */}
+                    <div className="p-3 mt-auto border-top border-secondary-subtle">
+                        <div className={`d-flex align-items-center p-2 rounded-4 ${isCollapsed ? 'justify-content-center' : 'gap-3'}`} style={{ background: '#23a0ce10' }}>
+                            <div style={{
+                                width: 40, height: 40, borderRadius: '12px',
+                                background: 'linear-gradient(60deg, #23A0CE, #002525)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#fff', fontWeight: 700, fontSize: '0.9rem', flexShrink: 0,
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                            }}>
                                 {employee?.fullName?.charAt(0)?.toUpperCase() ?? '?'}
                             </div>
-                            <div style={{ overflow: 'hidden' }}>
-                                <p className="mb-0 text-secondary font-poppins" style={{ fontSize: '0.8rem', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {employee?.fullName ?? 'Employee'}
-                                </p>
-                                <p className="mb-0 text-light-gray300 font-poppins" style={{ fontSize: '0.7rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {employee?.role === 'employee' ? 'Staff' : 'Admin'}
-                                </p>
-                            </div>
+                            {!isCollapsed && (
+                                <div style={{ overflow: 'hidden' }} className="animate-fade-in">
+                                    <p className="mb-0 text-white text-nowrap" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                                        {employee?.fullName ?? 'Employee'}
+                                    </p>
+                                    <p className="mb-0 text-info opacity-75" style={{ fontSize: '0.7rem' }}>
+                                        {employee?.role === 'employee' ? 'Staff' : 'Admin'}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                         <button
                             id="btn-logout"
-                            className="btn btn-outline-danger btn-sm w-100 brand-primary"
+                            className="btn btn-link text-danger w-100 d-flex align-items-center justify-content-center gap-2 mt-3 text-decoration-none transition-all"
                             onClick={handleLogout}
-                            style={{ fontSize: '0.8rem', borderColor: 'var(--border-outline-color)' }}
+                            style={{ fontSize: '0.85rem', fontWeight: 600 }}
                         >
-                            Log Out
+                            <img src={adminLogoutIcon} alt="" style={{ width: 16 }} />
+                            {!isCollapsed && <span>Log Out</span>}
                         </button>
                     </div>
                 </nav>
 
-                {/* ─── MAIN CONTENT ─── */}
-                <main className="right-content-container flex-grow-1 pt-4 px-4 overflow-hidden" style={{ minHeight: '100vh', background: 'var(--background-light-primary)', minWidth: 0 }}>
-                    {renderContent()}
-                </main>
+                {/* ─── FLOATING MAIN CONTENT ─── */}
+                <main className="right-content-container flex-grow-1 shadow-sm" style={{
+                    height: 'calc(100vh - 32px)',
+                    overflowY: 'auto',
+                    borderRadius: '24px',
+                    transition: 'all 0.3s ease',
+                    position: 'relative',
+                    minWidth: 0
+                }}>
+                    {/* ── Theme Toggle Button ── */}
+                    <div style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 100,
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        padding: '10px 24px 0',
+                        pointerEvents: 'none'
+                    }}>
+                        <div
+                            onClick={() => setIsDark(prev => !prev)}
+                            style={{
+                                pointerEvents: 'auto',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                padding: '4px',
+                                borderRadius: '20px',
+                                background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+                                border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+                                cursor: 'pointer',
+                                transition: 'all 0.1s ease',
+                                userSelect: 'none',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                            }}
+                            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                        >
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '6px 14px',
+                                borderRadius: '16px',
+                                background: !isDark ? '#23A0CE' : 'transparent',
+                                transition: 'all 0.3s ease',
+                            }}>
+                                <img src={lightTheme} alt="Light" style={{ width: 16, filter: !isDark ? 'brightness(0) invert(1)' : (isDark ? 'brightness(0.7) invert(0.7)' : 'none') }} />
+                            </div>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '6px 14px',
+                                borderRadius: '16px',
+                                background: isDark ? '#23A0CE' : 'transparent',
+                                transition: 'all 0.3s ease',
+                            }}>
+                                <img src={darkTheme} alt="Dark" style={{ width: 16, filter: isDark ? 'brightness(0) invert(1)' : 'opacity(0.5)' }} />
+                            </div>
+                        </div>
+                    </div>
 
-                {/* Shared Membership Modal */}
-                {isSMCModalOpen && smcData && (
-                    <SMCCardModal
-                        data={smcData}
-                        onClose={() => {
-                            setIsSMCModalOpen(false);
-                            setSMCData(null);
-                        }}
-                    />
-                )}
+                    <div className="p-3">
+                        {renderContent()}
+                    </div>
+
+                    {/* Shared Membership Modal */}
+                    {isSMCModalOpen && smcData && (
+                        <SMCCardModal
+                            data={smcData}
+                            onClose={() => {
+                                setIsSMCModalOpen(false);
+                                setSMCData(null);
+                            }}
+                        />
+                    )}
+                </main>
 
             </div>
         </div>

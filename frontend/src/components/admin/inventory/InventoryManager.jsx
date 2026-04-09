@@ -21,7 +21,7 @@ import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 import productOrderIcon from '../../../assets/icon/product-order.png';
 
-const InventoryPage = ({ user }) => {
+const InventoryPage = ({ user, isDark }) => {
     const [items, setItems] = useState([]);
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -180,19 +180,19 @@ const InventoryPage = ({ user }) => {
                     </button>
 
                     {/* Ghost Style Tabs (Right-Aligned) */}
-                    <div className="d-flex gap-2 bg-light p-1 rounded-3">
+                    <div className="d-flex gap-2 p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
                         <button
-                            className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'warehouse' ? 'bg-white shadow-sm fw-bold' : 'text-muted'}`}
+                            className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'warehouse' ? 'shadow-sm fw-bold' : 'text-muted'}`}
                             onClick={() => setActiveTab('warehouse')}
-                            style={{ fontSize: '0.85rem' }}
+                            style={{ fontSize: '0.85rem', background: activeTab === 'warehouse' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'warehouse' ? 'var(--theme-content-text)' : 'inherit' }}
                         >
                             <img src={stocksIcon} alt="" style={{ width: 14 }} />
                             Warehouse
                         </button>
                         <button
-                            className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'catalog' ? 'bg-white shadow-sm fw-bold' : 'text-muted'}`}
+                            className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'catalog' ? 'shadow-sm fw-bold' : 'text-muted'}`}
                             onClick={() => setActiveTab('catalog')}
-                            style={{ fontSize: '0.85rem' }}
+                            style={{ fontSize: '0.85rem', background: activeTab === 'catalog' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'catalog' ? 'var(--theme-content-text)' : 'inherit' }}
                         >
                             <img src={inventoryIcon} alt="" style={{ width: 14, filter: 'grayscale(1)' }} />
                             Catalog
@@ -215,7 +215,7 @@ const InventoryPage = ({ user }) => {
                 </div>
             </div>
 
-            <InventoryCategoryManager show={showCategoryManager} onClose={() => setShowCategoryManager(false)} onUpdate={fetchCategories} />
+            <InventoryCategoryManager show={showCategoryManager} onClose={() => setShowCategoryManager(false)} onUpdate={fetchCategories} isDark={isDark} />
 
             {activeTab === 'warehouse' ? (
                 <>
@@ -572,7 +572,7 @@ const InventoryPage = ({ user }) => {
                                 )}
                             </div>
                             <div className="modal-footer border-0 p-4 pt-2">
-                                <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => { setHistoryModalItem(null); setLedgerSearch(''); setLedgerPage(1); }}>Close Ledger</button>
+                                <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => { setHistoryModalItem(null); setLedgerSearch(''); setLedgerPage(1); }} style={{ background: isDark ? 'var(--theme-bg-secondary)' : '' }}>Close Ledger</button>
                             </div>
                         </div>
                     </AdminModalWrapper>

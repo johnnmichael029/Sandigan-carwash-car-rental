@@ -5,7 +5,7 @@ import { API_BASE, authHeaders } from '../../../api/config';
 import { TableSkeleton, InventorySkeleton } from '../../SkeletonLoaders';
 import deleteIcon from '../../../assets/icon/delete.png';
 
-const ServiceSettingsPage = ({ user }) => {
+const ServiceSettingsPage = ({ user, isDark }) => {
     const [vehicles, setVehicles] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedVehicle, setSelectedVehicle] = useState(null);

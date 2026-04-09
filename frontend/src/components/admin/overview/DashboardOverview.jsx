@@ -13,7 +13,7 @@ import {
     ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend
 } from 'recharts';
 
-const AdminOverview = ({ user, onNavigate }) => {
+const AdminOverview = ({ user, onNavigate, isDark }) => {
     const [bookings, setBookings] = useState([]);
     const [employees, setEmployees] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -220,7 +220,7 @@ const AdminOverview = ({ user, onNavigate }) => {
     return (
         <div>
             {/* Header */}
-            <TopHeader user={user} title="Admin Portal" subtitle={todayDate} onNavigate={onNavigate} />
+            <TopHeader user={user} title="Admin Portal" subtitle={todayDate} onNavigate={onNavigate} isDark={isDark} />
 
             {/* KPI Cards */}
             <div className="row g-3 mb-4">
@@ -232,7 +232,7 @@ const AdminOverview = ({ user, onNavigate }) => {
                         <div className="col-sm-6 col-xl-3" key={stat.label}>
                             <div
                                 className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden"
-                                style={{ background: '#fff', transition: 'transform 0.2s' }}
+                                style={{ background: 'var(--theme-card-bg)', transition: 'transform 0.2s', color: 'var(--theme-content-text)' }}
                             >
                                 {/* Decorative soft glow */}
                                 <div style={{ position: 'absolute', top: '-15%', right: '-10%', width: '80px', height: '80px', background: stat.color, filter: 'blur(30px)', opacity: 0.15 }} />
@@ -247,7 +247,7 @@ const AdminOverview = ({ user, onNavigate }) => {
                                         {stat.icon}
                                     </div>
                                     {/* Label */}
-                                    <p className="font-poppins mb-1" style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#9ca3af' }}>
+                                    <p className="font-poppins mb-1" style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--theme-content-text-secondary)' }}>
                                         {stat.label}
                                     </p>
                                     {/* Value */}
@@ -255,7 +255,7 @@ const AdminOverview = ({ user, onNavigate }) => {
                                         {stat.value}
                                     </h3>
                                     {/* Description */}
-                                    <small style={{ color: '#9ca3af', fontSize: '0.72rem' }}>{stat.desc}</small>
+                                    <small style={{ color: 'var(--theme-content-text-secondary)', fontSize: '0.72rem' }}>{stat.desc}</small>
                                 </div>
                             </div>
                         </div>
@@ -268,10 +268,10 @@ const AdminOverview = ({ user, onNavigate }) => {
 
                 {/* 1. Revenue Bar Chart */}
                 <div className="col-12 col-xl-8">
-                    <div className="p-4 rounded-4 h-100 shadow-sm" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)' }}>
+                    <div className="p-4 rounded-4 h-100 shadow-sm" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
                         <div className="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
                             <div>
-                                <h6 className="fw-bold mb-1 text-dark-secondary font-poppins">Historical Revenue</h6>
+                                <h6 className="fw-bold mb-1 font-poppins" style={{ color: 'var(--theme-content-text)' }}>Historical Revenue</h6>
                                 <p className="mb-0 text-muted" style={{ fontSize: '0.8rem' }}>Tracks combined car wash earnings</p>
                             </div>
                             <div className="btn-group shadow-sm">
@@ -279,7 +279,7 @@ const AdminOverview = ({ user, onNavigate }) => {
                                     <button
                                         key={filter}
                                         onClick={() => setChartFilter(filter)}
-                                        className={`btn btn-sm ${chartFilter === filter ? 'btn-primary text-white' : 'btn-light border'} text-capitalize`}
+                                        className={`btn btn-sm ${chartFilter === filter ? 'btn-save text-white' : 'btn-light border btn-active'} text-capitalize`}
                                         style={{ fontSize: '0.8rem' }}
                                     >
                                         {filter}
@@ -293,12 +293,19 @@ const AdminOverview = ({ user, onNavigate }) => {
                             <div style={{ height: 260, width: '100%' }}>
                                 <ResponsiveContainer>
                                     <BarChart data={chartData.historical} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₱${v}`} />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#334155' : '#eee'} />
+                                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#888' }} axisLine={false} tickLine={false} />
+                                        <YAxis tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#888' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₱${v}`} />
                                         <Tooltip
-                                            cursor={{ fill: 'rgba(35,160,206,0.05)' }}
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                            cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(35,160,206,0.05)' }}
+                                            contentStyle={{
+                                                borderRadius: '12px',
+                                                border: 'none',
+                                                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                                backgroundColor: isDark ? '#1e293b' : '#fff',
+                                                color: isDark ? '#f1f5f9' : '#0f172a'
+                                            }}
+                                            itemStyle={{ color: isDark ? '#f1f5f9' : '#0f172a' }}
                                             formatter={(v) => [`₱${v.toLocaleString()}`, 'Revenue']}
                                         />
                                         <Bar dataKey="revenue" fill="#23A0CE" radius={[4, 4, 0, 0]} maxBarSize={50} />
@@ -311,9 +318,9 @@ const AdminOverview = ({ user, onNavigate }) => {
 
                 {/* 2. Service Popularity Pie Chart */}
                 <div className="col-12 col-xl-4">
-                    <div className="p-4 rounded-4 h-100 shadow-sm" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)' }}>
+                    <div className="p-4 rounded-4 h-100 shadow-sm" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
                         <div className="mb-2">
-                            <h6 className="fw-bold mb-1 text-dark-secondary font-poppins">Service Popularity</h6>
+                            <h6 className="fw-bold mb-1 font-poppins" style={{ color: 'var(--theme-content-text)' }}>Service Popularity</h6>
                             <p className="mb-0 text-muted" style={{ fontSize: '0.8rem' }}>Lifetime distribution</p>
                         </div>
                         {isLoading ? (
@@ -327,8 +334,17 @@ const AdminOverview = ({ user, onNavigate }) => {
                                         <Pie data={chartData.services} innerRadius={60} outerRadius={85} paddingAngle={3} dataKey="value">
                                             {chartData.services.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                                         </Pie>
-                                        <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                                        <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.8rem' }} />
+                                        <Tooltip
+                                            contentStyle={{
+                                                borderRadius: '12px',
+                                                border: 'none',
+                                                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                                backgroundColor: isDark ? '#1e293b' : '#fff',
+                                                color: isDark ? '#f1f5f9' : '#0f172a'
+                                            }}
+                                            itemStyle={{ color: isDark ? '#f1f5f9' : '#0f172a' }}
+                                        />
+                                        <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.8rem', color: isDark ? '#94a3b8' : '#888' }} />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
@@ -338,9 +354,9 @@ const AdminOverview = ({ user, onNavigate }) => {
 
                 {/* 3. Booking Volume Line Chart */}
                 <div className="col-12 col-xl-8">
-                    <div className="p-4 rounded-4 shadow-sm" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)' }}>
+                    <div className="p-4 rounded-4 shadow-sm" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
                         <div className="mb-4">
-                            <h6 className="fw-bold mb-1 text-dark-secondary font-poppins">Booking Volume</h6>
+                            <h6 className="fw-bold mb-1 font-poppins" style={{ color: 'var(--theme-content-text)' }}>Booking Volume</h6>
                             <p className="mb-0 text-muted" style={{ fontSize: '0.8rem' }}>Tracks number of completed car wash bookings</p>
                         </div>
                         {isLoading ? (
@@ -349,11 +365,18 @@ const AdminOverview = ({ user, onNavigate }) => {
                             <div style={{ height: 260, width: '100%' }}>
                                 <ResponsiveContainer>
                                     <LineChart data={chartData.historical} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#334155' : '#eee'} />
+                                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#888' }} axisLine={false} tickLine={false} />
+                                        <YAxis tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#888' }} axisLine={false} tickLine={false} allowDecimals={false} />
                                         <Tooltip
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                            contentStyle={{
+                                                borderRadius: '12px',
+                                                border: 'none',
+                                                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                                backgroundColor: isDark ? '#1e293b' : '#fff',
+                                                color: isDark ? '#f1f5f9' : '#0f172a'
+                                            }}
+                                            itemStyle={{ color: isDark ? '#f1f5f9' : '#0f172a' }}
                                             formatter={(v) => [v, 'Jobs Completed']}
                                         />
                                         <Line type="monotone" dataKey="volume" stroke="#22c55e" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
@@ -366,9 +389,9 @@ const AdminOverview = ({ user, onNavigate }) => {
 
                 {/* 4. Booking Status Breakdown Pie */}
                 <div className="col-12 col-xl-4">
-                    <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)' }}>
+                    <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
                         <div className="mb-2">
-                            <h6 className="fw-bold mb-1 text-dark-secondary font-poppins">Booking Status Breakdown</h6>
+                            <h6 className="fw-bold mb-1 font-poppins" style={{ color: 'var(--theme-content-text)' }}>Booking Status Breakdown</h6>
                             <p className="mb-0 text-muted" style={{ fontSize: '0.8rem' }}>Distribution across all statuses</p>
                         </div>
                         {isLoading ? (
@@ -384,8 +407,22 @@ const AdminOverview = ({ user, onNavigate }) => {
                                                 <Cell key={i} fill={STATUS_COLORS[entry.name] || PIE_COLORS[i % PIE_COLORS.length]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                                        <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.75rem' }} />
+                                        <Tooltip
+                                            contentStyle={{
+                                                borderRadius: '12px',
+                                                border: 'none',
+                                                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                                backgroundColor: isDark ? '#1e293b' : '#fff',
+                                                color: isDark ? '#f1f5f9' : '#0f172a'
+                                            }}
+                                            itemStyle={{ color: isDark ? '#f1f5f9' : '#0f172a' }}
+                                        />
+                                        <Legend
+                                            verticalAlign="bottom"
+                                            height={36}
+                                            iconType="circle"
+                                            wrapperStyle={{ fontSize: '0.75rem', color: isDark ? '#94a3b8' : '#888' }}
+                                        />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>

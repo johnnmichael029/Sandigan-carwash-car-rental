@@ -9,7 +9,7 @@ import searchIcon from '../../../assets/icon/search.png';
 import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 
-const RetailManagement = ({ employee, onSMCRequest }) => {
+const RetailManagement = ({ employee, onSMCRequest, isDark }) => {
     const [products, setProducts] = useState([]);
     const [sales, setSales] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -116,11 +116,11 @@ const RetailManagement = ({ employee, onSMCRequest }) => {
         const dateStr = new Date(s.createdAt).toLocaleDateString().toLowerCase();
         const refLink = s.customerId ? 'crm' : 'pos';
 
-        return tid.includes(search) || 
-               pname.includes(search) || 
-               smc.includes(search) || 
-               dateStr.includes(search) || 
-               refLink.includes(search);
+        return tid.includes(search) ||
+            pname.includes(search) ||
+            smc.includes(search) ||
+            dateStr.includes(search) ||
+            refLink.includes(search);
     });
 
     // Pagination Logic
@@ -149,15 +149,15 @@ const RetailManagement = ({ employee, onSMCRequest }) => {
             <div className="row g-4">
                 {/* Product Catalog */}
                 <div className="col-lg-8">
-                    <div className="rounded-4 p-4 shadow-sm h-100 overflow-y-auto" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)', maxHeight: '550px' }}>
-                        <h6 className="fw-bold mb-4 font-poppins text-dark-secondary">PRODUCT CATALOG</h6>
+                    <div className="rounded-4 p-4 shadow-sm h-100 overflow-y-auto" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)', maxHeight: '550px' }}>
+                        <h6 className="fw-bold mb-4 font-poppins" style={{ color: 'var(--theme-content-text)' }}>PRODUCT CATALOG</h6>
                         {isLoading ? (
                             <div className="text-center py-5"><div className="spinner-border text-primary" /></div>
                         ) : (
                             <div className="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3">
                                 {products.map(p => (
                                     <div className="col" key={p._id}>
-                                        <div className="p-3 border rounded-3 h-100 d-flex flex-column justify-content-between hover-shadow transition-all position-relative" style={{ minHeight: '220px' }}>
+                                        <div className="p-3 border rounded-3 h-100 d-flex flex-column justify-content-between hover-shadow transition-all position-relative" style={{ minHeight: '220px', background: 'var(--theme-card-bg)', borderColor: 'var(--theme-content-border)' }}>
                                             <div className="mb-3">
                                                 <div className="d-flex justify-content-between align-items-start mb-2">
                                                     <div className="d-flex flex-column gap-1">
@@ -168,7 +168,7 @@ const RetailManagement = ({ employee, onSMCRequest }) => {
                                                     </div>
                                                     <span className="fw-bold brand-primary" style={{ fontSize: '0.9rem' }}>₱{p.basePrice}</span>
                                                 </div>
-                                                <h6 className="mb-1 fw-bold text-dark-secondary" style={{ fontSize: '0.9rem' }}>{p.name}</h6>
+                                                <h6 className="mb-1 fw-bold" style={{ fontSize: '0.9rem', color: 'var(--theme-content-text)' }}>{p.name}</h6>
                                                 <p className="text-muted mb-0" style={{ fontSize: '0.72rem', lineHeight: '1.4' }}>{p.description || 'No description'}</p>
                                             </div>
 
@@ -208,8 +208,8 @@ const RetailManagement = ({ employee, onSMCRequest }) => {
 
                 {/* Shopping Cart */}
                 <div className="col-lg-4">
-                    <div className="rounded-4 p-4 shadow-sm sticky-top" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)', top: '100px', maxHeight: '550px' }}>
-                        <h6 className="fw-bold mb-4 font-poppins text-dark-secondary">CURRENT ORDER</h6>
+                    <div className="rounded-4 p-4 shadow-sm sticky-top" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)', top: '100px', maxHeight: '550px' }}>
+                        <h6 className="fw-bold mb-4 font-poppins" style={{ color: 'var(--theme-content-text)' }}>CURRENT ORDER</h6>
                         <div className="mb-4 overflow-y-auto" style={{ maxHeight: '320px', minHeight: '320px' }}>
                             {cart.length === 0 ? (
                                 <div className="text-center py-5 text-muted">
@@ -220,7 +220,7 @@ const RetailManagement = ({ employee, onSMCRequest }) => {
                                     {cart.map(item => (
                                         <div key={item._id} className="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
                                             <div style={{ flex: 1 }}>
-                                                <p className="mb-0 fw-bold text-dark-secondary" style={{ fontSize: '0.8rem' }}>{item.name}</p>
+                                                <p className="mb-0 fw-bold" style={{ fontSize: '0.8rem', color: 'var(--theme-content-text)' }}>{item.name}</p>
                                                 <small className="text-muted">₱{item.basePrice} x {item.qty}</small>
                                             </div>
                                             <div className="d-flex align-items-center gap-2">
@@ -236,7 +236,7 @@ const RetailManagement = ({ employee, onSMCRequest }) => {
                         <div className="border-top pt-3 sticky-bottom">
                             <div className="d-flex justify-content-between align-items-center mb-3">
                                 <span className="text-muted font-poppins">Total Amount</span>
-                                <h4 className="mb-0 fw-bold text-dark-secondary">₱{cartTotal.toLocaleString()}</h4>
+                                <h4 className="mb-0 fw-bold" style={{ color: 'var(--theme-content-text)' }}>₱{cartTotal.toLocaleString()}</h4>
                             </div>
                             <button
                                 className="btn btn-save w-100 py-3 rounded-4 fw-bold shadow-sm"
@@ -251,11 +251,11 @@ const RetailManagement = ({ employee, onSMCRequest }) => {
 
                 {/* Recent Transactions */}
                 <div className="col-12 mt-4">
-                    <div className="rounded-4 p-4 shadow-sm d-flex flex-column" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.07)', minHeight: '970px' }}>
+                    <div className="rounded-4 p-4 shadow-sm d-flex flex-column" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)', minHeight: '970px' }}>
                         <div className="d-flex justify-content-between align-items-center mb-4">
-                            <h6 className="fw-bold mb-0 font-poppins text-dark-secondary">RECENT POS TRANSACTIONS</h6>
-                            <SharedSearchBar 
-                                placeholder="Search entries..." 
+                            <h6 className="fw-bold mb-0 font-poppins" style={{ color: 'var(--theme-content-text)' }}>RECENT POS TRANSACTIONS</h6>
+                            <SharedSearchBar
+                                placeholder="Search entries..."
                                 onDebouncedSearch={(val) => setSearchTerm(val)}
                                 debounceDelay={400}
                             />
@@ -280,7 +280,7 @@ const RetailManagement = ({ employee, onSMCRequest }) => {
                                             <td className="font-monospace text-uppercase fw-bold text-dark-secondary">{s.transactionId}</td>
                                             <td>{s.productName}</td>
                                             <td>{s.quantity}</td>
-                                            <td className="fw-bold text-dark">₱{s.totalPrice.toLocaleString()}</td>
+                                            <td className="fw-bold">₱{s.totalPrice.toLocaleString()}</td>
                                             <td>
                                                 <span className={`badge rounded-pill ${s.customerId ? 'bg-info-subtle text-info border border-info' : 'bg-light text-muted border'}`} style={{ fontSize: '0.65rem' }}>
                                                     {s.customerId ? 'CRM' : 'POS'}
