@@ -75,11 +75,11 @@ const Footer = () => {
                         <h6 className="footer-section-label mb-3">Find Us</h6>
                         <div className="d-flex flex-column flex-sm-row gap-3 align-items-start">
                             <div className="footer-contact-info flex-grow-1">
-                                <div className="d-flex align-items-start gap-2 mb-2">
+                                <div className="d-flex align-items-start mb-2 ">
                                     <i className="bi bi-geo-alt-fill footer-icon mt-1"></i>
                                     <span className="footer-tagline">68 Ruhale St. Taguig, 1630 Metro Manila</span>
                                 </div>
-                                <div className="d-flex align-items-center gap-2">
+                                <div className="d-flex align-items-center ">
                                     <i className="bi bi-telephone-fill footer-icon"></i>
                                     <span className="footer-tagline">0956 691 8854</span>
                                 </div>

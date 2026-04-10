@@ -72,7 +72,7 @@ const getBooking = async (req, res) => {
 
 // Create a new booking
 const createBooking = async (req, res) => {
-    const { firstName, lastName, phoneNumber, emailAddress, vehicleType, serviceType, bookingTime, captchaToken, promoCode, promoDiscount } = req.body;
+    const { firstName, lastName, phoneNumber, emailAddress, vehicleType, serviceType, bookingTime, captchaToken, promoCode, promoDiscount, isRental, rentalStartDate, rentalDurationDays, destination, rentalTotal } = req.body;
 
     try {
         // Skip captcha for internal staff (check for valid session cookie)
@@ -111,7 +111,12 @@ const createBooking = async (req, res) => {
         const purchasedProducts = Array.isArray(req.body.purchasedProducts) ? req.body.purchasedProducts : [];
         const retailTotal = purchasedProducts.reduce((sum, p) => sum + (Number(p.price) * Number(p.quantity)), 0);
 
-        const totalPrice = Math.max(0, basePrice + retailTotal - discountAmount - promoDiscountVal);
+        let totalPrice = 0;
+        if (isRental) {
+            totalPrice = Math.max(0, (rentalTotal || 0) + retailTotal - discountAmount - promoDiscountVal);
+        } else {
+            totalPrice = Math.max(0, basePrice + retailTotal - discountAmount - promoDiscountVal);
+        }
 
         const booking = await Booking.create({
             firstName,
@@ -130,12 +135,16 @@ const createBooking = async (req, res) => {
             purchasedProducts,
             assignedTo: req.body.assignedTo || null,
             detailer: req.body.detailer || null,
-            bayId: req.body.bayId || null
+            bayId: req.body.bayId || null,
+            isRental: isRental || false,
+            rentalStartDate: rentalStartDate || null,
+            rentalDurationDays: rentalDurationDays || null,
+            destination: destination || null
         });
         await booking.populate('bayId', 'name');
 
         // Create a notification for this booking
-        const serviceName = Array.isArray(serviceType) ? serviceType.join(', ') : serviceType;
+        const serviceName = isRental ? 'Car Rental' : (Array.isArray(serviceType) ? serviceType.join(', ') : serviceType);
         const notif = await Notification.create({
             message: `New booking: ${firstName} ${lastName} (${serviceName})`,
             type: 'new_booking',

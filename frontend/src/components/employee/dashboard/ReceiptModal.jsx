@@ -61,7 +61,8 @@ const ReceiptModal = ({ booking, onClose, isDark }) => {
             });
 
             pdf.addImage(imgData, 'PNG', 0, 0, widthMm, heightMm);
-            pdf.save(`Sandigan-Receipt-${booking.batchId || booking._id.substring(0, 8)}.pdf`);
+            const downloadId = booking.rentalId || booking.batchId || booking._id.substring(0, 8);
+            pdf.save(`Sandigan-Receipt-${downloadId}.pdf`);
         } catch (err) {
             console.error("PDF generation failed:", err);
             Swal.fire('Error', 'Could not generate PDF.', 'error');
@@ -91,31 +92,37 @@ const ReceiptModal = ({ booking, onClose, isDark }) => {
                         </div>
 
                         <div className="d-flex justify-content-between mb-2" style={{ borderTop: '1px dashed #ccc', paddingTop: '10px' }}>
-                            <span style={{ fontSize: '0.75rem' }}>RECEIPT #: {booking.batchId}</span>
-                            <span style={{ fontSize: '0.75rem' }}>{new Date().toLocaleDateString()}</span>
+                            <span style={{ fontSize: '0.75rem' }}>{booking.rentalId ? 'RENTAL ID' : 'RECEIPT #'}: {booking.rentalId || booking.batchId}</span>
+                            <span style={{ fontSize: '0.75rem' }}>{new Date(booking.createdAt || Date.now()).toLocaleDateString()}</span>
                         </div>
 
                         <div className="mb-3" style={{ borderBottom: '1px dashed #ccc', paddingBottom: '10px' }}>
-                            <p className="mb-1" style={{ fontSize: '0.8rem' }}><strong>Customer:</strong> {booking.firstName} {booking.lastName}</p>
-                            <p className="mb-1" style={{ fontSize: '0.8rem' }}><strong>Vehicle:</strong> {booking.vehicleType}</p>
-                            <p className="mb-0" style={{ fontSize: '0.8rem' }}><strong>Detailer:</strong> {booking.detailer || 'Management'}</p>
-
+                            <p className="mb-1" style={{ fontSize: '0.8rem' }}><strong>Customer:</strong> {booking.fullName || `${booking.firstName} ${booking.lastName}`}</p>
+                            <p className="mb-1" style={{ fontSize: '0.8rem' }}><strong>Vehicle:</strong> {booking.vehicleName || booking.vehicleType}</p>
+                            <p className="mb-0" style={{ fontSize: '0.8rem' }}><strong>{booking.rentalId ? 'Destination' : 'Detailer'}:</strong> {booking.destination || booking.detailer || 'Management'}</p>
                         </div>
 
                         <div className="mb-3">
                             <div className="d-flex justify-content-between fw-bold border-bottom pb-1 mb-2" style={{ fontSize: '0.8rem' }}>
-                                <span>SERVICE</span>
+                                <span>{booking.rentalId ? 'Rental period' : 'SERVICE'}</span>
                                 <span>PRICE</span>
                             </div>
-                            {booking.serviceType?.map((service, idx) => {
-                                const price = getServicePrice(service);
-                                return (
-                                    <div key={idx} className="d-flex justify-content-between mb-1" style={{ fontSize: '0.75rem' }}>
-                                        <span>{service}</span>
-                                        <span>₱{price !== null ? price.toLocaleString() : '---'}</span>
-                                    </div>
-                                );
-                            })}
+                            {booking.rentalId ? (
+                                <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.75rem' }}>
+                                    <span>{booking.vehicleName} ({booking.rentalDays} day{booking.rentalDays !== 1 ? 's' : ''})</span>
+                                    <span>₱{booking.estimatedTotal?.toLocaleString()}</span>
+                                </div>
+                            ) : (
+                                booking.serviceType?.map((service, idx) => {
+                                    const price = getServicePrice(service);
+                                    return (
+                                        <div key={idx} className="d-flex justify-content-between mb-1" style={{ fontSize: '0.75rem' }}>
+                                            <span>{service}</span>
+                                            <span>₱{price !== null ? price.toLocaleString() : '---'}</span>
+                                        </div>
+                                    );
+                                })
+                            )}
                             {booking.purchasedProducts && booking.purchasedProducts.length > 0 && (
                                 <>
                                     <div className="d-flex justify-content-between fw-bold border-bottom pb-1 mt-2 mb-2" style={{ fontSize: '0.8rem' }}>
@@ -147,7 +154,7 @@ const ReceiptModal = ({ booking, onClose, isDark }) => {
                             )}
                             <div className="d-flex justify-content-between fw-bold" style={{ fontSize: '1.1rem' }}>
                                 <span>TOTAL</span>
-                                <span>₱{booking.totalPrice?.toLocaleString()}</span>
+                                <span>₱{(booking.estimatedTotal || booking.totalPrice)?.toLocaleString()}</span>
                             </div>
                             <p className="text-center mt-2 text-uppercase fw-bold" style={{ fontSize: '0.8rem', letterSpacing: '4px', opacity: 0.8 }}>*** PAID ***</p>
                         </div>

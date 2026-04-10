@@ -41,6 +41,8 @@ const ledgerRoutes = require('./routes/ledgerRoutes');
 const bayRoutes = require('./routes/bayRoutes');
 const assetRoutes = require('./routes/assetRoutes');
 const maintenanceRoutes = require('./routes/maintenanceRoutes');
+const rentalFleetRoutes = require('./routes/rentalFleetRoutes');
+const carRentalRoutes = require('./routes/carRentalRoutes');
 
 const path = require('path');
 
@@ -84,6 +86,14 @@ const bookingLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 20, // 20 requests
     message: { error: 'Too many booking requests. Please try again later.' },
+    standardHeaders: true, legacyHeaders: false,
+});
+
+// 2b. Rental submission limiter
+const rentalLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10, // 10 rental requests per IP per hour
+    message: { error: 'Too many rental requests. Please try again later.' },
     standardHeaders: true, legacyHeaders: false,
 });
 
@@ -187,6 +197,9 @@ app.use('/api/stock-movements', require('./routes/stockMovementRoutes'));
 app.use('/api/bays', bayRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/rental-fleet', rentalFleetRoutes);
+app.post('/api/car-rentals', rentalLimiter);
+app.use('/api/car-rentals', carRentalRoutes);
 
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {

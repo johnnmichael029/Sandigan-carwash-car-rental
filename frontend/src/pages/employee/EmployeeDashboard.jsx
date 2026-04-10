@@ -154,6 +154,8 @@ const EmployeeDashboard = () => {
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#23A0CE',
+            color: 'var(--theme-content-text)',
+            background: 'var(--theme-card-bg)',
             cancelButtonColor: '#d33',
             confirmButtonText: 'Yes, log out',
         }).then(async (result) => {

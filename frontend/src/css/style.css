@@ -1236,7 +1236,7 @@ label {
 .service-card {
     transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 20px;
+    border-radius: 24px;
     background: #0A0A0A;
     cursor: pointer;
     overflow: hidden;
@@ -1807,8 +1807,11 @@ label {
     transition: all 0.3s ease;
 }
 
+
+
 .btn-pill-outline:hover {
     background: var(--brand-primary);
     color: #fff;
     border-color: var(--brand-primary);
 }
+

@@ -394,7 +394,7 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
                                     )}
                                 </div>
                                 <div className="col-12 col-sm-6 text-start">
-                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Sandigan Membership Card (SMC)</label>
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>SMC</label>
                                     <div className="d-flex align-items-center gap-2">
                                         <input type="text" name="smcId" className="form-control form-control-sm shadow-none font-monospace text-uppercase" placeholder="Scan SMC ID" value={formData.smcId} onChange={handleChange} disabled={!editMode} />
                                         <div className="d-flex align-items-center gap-2">
@@ -634,13 +634,13 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
                             )}
 
                             {durationText && (
-                                <div className="mt-2 p-3 rounded-3 d-flex align-items-center gap-2" 
-                                    style={{ 
-                                        backgroundColor: 'rgba(34, 197, 94, 0.1)', 
-                                        border: '1px solid rgba(34, 197, 94, 0.2)', 
-                                        color: 'var(--theme-content-text)', 
-                                        fontSize: '0.85rem', 
-                                        fontWeight: 500 
+                                <div className="mt-2 p-3 rounded-3 d-flex align-items-center gap-2"
+                                    style={{
+                                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                        border: '1px solid rgba(34, 197, 94, 0.2)',
+                                        color: 'var(--theme-content-text)',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 500
                                     }}>
                                     <img src={bookDuration} alt="" style={{ width: '24px' }} />
                                     {durationText}

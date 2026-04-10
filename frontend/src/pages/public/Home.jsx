@@ -7,7 +7,7 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 import { API_BASE, SOCKET_URL } from '../../api/config';
 import '../../css/style.css';
-
+import '../../css/style.css';
 // Asset Imports
 import img1 from '../../assets/img/carwash-img1.jpg';
 import img2 from '../../assets/img/carwash-img2.jpg';
@@ -392,7 +392,7 @@ const AboutSection = () => (
 ═══════════════════════════════════════════ */
 
 // Reusable service card component
-const ServiceCard = ({ image, title, duration, price, description, icons, type }) => (
+const ServiceCard = ({ image, title, duration, price, description, icons, type, onRentNow }) => (
     <div className="service-card d-flex flex-column align-items-start gap-0 ">
         {/* Card image - Edge to Edge */}
         <div className="service-img-wrapper w-100 overflow-hidden" style={{ borderTopLeftRadius: '24px', borderTopRightRadius: '24px' }}>
@@ -425,7 +425,20 @@ const ServiceCard = ({ image, title, duration, price, description, icons, type }
                 </p>
             )}
 
-            {/* Icons + Book button - Only show for wash if needed */}
+            {/* Rent Now — for rental cards */}
+            {type === 'rental' && (
+                <div className="mt-4">
+                    <button
+                        onClick={onRentNow}
+                        className="btn btn-primary w-100 d-flex align-items-center justify-content-center text-white gap-2"
+                        style={{ height: '2.75rem', borderRadius: '24px', border: 'none', fontSize: '0.875rem', fontWeight: 600 }}
+                    >
+                        🚗 Rent Now
+                    </button>
+                </div>
+            )}
+
+            {/* Icons + Book button - Only show for wash */}
             {type !== 'rental' && (
                 <div className="d-flex align-items-center mt-4 w-100 gap-3 flex-wrap">
                     <div className="d-flex gap-2">
@@ -480,69 +493,39 @@ const serviceData = [
     },
 ];
 
-const rentalData = [
-    {
-        image: rentalcar1Img,
-        title: 'Luxurious Red Sports Car',
-        duration: '5-SEATER',
-        price: '₱2500.00',
-        type: 'rental'
-    },
-    {
-        image: rentalcar1Img,
-        title: 'Luxurious Red Sports Car',
-        duration: '5-SEATER',
-        price: '₱2500.00',
-        type: 'rental'
-    },
-    {
-        image: rentalcar1Img,
-        title: 'Luxurious Red Sports Car',
-        duration: '5-SEATER',
-        price: '₱2500.00',
-        type: 'rental'
-    },
-    {
-        image: rentalcar1Img,
-        title: 'Luxurious Red Sports Car',
-        duration: '5-SEATER',
-        price: '₱2500.00',
-        type: 'rental'
-    },
-    {
-        image: rentalcar1Img,
-        title: 'Luxurious Red Sports Car',
-        duration: '5-SEATER',
-        price: '₱2500.00',
-        type: 'rental'
-    },
-    {
-        image: rentalcar1Img,
-        title: 'Luxurious Red Sports Car',
-        duration: '5-SEATER',
-        price: '₱2500.00',
-        type: 'rental'
-    },
-    {
-        image: rentalcar1Img,
-        title: 'Luxurious Red Sports Car',
-        duration: '5-SEATER',
-        price: '₱2500.00',
-        type: 'rental'
-    },
-    {
-        image: rentalcar1Img,
-        title: 'Luxurious Red Sports Car',
-        duration: '5-SEATER',
-        price: '₱2500.00',
-        type: 'rental'
-    },
-];
-
 const ServiceSection = () => {
     const [activeCategory, setActiveCategory] = useState('wash');
+    const [rentalFleet, setRentalFleet] = useState([]);
+    const [rentalLoading, setRentalLoading] = useState(false);
     const scrollRef = useRef(null);
-    const displayData = activeCategory === 'wash' ? serviceData : rentalData;
+    const displayData = activeCategory === 'wash' ? serviceData : rentalFleet;
+
+    const fetchFleet = () => {
+        setRentalLoading(true);
+        axios.get(`${API_BASE}/rental-fleet`)
+            .then(res => setRentalFleet(res.data))
+            .catch(() => {})
+            .finally(() => setRentalLoading(false));
+    };
+
+    useEffect(() => {
+        if (activeCategory === 'rental' && rentalFleet.length === 0) {
+            fetchFleet();
+        }
+
+        const socket = io(SOCKET_URL);
+        socket.on('fleet_updated', () => {
+            fetchFleet();
+        });
+        
+        // Also refresh if pricing/settings change (if Home were dynamic)
+        socket.on('pricing_updated', () => {
+            // If we had dynamic car wash pricing on landing, we'd fetch it here
+            // fetchServices(); 
+        });
+
+        return () => socket.disconnect();
+    }, [activeCategory]);
 
     const scroll = (direction) => {
         if (scrollRef.current) {
@@ -573,8 +556,9 @@ const ServiceSection = () => {
     };
 
     return (
-        <section id="services" className="service-price-section position-relative py-5">
-            <div className="bubble-container d-flex align-items-center justify-content-between position-absolute w-100 h-100" style={{ pointerEvents: 'none' }}>
+        <>
+            <section id="services" className="service-price-section position-relative py-5">
+                <div className="bubble-container d-flex align-items-center justify-content-between position-absolute w-100 h-100" style={{ pointerEvents: 'none' }}>
                 <img src={bubble1} className="bubble bubble1" alt="" aria-hidden="true" />
                 <img src={bubble2} className="bubble bubble2" alt="" aria-hidden="true" />
             </div>
@@ -635,19 +619,41 @@ const ServiceSection = () => {
 
                     <div
                         ref={scrollRef}
-                        className={`row g-4 ${activeCategory === 'rental' ? 'flex-nowrap overflow-hidden justify-content-start ps-2' : 'justify-content-center'}`}
+                        className={`row g-4 ${activeCategory === 'rental' ? 'flex-nowrap overflow-hidden justify-content-start ps-2 py-4' : 'justify-content-center'}`}
                         style={{ scrollBehavior: 'smooth' }}
                     >
-                        {displayData.map((service, index) => (
-                            <div key={`${service.title}-${index}`} className={activeCategory === 'wash' ? "col-xl-4 col-md-6 col-12" : "col-xl-3 col-lg-4 col-md-6 col-12 flex-shrink-0"}>
-                                <ServiceCard {...service} />
+                        {rentalLoading && activeCategory === 'rental' && (
+                            <div className="w-100 text-center py-5">
+                                <div className="spinner-border text-info" role="status"></div>
+                                <p className="text-muted mt-3">Loading available vehicles...</p>
                             </div>
-                        ))}
+                        )}
+                        {!rentalLoading && activeCategory === 'rental' && rentalFleet.length === 0 && (
+                            <div className="w-100 text-center py-5">
+                                <p className="text-muted">No vehicles currently available. Please check back soon.</p>
+                            </div>
+                        )}
+                        {displayData.map((service, index) => {
+                            const isRental = activeCategory === 'rental';
+                            const cardData = isRental ? {
+                                image: service.imageBase64 || rentalcar1Img,
+                                title: service.vehicleName,
+                                duration: `${service.seats}-SEATER`,
+                                price: `₱${service.pricePerDay?.toLocaleString()}/day`,
+                                type: 'rental',
+                                onRentNow: () => window.location.href = `/book?type=rental&vehicleId=${service._id}`
+                            } : service;
+                            return (
+                                <div key={isRental ? service._id : `${service.title}-${index}`} className={!isRental ? "col-xl-4 col-md-6 col-12" : "col-xl-3 col-lg-4 col-md-6 col-12 flex-shrink-0"}>
+                                    <ServiceCard {...cardData} />
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
                 {/* Bottom CTA */}
-                <div className="mt-5 pt-3 text-center">
+                <div className="mt-4 pt-3 text-center">
                     <Link
                         to="/services"
                         className="btn btn-primary d-inline-flex align-items-center gap-2 px-5 py-3 text-white shadow-sm"
@@ -661,6 +667,7 @@ const ServiceSection = () => {
                 </div>
             </div>
         </section>
+        </>
     );
 }; const GallerySection = () => {
     const galleryRef = useRef(null);

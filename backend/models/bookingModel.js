@@ -60,6 +60,20 @@ const bookingSchema = new Schema({
         ref: 'employee',
         default: null
     },
+    // ---- Car Rental Support Fields ----
+    isRental: {
+        type: Boolean,
+        default: false
+    },
+    rentalStartDate: {
+        type: Date
+    },
+    rentalDurationDays: {
+        type: Number
+    },
+    destination: {
+        type: String
+    },
     bayId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'bay',

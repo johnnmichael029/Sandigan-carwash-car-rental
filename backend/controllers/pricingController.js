@@ -118,6 +118,11 @@ const createVehiclePricing = async (req, res) => {
 
         const newDoc = new Pricing({ vehicleType, services, addons });
         await newDoc.save();
+
+        // Emit real-time update
+        const io = req.app.get('io');
+        if (io) io.emit('pricing_updated');
+
         res.status(201).json(newDoc);
     } catch (err) {
         res.status(500).json({ error: 'Failed to create vehicle pricing' });
@@ -131,6 +136,11 @@ const updateVehiclePricing = async (req, res) => {
             { vehicleType, services, addons },
             { new: true }
         );
+
+        // Emit real-time update
+        const io = req.app.get('io');
+        if (io) io.emit('pricing_updated');
+
         res.json(updated);
     } catch (err) {
         res.status(500).json({ error: 'Failed to update vehicle pricing' });
@@ -140,6 +150,11 @@ const updateVehiclePricing = async (req, res) => {
 const deleteVehiclePricing = async (req, res) => {
     try {
         await Pricing.findByIdAndDelete(req.params.id);
+
+        // Emit real-time update
+        const io = req.app.get('io');
+        if (io) io.emit('pricing_updated');
+
         res.json({ message: 'Deleted successfully' });
     } catch (err) {
         res.status(500).json({ error: 'Failed to delete vehicle' });

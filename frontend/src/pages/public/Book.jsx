@@ -4,14 +4,18 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import '../../css/style.css';
 import ReCAPTCHA from "react-google-recaptcha";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
+import carwashIcon from '../../assets/icon/carwash-png.png';
+import carRentalIcon from '../../assets/icon/car-rental1.png';
 import fluentbubblewhite from '../../assets/icon/fluent-bubble-white.png';
 import jsPDF from "jspdf";
 import bgimg from '../../assets/img/hero-bg-img.png';
 import bubble1 from '../../assets/img/bubble-container.png';
 import bubble2 from '../../assets/img/bubble-container1.png';
 import ellipse from '../../assets/img/ellipse.png';
-import { API_BASE, authHeaders } from '../../api/config';
+import { API_BASE, SOCKET_URL, authHeaders } from '../../api/config';
+import { io } from 'socket.io-client';
 
 // 1. Keep the base hours as military for backend compatibility
 const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
@@ -36,6 +40,34 @@ const Book = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [step, setStep] = useState(1);
     const navigate = useNavigate();
+    const location = useLocation();
+    const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+
+    const [activeCategory, setActiveCategory] = useState(queryParams.get('type') === 'rental' ? 'rental' : 'wash');
+    const [rentalFleet, setRentalFleet] = useState([]);
+    const [destination, setDestination] = useState('');
+    const [address, setAddress] = useState('');
+    const [rentalStartDate, setRentalStartDate] = useState('');
+    const [rentalDurationDays, setRentalDurationDays] = useState(1);
+    const [selectedRentalVehicle, setSelectedRentalVehicle] = useState(null);
+
+    useEffect(() => {
+        if (activeCategory === 'rental' && rentalFleet.length === 0) {
+            axios.get(`${API_BASE}/rental-fleet`)
+                .then(res => {
+                    setRentalFleet(res.data);
+                    const vId = queryParams.get('vehicleId');
+                    if (vId) {
+                        const v = res.data.find(v => v._id === vId);
+                        if (v) {
+                            setSelectedRentalVehicle(v);
+                            setVehicleType(v.vehicleName);
+                        }
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+    }, [activeCategory, queryParams]);
 
     // Define the URL using central config
     const BASE_URL = `${API_BASE}/booking`;
@@ -73,34 +105,37 @@ const Book = () => {
         });
     }, [availability]);
 
-    // Fetch Availability AND Set Initial Hour
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch availability and pricing concurrently
-                const [availRes, pricingRes] = await Promise.all([
-                    fetch(`${BASE_URL}/availability`),
-                    fetch(`${API_BASE}/pricing`)
-                ]);
-                const availData = await availRes.json();
-                const pricingData = await pricingRes.json();
+    const fetchData = async () => {
+        try {
+            // Fetch availability and pricing concurrently
+            const [availRes, pricingRes] = await Promise.all([
+                fetch(`${BASE_URL}/availability`),
+                fetch(`${API_BASE}/pricing`)
+            ]);
+            const availData = await availRes.json();
+            const pricingData = await pricingRes.json();
 
-                setAvailability(availData);
-                if (pricingData && pricingData.priceList) {
-                    setPriceListDict(pricingData.priceList);
-                    setArmorPrice(pricingData.armorPrice);
-                    setDynamicPricingData(pricingData.dynamicPricing || []);
-                }
-            } catch (err) {
-                console.error("Failed to fetch initial data", err);
+            setAvailability(availData);
+            if (pricingData && pricingData.priceList) {
+                setPriceListDict(pricingData.priceList);
+                setArmorPrice(pricingData.armorPrice);
+                setDynamicPricingData(pricingData.dynamicPricing || []);
             }
-        };
+        } catch (err) {
+            console.error("Failed to fetch initial data", err);
+        }
+    };
+
+    useEffect(() => {
         fetchData();
 
-        // FIX: Set the initial selected hour ONLY ONCE when the component mounts
-        if (availableFutureHours.length > 0) {
-            setSelectedHour(availableFutureHours[0]);
-        }
+        // Real-time updates for pricing settings
+        const socket = io(SOCKET_URL, { withCredentials: true });
+        socket.on('pricing_updated', () => {
+            fetchData();
+        });
+
+        return () => socket.disconnect();
     }, [BASE_URL]);
 
     // For auto-selecting the first valid slot
@@ -121,32 +156,96 @@ const Book = () => {
         }
     }, [success, error]);
 
+    // Step validation helpers
+    const validateStep1 = () => {
+        if (activeCategory === 'rental') {
+            if (!selectedRentalVehicle) { setError("Please select a vehicle to rent."); return false; }
+            if (!rentalStartDate) { setError("Please select a pick-up date."); return false; }
+            if (!rentalDurationDays || rentalDurationDays < 1) { setError("Please specify duration (minimum 1 day)."); return false; }
+            if (!destination.trim()) { setError("Please provide your destination."); return false; }
+        } else {
+            if (!vehicleType.trim()) { setError("Please select your vehicle type."); return false; }
+            if (!serviceType.length) { setError("Please select at least one service."); return false; }
+        }
+        return true;
+    };
+
+    const validateStep2 = () => {
+        if (activeCategory === 'wash') {
+            if (!selectedHour || selectedHour === "default") { setError("Please select a booking time."); return false; }
+        }
+        // Requirements check for rental is handled by the checkbox in Step 3
+        return true;
+    };
+
+    const validateStep3 = () => {
+        if (!firstName.trim()) { setError("First name is required."); return false; }
+        if (!lastName.trim()) { setError("Last name is required."); return false; }
+        if (!phoneNumber.trim()) { setError("Phone number is required."); return false; }
+        if (phoneNumber.length < 10) { setError("Please enter a valid 10-digit phone number."); return false; }
+        if (!email.trim()) { setError("Email address is required."); return false; }
+        if (activeCategory === 'rental' && !address.trim()) { setError("Home address is required for rentals."); return false; }
+        if (!privacyChecked) { setError("You must agree to the Privacy Policy."); return false; }
+
+        // Final rental check
+        if (activeCategory === 'rental') {
+            const reqAck = document.getElementById('rentalRequirementsAck');
+            if (reqAck && !reqAck.checked) {
+                setError("Please acknowledge the rental requirements.");
+                return false;
+            }
+        } else {
+            const timeAg = document.getElementById('timeAgreement');
+            const puncAg = document.getElementById('punctualityAcknowledge');
+            const contAg = document.getElementById('contactAcknowledge');
+            if (!timeAg?.checked || !puncAg?.checked || !contAg?.checked) {
+                setError("Please acknowledge all service agreements.");
+                return false;
+            }
+        }
+
+        if (!captchaToken) { setError("Please solve the captcha to proceed."); return false; }
+        return true;
+    };
+
     // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!validateStep3()) return;
+
         setIsLoading(true);
 
+        const isRentalMode = activeCategory === 'rental';
+        const SUBMIT_URL = isRentalMode ? `${API_BASE}/car-rentals` : `${API_BASE}/booking`;
+
         // Sanitize all inputs before sending to the server to prevent XSS
-        const cleanData = {
-            // 1. HIGH RISK (Users type anything here - Sanitize strictly)
+        const cleanData = isRentalMode ? {
+            fullName: `${sanitizeInput(firstName)} ${sanitizeInput(lastName)}`,
+            contactNumber: phoneNumber.trim(),
+            emailAddress: email.trim().toLowerCase(),
+            address: sanitizeInput(address),
+            vehicleId: selectedRentalVehicle?._id,
+            rentalStartDate: rentalStartDate,
+            returnDate: new Date(new Date(rentalStartDate).getTime() + (parseInt(rentalDurationDays) * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+            destination: sanitizeInput(destination),
+            notes: `Booked via Web Portal`,
+            requirementsAcknowledged: true, // Checkbox validated by step logic
+            captchaToken
+        } : {
             firstName: sanitizeInput(firstName),
             lastName: sanitizeInput(lastName),
             vehicleType: sanitizeInput(vehicleType),
-
-            // 2. FORMATTED DATA (Use Validation instead of just Sanitization)
-            // You want to make sure these LOOK like a phone/email, not just clean text.
             phoneNumber: phoneNumber.trim(),
             emailAddress: email.trim().toLowerCase(),
-
-            // 3. CONTROLLED DATA (These come from your own dropdowns/buttons)
-            // Since the user *picks* these from a list you provided, they are safer.
             serviceType: serviceType,
             bookingTime: selectedHour,
-            captchaToken
+            captchaToken,
+            isRental: false
         };
 
         try {
-            const response = await fetch(BASE_URL, {
+            const response = await fetch(SUBMIT_URL, {
                 method: 'POST',
                 body: JSON.stringify(cleanData),
                 headers: authHeaders(),
@@ -167,19 +266,20 @@ const Book = () => {
             setPhoneNumber('');
             setVehicleType('');
             setServiceType([]);
+            setAddress('');
             setPrivacyChecked(false);
             setError(null);
             setSuccess(true);
             setStep(1);
 
-            // Get the batchID from the server response
-            const finalDisplayId = data.batchId;
+            // Get the ID from the server response (it's called batchId for wash, rentalId for rent)
+            const finalDisplayId = isRentalMode ? data.rentalId : data.batchId;
 
 
             // Trigger SweetAlert
             Swal.fire({
-                title: 'Booking Successful!',
-                html: `Your BookID is: <b>${finalDisplayId}</b><br>Staff will contact you shortly.`,
+                title: activeCategory === 'rental' ? 'Rental Request Successful!' : 'Booking Successful!',
+                html: `Your ${activeCategory === 'rental' ? 'Rental ID' : 'BookID'} is: <b>${finalDisplayId}</b><br>Staff will contact you shortly.`,
                 icon: 'success',
                 showDenyButton: true,
                 showConfirmButton: false,
@@ -190,9 +290,9 @@ const Book = () => {
                 customClass: { popup: 'rounded-5' }
             }).then((result) => {
                 if (result.isDenied) {
-                    console.log("Downloading PDF for BookID:", finalDisplayId);
+                    console.log(`Downloading PDF for ${activeCategory === 'rental' ? 'RentalID' : 'BookID'}:`, finalDisplayId);
                     generatePDF(finalDisplayId);
-                    
+
                     // Small delay to ensure browser captures the download trigger
                     setTimeout(() => {
                         Swal.fire({
@@ -254,7 +354,7 @@ const Book = () => {
 
         // Main ID (Big and Bold like Jollibee Kiosk)
         doc.setFontSize(12);
-        doc.text("YOUR BOOKING NUMBER:", 40, 45, { align: "center" });
+        doc.text(activeCategory === 'rental' ? "YOUR RENTAL ID:" : "YOUR BOOKING NUMBER:", 40, 45, { align: "center" });
 
         doc.setFontSize(22); // Extra large
         doc.setFont("courier", "bold");
@@ -268,11 +368,16 @@ const Book = () => {
         doc.text("the staff upon arrival.", 40, 84, { align: "center" });
 
         // Save/Download
-        doc.save(`book_Receipt_${finalId}.pdf`);
+        const fileName = activeCategory === 'rental' ? `rental_Receipt_${finalId}.pdf` : `book_Receipt_${finalId}.pdf`;
+        doc.save(fileName);
     };
 
     // Step Titles for Progress Bar
-    const stepTitles = {
+    const stepTitles = activeCategory === 'rental' ? {
+        1: "Rental Details",
+        2: "Requirements",
+        3: "Personal Information"
+    } : {
         1: "Vehicle Information",
         2: "Date and Time",
         3: "Personal Information"
@@ -337,6 +442,26 @@ const Book = () => {
                                 </div>
                                 <div className="col-md-6">
                                     <form className="form-container p-5 w-100" onSubmit={handleSubmit}>
+                                        {/* Category Toggle */}
+                                        <div className="service-toggle-wrapper mb-4 d-flex justify-content-center">
+                                            <div className="service-toggle-wrapper">
+                                                <div className="toggle-capsule shadow-sm">
+                                                    <button
+                                                        className={`toggle-btn  ${activeCategory === 'wash' ? 'active' : ''}`}
+                                                        onClick={() => setActiveCategory('wash')}
+                                                    >
+                                                        <img src={carwashIcon} alt="Car Wash" /> Car Wash
+                                                    </button>
+                                                    <button
+                                                        className={`toggle-btn ${activeCategory === 'rental' ? 'active' : ''}`}
+                                                        onClick={() => setActiveCategory('rental')}
+                                                    >
+                                                        <img src={carRentalIcon} alt="Car Rental" /> Car Rental
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         {/* Progress Bar Header */}
                                         <div className="mb-4">
                                             <div className="d-flex justify-content-between mb-1">
@@ -357,80 +482,123 @@ const Book = () => {
                                             </div>
                                         </div>
 
-                                        {/*Step 1: Vehicle Information */}
+                                        {/*Step 1: Vehicle/Rental Information */}
                                         <div className="step1-container">
                                             {step === 1 && (
                                                 <>
-                                                    <div className="vehicle-information-container">
-                                                        <div className="input-container vehicle-type-container mb-3">
-                                                            <label className="form-label">Vehicle type</label>
-                                                            <select
-                                                                className="form-select"
-                                                                onChange={(e) => { setVehicleType(e.target.value); setServiceType([]); }}
-                                                                value={vehicleType}
-                                                                required
-                                                                disabled={!priceListDict}
-                                                            >
-                                                                <option value="">{priceListDict ? "-- Select Vehicle --" : "Loading vehicles..."}</option>
-                                                                {dynamicPricingData && dynamicPricingData.map(v => (
-                                                                    <option key={v._id} value={v.vehicleType}>{v.vehicleType}</option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
-                                                        <div className="service-type-container">
-                                                            <label className="form-label brand-accent" >Core Services</label>
-                                                            <div className="mb-3 row row-cols-2 row-cols-lg-4 g-3">
-                                                                {activeVehicleData?.services?.map((service) => {
-                                                                    const isSelected = serviceType.includes(service.name);
-                                                                    return (
-                                                                        <div key={service.name} className="col mb-3">
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => toggleService(service.name)}
-                                                                                className={`btn rounded-pill px-2 w-100 ${isSelected ? "btn-primary" : "btn-outline-secondary text-light"}`}
-                                                                            >
-                                                                                {isSelected && <span className="me-1">✓</span>}
-                                                                                {service.name}
-                                                                                <span style={{ fontSize: '0.7rem', display: 'block', opacity: 0.7 }}>₱{service.price}</span>
-                                                                            </button>
+                                                    {activeCategory === 'wash' ? (
+                                                        <div className="vehicle-information-container">
+                                                            <div className="input-container vehicle-type-container mb-3">
+                                                                <label className="form-label">Vehicle type</label>
+                                                                <select
+                                                                    className="form-select"
+                                                                    onChange={(e) => { setVehicleType(e.target.value); setServiceType([]); }}
+                                                                    value={vehicleType}
+                                                                    required
+                                                                    disabled={!priceListDict}
+                                                                >
+                                                                    <option value="">{priceListDict ? "-- Select Vehicle --" : "Loading vehicles..."}</option>
+                                                                    {dynamicPricingData && dynamicPricingData.map(v => (
+                                                                        <option key={v._id} value={v.vehicleType}>{v.vehicleType}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div className="service-type-container">
+                                                                <label className="form-label brand-accent" >Core Services</label>
+                                                                <div className="mb-3 row row-cols-2 row-cols-lg-4 g-3">
+                                                                    {activeVehicleData?.services?.map((service) => {
+                                                                        const isSelected = serviceType.includes(service.name);
+                                                                        return (
+                                                                            <div key={service.name} className="col mb-3">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => toggleService(service.name)}
+                                                                                    className={`btn rounded-pill px-2 w-100 ${isSelected ? "btn-primary" : "btn-outline-secondary text-light"}`}
+                                                                                >
+                                                                                    {isSelected && <span className="me-1">✓</span>}
+                                                                                    {service.name}
+                                                                                    <span style={{ fontSize: '0.7rem', display: 'block', opacity: 0.7 }}>₱{service.price}</span>
+                                                                                </button>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+
+                                                                {activeVehicleData?.addons?.length > 0 && (
+                                                                    <>
+                                                                        <label className="form-label brand-accent">Add-ons & Extras</label>
+                                                                        <div className="mb-4 row row-cols-2 row-cols-lg- g-3">
+                                                                            {activeVehicleData.addons.map((addon) => {
+                                                                                const isSelected = serviceType.includes(addon.name);
+                                                                                return (
+                                                                                    <div key={addon.name} className="col mb-3">
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => toggleService(addon.name)}
+                                                                                            className={`btn rounded-pill px-2 w-100 ${isSelected ? "btn-info text-white border-0 bg-info" : "btn-outline-secondary text-light"}`}
+                                                                                        >
+                                                                                            {isSelected && <span className="me-1">✓</span>}
+                                                                                            {addon.name}
+                                                                                            <span style={{ fontSize: '0.7rem', display: 'block', opacity: 0.8 }}>₱{addon.price}</span>
+                                                                                        </button>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
                                                                         </div>
-                                                                    );
-                                                                })}
+                                                                    </>
+                                                                )}
+
+                                                                {/* Live Total */}
+                                                                {vehicleType && serviceType.length > 0 && (
+                                                                    <div className="px-3 py-2 rounded-3 d-flex justify-content-between align-items-center mb-3" style={{ background: 'rgba(35,160,206,0.12)', border: '1px solid rgba(35,160,206,0.3)' }}>
+                                                                        <span className="text-light" style={{ fontSize: '0.85rem' }}>Estimated Total</span>
+                                                                        <span className="fw-bold" style={{ color: '#23A0CE', fontSize: '1.1rem' }}>₱{totalPrice.toLocaleString()}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="rental-information-container text-light">
+                                                            <div className="input-container mb-3">
+                                                                <label className="form-label brand-accent">Select Vehicle to Rent</label>
+                                                                <select
+                                                                    className="form-select"
+                                                                    required
+                                                                    value={selectedRentalVehicle?._id || ''}
+                                                                    onChange={(e) => {
+                                                                        const v = rentalFleet.find(v => v._id === e.target.value);
+                                                                        setSelectedRentalVehicle(v);
+                                                                        setVehicleType(v?.vehicleName || '');
+                                                                        setServiceType(["Car Rental"]);
+                                                                    }}
+                                                                >
+                                                                    <option value="">-- Select Rental Vehicle --</option>
+                                                                    {rentalFleet.map(v => (
+                                                                        <option key={v._id} value={v._id}>{v.vehicleName} ({v.seats}-Seater) - ₱{v.pricePerDay?.toLocaleString()}/day</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div className="input-container mb-3">
+                                                                <label className="form-label text-light">Pick-up Date</label>
+                                                                <input type="date" className="form-control text-light" required value={rentalStartDate} onChange={e => setRentalStartDate(e.target.value)} min={new Date().toISOString().split('T')[0]} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }} />
+                                                            </div>
+                                                            <div className="input-container mb-3">
+                                                                <label className="form-label text-light">Duration (Days)</label>
+                                                                <input type="number" className="form-control text-light" min="1" required value={rentalDurationDays} onChange={e => { setRentalDurationDays(Math.max(1, e.target.value)); }} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }} />
+                                                            </div>
+                                                            <div className="input-container mb-4">
+                                                                <label className="form-label text-light">Destination</label>
+                                                                <input type="text" className="form-control text-light" placeholder="e.g. Tagaytay City, Metro Manila" required value={destination} onChange={e => setDestination(e.target.value)} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }} />
                                                             </div>
 
-                                                            {activeVehicleData?.addons?.length > 0 && (
-                                                                <>
-                                                                    <label className="form-label brand-accent">Add-ons & Extras</label>
-                                                                    <div className="mb-4 row row-cols-2 row-cols-lg- g-3">
-                                                                        {activeVehicleData.addons.map((addon) => {
-                                                                            const isSelected = serviceType.includes(addon.name);
-                                                                            return (
-                                                                                <div key={addon.name} className="col mb-3">
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={() => toggleService(addon.name)}
-                                                                                        className={`btn rounded-pill px-2 w-100 ${isSelected ? "btn-info text-white border-0 bg-info" : "btn-outline-secondary text-light"}`}
-                                                                                    >
-                                                                                        {isSelected && <span className="me-1">✓</span>}
-                                                                                        {addon.name}
-                                                                                        <span style={{ fontSize: '0.7rem', display: 'block', opacity: 0.8 }}>₱{addon.price}</span>
-                                                                                    </button>
-                                                                                </div>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                </>
-                                                            )}
-
-                                                            {/* Live Total */}
-                                                            {vehicleType && serviceType.length > 0 && (
+                                                            {selectedRentalVehicle && rentalDurationDays && (
                                                                 <div className="px-3 py-2 rounded-3 d-flex justify-content-between align-items-center mb-3" style={{ background: 'rgba(35,160,206,0.12)', border: '1px solid rgba(35,160,206,0.3)' }}>
                                                                     <span className="text-light" style={{ fontSize: '0.85rem' }}>Estimated Total</span>
-                                                                    <span className="fw-bold" style={{ color: '#23A0CE', fontSize: '1.1rem' }}>₱{totalPrice.toLocaleString()}</span>
+                                                                    <span className="fw-bold" style={{ color: '#23A0CE', fontSize: '1.1rem' }}>₱{(selectedRentalVehicle.pricePerDay * parseInt(rentalDurationDays)).toLocaleString()}</span>
                                                                 </div>
                                                             )}
                                                         </div>
-                                                    </div>
+                                                    )}
                                                     <div className="button-container d-flex justify-content-between">
                                                         <a className="icon-link icon-link-hover" style={{ color: 'var(--text-secondary)', fontSize: '.9rem', textDecoration: 'underline' }} href="#">
                                                             Learn more service price
@@ -442,8 +610,9 @@ const Book = () => {
                                                             type="button"
                                                             className="btn btn-primary w-100"
                                                             style={{ maxWidth: '100px' }}
-                                                            onClick={() => setStep(2)}
-                                                            disabled={!vehicleType.trim() || !serviceType.length}
+                                                            onClick={() => {
+                                                                if (validateStep1()) setStep(2);
+                                                            }}
                                                         >
                                                             Next
                                                         </button>
@@ -456,28 +625,55 @@ const Book = () => {
                                         <div className="step2-container">
                                             {step === 2 && (
                                                 <>
-                                                    <div className='input-container mb-3'>
-                                                        <label className="form-label">Select time</label>
-                                                        <select
-                                                            className="form-select time-picker"
-                                                            value={selectedHour}
-                                                            onChange={(e) => setSelectedHour(e.target.value)}
-                                                            required
-                                                        >
-                                                            {availableFutureHours.length === 0 ? (
-                                                                <option value="">No more slots for today</option>
-                                                            ) : (
-                                                                <>
-                                                                    <option className='default-option' value="default">-- Select a Time --</option>
-                                                                    {availableFutureHours.map((hourObj) => (
-                                                                        <option key={hourObj.raw} value={hourObj.raw}>
-                                                                            {hourObj.label}
-                                                                        </option>
-                                                                    ))}
-                                                                </>
-                                                            )}
-                                                        </select>
-                                                    </div>
+                                                    {activeCategory === 'wash' ? (
+                                                        <div className='input-container mb-3'>
+                                                            <label className="form-label">Select time</label>
+                                                            <select
+                                                                className="form-select time-picker"
+                                                                value={selectedHour}
+                                                                onChange={(e) => setSelectedHour(e.target.value)}
+                                                                required
+                                                            >
+                                                                {availableFutureHours.length === 0 ? (
+                                                                    <option value="">No more slots for today</option>
+                                                                ) : (
+                                                                    <>
+                                                                        <option className='default-option' value="default">-- Select a Time --</option>
+                                                                        {availableFutureHours.map((hourObj) => (
+                                                                            <option key={hourObj.raw} value={hourObj.raw}>
+                                                                                {hourObj.label}
+                                                                            </option>
+                                                                        ))}
+                                                                    </>
+                                                                )}
+                                                            </select>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="requirements-container text-light mb-4 p-4 rounded-3 shadow-sm" style={{ border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                                                            <h5 className="brand-accent mb-3 d-flex align-items-center gap-2">
+                                                                <i className="bi bi-card-checklist text-warning" style={{ fontSize: '1.2rem' }}></i> Rental Requirements
+                                                            </h5>
+                                                            <p className="small opacity-75 mb-3">Please bring the original and photocopies of the following documents upon vehicle pick-up:</p>
+                                                            <ul className="list-unstyled mb-0 d-flex flex-column gap-3 small ms-2">
+                                                                <li className="d-flex align-items-start gap-3">
+                                                                    <span className="text-success fw-bold" style={{ fontSize: '1.1rem' }}>✓</span>
+                                                                    <span style={{ paddingTop: '2px' }}>Valid Professional Driver's License</span>
+                                                                </li>
+                                                                <li className="d-flex align-items-start gap-3">
+                                                                    <span className="text-success fw-bold" style={{ fontSize: '1.1rem' }}>✓</span>
+                                                                    <span style={{ paddingTop: '2px' }}>1 Additional Valid Government ID</span>
+                                                                </li>
+                                                                <li className="d-flex align-items-start gap-3">
+                                                                    <span className="text-success fw-bold" style={{ fontSize: '1.1rem' }}>✓</span>
+                                                                    <span style={{ paddingTop: '2px' }}>Latest Proof of Billing (Must match ID address)</span>
+                                                                </li>
+                                                                <li className="d-flex align-items-start gap-3">
+                                                                    <span className="text-success fw-bold" style={{ fontSize: '1.1rem' }}>✓</span>
+                                                                    <span style={{ paddingTop: '2px' }}>Security Deposit (₱5,000 - Refundable)</span>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                    )}
                                                     <div className="buttons d-flex justify-content-between mb-3">
                                                         <div className="button-container">
                                                             <button type="button" className="btn btn-secondary" style={{ width: '100px' }} onClick={() => setStep(1)}>
@@ -489,8 +685,9 @@ const Book = () => {
                                                                 type="button"
                                                                 className="btn btn-primary"
                                                                 style={{ width: '100px' }}
-                                                                onClick={() => setStep(3)}
-                                                                disabled={!selectedHour || selectedHour === "default"} // Disable if no hour is selected
+                                                                onClick={() => {
+                                                                    if (validateStep2()) setStep(3);
+                                                                }}
                                                             >
                                                                 Next
                                                             </button>
@@ -560,6 +757,20 @@ const Book = () => {
                                                         required
                                                     />
                                                 </div>
+                                                {activeCategory === 'rental' && (
+                                                    <div className="input-container mb-3">
+                                                        <label className="form-label text-light">Current Address</label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-control text-light"
+                                                            placeholder="e.g., 123 Street, Brgy, City"
+                                                            onChange={(e) => setAddress(e.target.value)}
+                                                            value={address}
+                                                            required
+                                                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+                                                        />
+                                                    </div>
+                                                )}
                                                 <div className="buttons d-flex justify-content-between mb-3">
                                                     <div className="button-container">
                                                         <button
@@ -588,42 +799,59 @@ const Book = () => {
                                                         By clicking this box, I agree that the company may use my personal information in accordance with the <a href="#" className="text-decoration-none" style={{ color: '#00e8e9' }}>Terms &</a> <a href="#" className="text-decoration-none" style={{ color: '#00e8e9' }}>Privacy Policy</a>.
                                                     </label>
                                                 </div>
-                                                <div className="form-check d-flex align-items-start gap-3 mb-3">
-                                                    <input
-                                                        className="form-check-input flex-shrink-0"
-                                                        type="checkbox"
-                                                        id="timeAgreement"
-                                                        required
-                                                        style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
-                                                    />
-                                                    <label className="form-check-label text-light opacity-75 small" htmlFor="timeAgreement" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
-                                                        I agree to arrive on time for my scheduled booking. Late arrivals may result in rescheduling or cancellation of the booking.
-                                                    </label>
-                                                </div>
-                                                <div className="form-check d-flex align-items-start gap-3 mb-3">
-                                                    <input
-                                                        className="form-check-input flex-shrink-0"
-                                                        type="checkbox"
-                                                        id="punctualityAcknowledge"
-                                                        required
-                                                        style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
-                                                    />
-                                                    <label className="form-check-label text-light opacity-75 small" htmlFor="punctualityAcknowledge" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
-                                                        I understand that punctuality is essential to ensure a smooth and efficient service experience for all customers.
-                                                    </label>
-                                                </div>
-                                                <div className="form-check d-flex align-items-start gap-3 mb-3">
-                                                    <input
-                                                        className="form-check-input flex-shrink-0"
-                                                        type="checkbox"
-                                                        id="contactAcknowledge"
-                                                        required
-                                                        style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
-                                                    />
-                                                    <label className="form-check-label text-light opacity-75 small" htmlFor="contactAcknowledge" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
-                                                        I acknowledge that if I am unable to arrive on time, I will contact the company as soon as possible to discuss alternative arrangements.
-                                                    </label>
-                                                </div>
+                                                {activeCategory === 'wash' ? (
+                                                    <>
+                                                        <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                                            <input
+                                                                className="form-check-input flex-shrink-0"
+                                                                type="checkbox"
+                                                                id="timeAgreement"
+                                                                required
+                                                                style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                                            />
+                                                            <label className="form-check-label text-light opacity-75 small" htmlFor="timeAgreement" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                                I agree to arrive on time for my scheduled booking. Late arrivals may result in rescheduling or cancellation of the booking.
+                                                            </label>
+                                                        </div>
+                                                        <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                                            <input
+                                                                className="form-check-input flex-shrink-0"
+                                                                type="checkbox"
+                                                                id="punctualityAcknowledge"
+                                                                required
+                                                                style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                                            />
+                                                            <label className="form-check-label text-light opacity-75 small" htmlFor="punctualityAcknowledge" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                                I understand that punctuality is essential to ensure a smooth and efficient service experience for all customers.
+                                                            </label>
+                                                        </div>
+                                                        <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                                            <input
+                                                                className="form-check-input flex-shrink-0"
+                                                                type="checkbox"
+                                                                id="contactAcknowledge"
+                                                                required
+                                                                style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                                            />
+                                                            <label className="form-check-label text-light opacity-75 small" htmlFor="contactAcknowledge" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                                I acknowledge that if I am unable to arrive on time, I will contact the company as soon as possible to discuss alternative arrangements.
+                                                            </label>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                                        <input
+                                                            className="form-check-input flex-shrink-0"
+                                                            type="checkbox"
+                                                            id="rentalRequirementsAck"
+                                                            required
+                                                            style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                                        />
+                                                        <label className="form-check-label text-light opacity-75 small" htmlFor="rentalRequirementsAck" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                            I acknowledge that I must bring the complete physical documents stated in the requirements checklist and pay the refundable security deposit upon vehicle pick-up. Otherwise, my booking may be forfeited.
+                                                        </label>
+                                                    </div>
+                                                )}
                                                 <div className="mb-3">
                                                     <ReCAPTCHA
                                                         sitekey="6LeOuJAsAAAAAPJBVPFJQ5TVhRXJPf-3oQERKub4"
@@ -633,7 +861,7 @@ const Book = () => {
                                                 </div>
                                                 <button
                                                     type="submit"
-                                                    disabled={isLoading || !captchaToken} // Requires captcha to be solved
+                                                    disabled={isLoading || !captchaToken}
                                                     className="btn btn-primary w-100 btn-lg d-flex align-items-center justify-content-center text-white"
                                                 >
                                                     {isLoading ? (
@@ -642,7 +870,7 @@ const Book = () => {
                                                             <span role="status">Processing...</span>
                                                         </>
                                                     ) : (
-                                                        "Book"
+                                                        activeCategory === 'rental' ? "Submit Rental Request" : "Book"
                                                     )}
                                                 </button>
                                             </>
