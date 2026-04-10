@@ -3,6 +3,9 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
+import axios from 'axios';
+import { io } from 'socket.io-client';
+import { API_BASE, SOCKET_URL } from '../../api/config';
 import '../../css/style.css';
 
 // Asset Imports
@@ -100,8 +103,181 @@ const HeroSection = () => (
 
 
 /* ═══════════════════════════════════════════
-   SECTION 2: ABOUT
+   SECTION 1.5: LIVE BAY MONITOR
+   (Now with real-time animations)
 ═══════════════════════════════════════════ */
+const BayVisualization = ({ status }) => {
+    const isOccupied = status === 'Occupied';
+
+    return (
+        <div className={`bay-viz-container ${isOccupied ? 'occupied' : 'available'}`}>
+            <div className="bay-floor"></div>
+            <div className="bay-wall-left"></div>
+            <div className="bay-wall-right"></div>
+
+            {/* Animated Car */}
+            {isOccupied && (
+                <div className="animated-car-wrapper">
+                    <svg viewBox="0 0 100 60" className="vector-car">
+                        <path d="M15,35 Q15,25 25,22 L75,22 Q85,25 85,35 L85,50 L15,50 Z" fill="var(--brand-primary)" />
+                        <path d="M25,22 L35,10 Q40,8 60,8 L65,10 L75,22 Z" fill="rgba(255,255,255,0.3)" />
+                        <circle cx="25" cy="50" r="7" fill="#333" />
+                        <circle cx="75" cy="50" r="7" fill="#333" />
+                        <rect x="78" y="32" width="10" height="5" rx="2" fill="#ffcc00" className="headlight" />
+                    </svg>
+
+                    {/* Wash Effects */}
+                    <div className="wash-particles">
+                        <div className="particle shower"></div>
+                        <div className="particle wash-bubble b1"></div>
+                        <div className="particle wash-bubble b2"></div>
+                        <div className="particle wash-bubble b3"></div>
+                        <div className="particle mist"></div>
+                    </div>
+                </div>
+            )}
+
+            {!isOccupied && (
+                <div className="bay-ready-pulse">
+                    <div className="pulse-circle"></div>
+                    <span className="ready-text">READY</span>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const BayProgress = ({ startTime }) => {
+    const [elapsed, setElapsed] = useState(0);
+
+    useEffect(() => {
+        if (!startTime) return;
+
+        const calculate = () => {
+            const start = new Date(startTime).getTime();
+            const now = new Date().getTime();
+            const diffMin = Math.floor((now - start) / 60000);
+            setElapsed(diffMin);
+        };
+
+        calculate();
+        const interval = setInterval(calculate, 60000); // Update every minute
+        return () => clearInterval(interval);
+    }, [startTime]);
+
+    if (!startTime) return null;
+
+    return (
+        <div className="mt-2">
+            <span className="badge fw-normal px-2 py-1" style={{ color: "#6dbbfcff" }}>
+                Started {elapsed} mins ago
+            </span>
+        </div>
+    );
+};
+
+const LiveBayStatus = () => {
+    const [bays, setBays] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        // Initial Fetch
+        axios.get(`${API_BASE}/bays`)
+            .then(res => {
+                setBays(res.data);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Failed to fetch bays:", err);
+                setLoading(false);
+            });
+
+        // Socket listener for real-time updates
+        const socket = io(SOCKET_URL, {
+            withCredentials: true
+        });
+
+        socket.on('connect', () => console.log('✅ Bay Monitor Connected to Socket'));
+
+        socket.on('update_bay', (updatedBay) => {
+            console.log('Bay Update received:', updatedBay.name);
+            setBays(prev => prev.map(b => b._id === updatedBay._id ? updatedBay : b));
+        });
+
+        socket.on('add_bay', (newBay) => {
+            console.log('New Bay received:', newBay.name);
+            setBays(prev => {
+                const exists = prev.find(b => b._id === newBay._id);
+                if (exists) return prev;
+                return [...prev, newBay];
+            });
+        });
+
+        socket.on('delete_bay', (bayId) => {
+            console.log('Bay Delete received:', bayId);
+            setBays(prev => prev.filter(b => b._id !== bayId));
+        });
+
+        return () => socket.disconnect();
+    }, []);
+
+    if (loading && bays.length === 0) return null;
+
+    return (
+        <section className="live-bay-section py-5">
+            <div className="container">
+                <div className="text-center mb-5">
+                    <div className="d-flex justify-content-center align-items-center gap-2 mb-2">
+                        <span className="live-dot pulse"></span>
+                        <h6 className="text-uppercase tracking-wider brand-accent mb-0 fw-bold">Live Status</h6>
+                    </div>
+                    <h2 className="display-5 fw-bold hero-title text-uppercase">Current Bay <span className="brand-accent">Availability</span></h2>
+                    <p className="hero-description mx-auto mt-2" style={{ maxWidth: '600px' }}>
+                        See our operations in real-time. If a bay is occupied, we're currently making a car spotless!
+                    </p>
+                </div>
+
+                <div className="row g-4 justify-content-center">
+                    {bays.slice(0, 3).map((bay) => (
+                        <div key={bay._id} className="col-lg-5 col-md-6">
+                            <div className={`bay-card-outer p-4 rounded-4 shadow-sm ${bay.status === 'Occupied' ? 'bg-occupied' : 'bg-available'}`}>
+                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h4 className="fw-bold mb-0 hero-title text-uppercase">{bay.name}</h4>
+                                        {bay.currentBookingId && (
+                                            <div className="small font-poppins mt-1" style={{ fontSize: '0.75rem', color: '#6dbbfcff' }}>
+                                                ID: {bay.currentBookingId}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="text-end">
+                                        <span className={`badge rounded-pill px-3 py-2 ${bay.status === 'Occupied' ? 'bg-warning text-dark' : 'bg-success'}`}>
+                                            {bay.status}
+                                        </span>
+                                        {bay.status === 'Occupied' && <BayProgress startTime={bay.startTime} />}
+                                    </div>
+                                </div>
+
+                                <BayVisualization status={bay.status} />
+
+                                <div className="mt-3 text-center">
+                                    <small className=" fst-italic brand-accent">
+                                        {bay.status === 'Occupied' ? 'Service in progress...' : 'Drive in now!'}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {bays.length === 0 && (
+                        <div className="text-center py-4">
+                            <p className="text-muted">No bays currently active.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </section>
+    );
+};
 const AboutSection = () => (
     <section id="about" className="about-section py-5 position-relative overflow-hidden">
         <div className="bubble-container position-relative">
@@ -390,6 +566,7 @@ const Home = () => {
             <Navbar />
             <main className="landing-wrapper">
                 <HeroSection />
+                <LiveBayStatus />
                 <AboutSection />
                 <ServiceSection />
                 <ContactSection />

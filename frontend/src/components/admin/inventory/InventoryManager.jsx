@@ -198,16 +198,16 @@ const InventoryPage = ({ user, isDark }) => {
                             Catalog
                         </button>
                         <button
-                            className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'orders' ? 'bg-white shadow-sm fw-bold' : 'text-muted'}`}
+                            className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'orders' ? 'shadow-sm fw-bold' : 'text-muted'}`}
                             onClick={() => setActiveTab('orders')}
-                            style={{ fontSize: '0.85rem' }}
+                            style={{ fontSize: '0.85rem', background: activeTab === 'orders' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'orders' ? 'var(--theme-content-text)' : 'inherit' }}
                         >
                             <img src={productOrderIcon} alt="" style={{ width: 14 }} />Orders
                         </button>
                         <button
                             className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'recipes' ? 'bg-white shadow-sm fw-bold' : 'text-muted'}`}
                             onClick={() => setActiveTab('recipes')}
-                            style={{ fontSize: '0.85rem' }}
+                            style={{ fontSize: '0.85rem', background: activeTab === 'recipes' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'recipes' ? 'var(--theme-content-text)' : 'inherit' }}
                         >
                             <img src={recipeIcon} alt="" style={{ width: 14 }} /> Recipes
                         </button>
@@ -492,84 +492,85 @@ const InventoryPage = ({ user, isDark }) => {
                                         width="260px"
                                     />
                                 </div>
-
-                                <div className="table-responsive">
-                                    <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.85rem' }}>
-                                        <thead className="bg-light text-muted">
-                                            <tr>
-                                                <th>Date</th>
-                                                <th>Type</th>
-                                                <th>Qty Change</th>
-                                                <th>Balance</th>
-                                                <th>Reason</th>
-                                                <th>User</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {paginatedHistory.length === 0 ? (
-                                                <tr><td colSpan="6" className="text-center py-4 text-muted">{ledgerSearch ? 'No results match your search.' : 'No movement history recorded yet.'}</td></tr>
-                                            ) : (
-                                                paginatedHistory.map(log => (
-                                                    <tr key={log._id}>
-                                                        <td>{new Date(log.createdAt).toLocaleString()}</td>
-                                                        <td>
-                                                            <span className={`badge rounded-pill ${log.type === 'Inbound' ? 'bg-success' : log.type === 'Outbound' ? 'bg-danger' : 'bg-secondary'}`}>
-                                                                {log.type}
-                                                            </span>
-                                                        </td>
-                                                        <td className={log.quantity > 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}>
-                                                            {log.quantity > 0 ? '+' : ''}{log.quantity}
-                                                        </td>
-                                                        <td className="fw-bold">{log.newStock.toFixed(2)}</td>
-                                                        <td className="text-muted text-wrap" style={{ maxWidth: 200 }}>{log.reason}</td>
-                                                        <td>{log.performedByName}</td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
+                                <div className="card rounded-4 border overflow-hidden" style={{ minHeight: 387 }}>
+                                    <div className="table-responsive flex-grow-1">
+                                        <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.85rem' }}>
+                                            <thead className="bg-light text-muted">
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Type</th>
+                                                    <th>Qty Change</th>
+                                                    <th>Balance</th>
+                                                    <th>Reason</th>
+                                                    <th>User</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {paginatedHistory.length === 0 ? (
+                                                    <tr><td colSpan="6" className="text-center py-4 text-muted">{ledgerSearch ? 'No results match your search.' : 'No movement history recorded yet.'}</td></tr>
+                                                ) : (
+                                                    paginatedHistory.map(log => (
+                                                        <tr key={log._id}>
+                                                            <td>{new Date(log.createdAt).toLocaleString()}</td>
+                                                            <td>
+                                                                <span className={`badge rounded-pill ${log.type === 'Inbound' ? 'bg-success' : log.type === 'Outbound' ? 'bg-danger' : 'bg-secondary'}`}>
+                                                                    {log.type}
+                                                                </span>
+                                                            </td>
+                                                            <td className={log.quantity > 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}>
+                                                                {log.quantity > 0 ? '+' : ''}{log.quantity}
+                                                            </td>
+                                                            <td className="fw-bold">{log.newStock.toFixed(2)}</td>
+                                                            <td className="text-muted text-wrap" style={{ maxWidth: 200 }}>{log.reason}</td>
+                                                            <td>{log.performedByName}</td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {/* Pagination — getPaginationRange */}
+                                    {filteredHistory.length > LEDGER_PER_PAGE && (
+                                        <div className="card-footer bg-white border-top d-flex justify-content-between align-items-center">
+                                            <div className="text-muted" style={{ fontSize: '0.8rem' }}>
+                                                Showing {(safePage - 1) * LEDGER_PER_PAGE + 1}–{Math.min(safePage * LEDGER_PER_PAGE, filteredHistory.length)} of {filteredHistory.length}
+                                            </div>
+                                            <div className="d-flex align-items-center gap-1">
+                                                <button
+                                                    className="btn btn-sm p-0 rounded-circle border-0"
+                                                    disabled={safePage === 1}
+                                                    onClick={() => setLedgerPage(safePage - 1)}
+                                                    style={{ width: '30px', height: '30px', background: safePage === 1 ? '#f1f5f9' : 'transparent' }}
+                                                >
+                                                    <img src={leftArrowIcon} style={{ width: '9px', opacity: safePage === 1 ? 0.3 : 0.7 }} alt="prev" />
+                                                </button>
+                                                {getPaginationRange(safePage, totalPages).map((p, idx) => (
+                                                    p === '...' ? (
+                                                        <span key={`dot-l-${idx}`} className="px-1 text-muted" style={{ fontSize: '0.8rem' }}>...</span>
+                                                    ) : (
+                                                        <button
+                                                            key={`lp-${p}`}
+                                                            onClick={() => setLedgerPage(p)}
+                                                            className={`btn btn-sm p-0 rounded-circle border-0 fw-bold ${safePage === p ? 'text-white shadow-sm' : 'text-muted'}`}
+                                                            style={{ width: '30px', height: '30px', fontSize: '0.78rem', background: safePage === p ? '#23A0CE' : 'transparent' }}
+                                                        >
+                                                            {p}
+                                                        </button>
+                                                    )
+                                                ))}
+                                                <button
+                                                    className="btn btn-sm p-0 rounded-circle border-0"
+                                                    disabled={safePage >= totalPages}
+                                                    onClick={() => setLedgerPage(safePage + 1)}
+                                                    style={{ width: '30px', height: '30px', background: safePage >= totalPages ? '#f1f5f9' : 'transparent' }}
+                                                >
+                                                    <img src={rightArrowIcon} style={{ width: '9px', opacity: safePage >= totalPages ? 0.3 : 0.7 }} alt="next" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
-                                {/* Pagination — getPaginationRange */}
-                                {filteredHistory.length > LEDGER_PER_PAGE && (
-                                    <div className="card-footer bg-white border-top py-2 d-flex justify-content-between align-items-center mt-3">
-                                        <div className="text-muted" style={{ fontSize: '0.8rem' }}>
-                                            Showing {(safePage - 1) * LEDGER_PER_PAGE + 1}–{Math.min(safePage * LEDGER_PER_PAGE, filteredHistory.length)} of {filteredHistory.length}
-                                        </div>
-                                        <div className="d-flex align-items-center gap-1">
-                                            <button
-                                                className="btn btn-sm p-0 rounded-circle border-0"
-                                                disabled={safePage === 1}
-                                                onClick={() => setLedgerPage(safePage - 1)}
-                                                style={{ width: '30px', height: '30px', background: safePage === 1 ? '#f1f5f9' : 'transparent' }}
-                                            >
-                                                <img src={leftArrowIcon} style={{ width: '9px', opacity: safePage === 1 ? 0.3 : 0.7 }} alt="prev" />
-                                            </button>
-                                            {getPaginationRange(safePage, totalPages).map((p, idx) => (
-                                                p === '...' ? (
-                                                    <span key={`dot-l-${idx}`} className="px-1 text-muted" style={{ fontSize: '0.8rem' }}>...</span>
-                                                ) : (
-                                                    <button
-                                                        key={`lp-${p}`}
-                                                        onClick={() => setLedgerPage(p)}
-                                                        className={`btn btn-sm p-0 rounded-circle border-0 fw-bold ${safePage === p ? 'text-white shadow-sm' : 'text-muted'}`}
-                                                        style={{ width: '30px', height: '30px', fontSize: '0.78rem', background: safePage === p ? '#23A0CE' : 'transparent' }}
-                                                    >
-                                                        {p}
-                                                    </button>
-                                                )
-                                            ))}
-                                            <button
-                                                className="btn btn-sm p-0 rounded-circle border-0"
-                                                disabled={safePage >= totalPages}
-                                                onClick={() => setLedgerPage(safePage + 1)}
-                                                style={{ width: '30px', height: '30px', background: safePage >= totalPages ? '#f1f5f9' : 'transparent' }}
-                                            >
-                                                <img src={rightArrowIcon} style={{ width: '9px', opacity: safePage >= totalPages ? 0.3 : 0.7 }} alt="next" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                             <div className="modal-footer border-0 p-4 pt-2">
                                 <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => { setHistoryModalItem(null); setLedgerSearch(''); setLedgerPage(1); }} style={{ background: isDark ? 'var(--theme-bg-secondary)' : '' }}>Close Ledger</button>

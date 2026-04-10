@@ -340,7 +340,7 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
 
     return (
         <AdminModalWrapper show={!!booking} onClose={onClose} size="lg">
-            <div className="modal-content rounded-4 shadow border-0 bg-white">
+            <div className="modal-content rounded-4 shadow border-0" style={{ background: 'var(--theme-modal-bg)' }}>
                 <div className="modal-header border-bottom-0 pb-0 pt-4 px-4 d-flex align-items-start flex-wrap gap-2">
                     <div>
                         <h5 className="modal-title font-poppins text-dark-secondary fw-bold mb-0" style={{ fontSize: '1.25rem' }}>
@@ -494,10 +494,10 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
                                             <span className="text-muted" style={{ fontSize: '0.75rem' }}>None</span>
                                         )}
                                         {formData.purchasedProducts.map((p, idx) => (
-                                            <div key={idx} className="d-flex align-items-center justify-content-between p-2 rounded-3" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                            <div key={idx} className="d-flex align-items-center justify-content-between p-2 rounded-3" style={{ background: 'var(--theme-input-bg)', border: '1px solid var(--theme-input-border)' }}>
                                                 <div className="d-flex align-items-center gap-2">
                                                     <span className="badge bg-secondary text-truncate" style={{ maxWidth: '130px' }}>{p.productName}</span>
-                                                    <span className="text-dark" style={{ fontSize: '0.75rem', fontWeight: 500 }}>x{p.quantity} (₱{(p.price * p.quantity).toLocaleString()})</span>
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--theme-content-text)' }}>x{p.quantity} (₱{(p.price * p.quantity).toLocaleString()})</span>
                                                 </div>
                                                 {editMode && <button type="button" className="btn btn-sm text-danger p-0 border-0 shadow-none" onClick={() => removeRetailProduct(idx)}>✖</button>}
                                             </div>
@@ -609,8 +609,8 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
                                         return (
                                             <li key={i} className="position-relative pb-4" style={{ borderLeft: isLast ? '2px solid transparent' : '2px solid #23A0CE', paddingLeft: '28px' }}>
                                                 {/* Central Circle with Icon */}
-                                                <div className="position-absolute d-flex align-items-center justify-content-center bg-white"
-                                                    style={{ width: '34px', height: '34px', borderRadius: '50%', border: log.status === 'Cancelled' ? '2px solid #dc3545' : '2px solid #23A0CE', left: '-18px', top: '-4px', zIndex: 1 }}>
+                                                <div className="position-absolute d-flex align-items-center justify-content-center"
+                                                    style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--theme-card-bg)', border: log.status === 'Cancelled' ? '2px solid #dc3545' : '2px solid #23A0CE', left: '-18px', top: '-4px', zIndex: 1 }}>
                                                     {iconSrc ? (
                                                         <img src={iconSrc} alt={log.status} style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
                                                     ) : (
@@ -621,10 +621,10 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
                                                 </div>
 
                                                 {/* Text Block */}
-                                                <div className="fw-bold font-poppins text-dark" style={{ fontSize: '0.95rem', color: log.status === 'Cancelled' ? '#dc3545' : '#262626', paddingTop: '2px' }}>
+                                                <div className="fw-bold font-poppins" style={{ fontSize: '0.95rem', color: log.status === 'Cancelled' ? '#dc3545' : 'var(--theme-content-text)', paddingTop: '2px' }}>
                                                     {log.status}
                                                 </div>
-                                                <div className="text-dark-gray300 font-poppins" style={{ fontSize: '0.78rem', marginTop: '0' }}>
+                                                <div className="font-poppins" style={{ fontSize: '0.78rem', marginTop: '0', color: 'var(--theme-content-text-secondary)' }}>
                                                     {new Date(log.timestamp).toLocaleString('en-PH', { dateStyle: 'short', timeStyle: 'short' })}
                                                 </div>
                                             </li>
@@ -634,7 +634,14 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
                             )}
 
                             {durationText && (
-                                <div className="mt-2 p-3 rounded-3 d-flex align-items-center gap-2" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)', color: '#166534', fontSize: '0.85rem', fontWeight: 500 }}>
+                                <div className="mt-2 p-3 rounded-3 d-flex align-items-center gap-2" 
+                                    style={{ 
+                                        backgroundColor: 'rgba(34, 197, 94, 0.1)', 
+                                        border: '1px solid rgba(34, 197, 94, 0.2)', 
+                                        color: 'var(--theme-content-text)', 
+                                        fontSize: '0.85rem', 
+                                        fontWeight: 500 
+                                    }}>
                                     <img src={bookDuration} alt="" style={{ width: '24px' }} />
                                     {durationText}
                                 </div>

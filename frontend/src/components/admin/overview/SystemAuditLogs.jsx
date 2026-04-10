@@ -69,7 +69,7 @@ const ActivityLogPage = ({ isDark }) => {
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 9;
+    const itemsPerPage = 8;
 
     const fetchLogs = async () => {
         setIsLoading(true);
@@ -200,121 +200,123 @@ const ActivityLogPage = ({ isDark }) => {
             </div>
 
             {/* Log list */}
-            <div className="rounded-4 shadow-sm overflow-hidden d-flex flex-column" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)', minHeight: '745px' }}>
-                {isLoading ? (
-                    <div className="p-0"><TableSkeleton /></div>
-                ) : currentItems.length === 0 ? (
-                    <div className="p-5 text-center text-muted font-poppins">No activity records found matching your "<strong>{searchTerm}</strong>"</div>
-                ) : (
-                    <>
-                        <div className="flex-grow-1">
-                            {currentItems.map((log, idx) => {
-                                const meta = ACTION_META[log.action] || { icon: '📌', color: '#888' };
-                                return (
-                                    <div
-                                        key={log._id}
-                                        className={`d-flex align-items-start gap-3 px-4 py-3 ${idx !== currentItems.length - 1 ? 'border-bottom' : ''}`}
-                                        style={{ transition: 'background 0.2s', background: !log.isRead ? 'var(--theme-table-row-hover)' : 'transparent', borderColor: 'var(--theme-content-border)' }}
-                                    >
-                                        {/* Icon bubble */}
-                                        <div style={{
-                                            width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                                            background: `${meta.color}1a`,
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            marginTop: 2
-                                        }}>
-                                            {typeof meta.icon === 'string' && meta.icon.length <= 2 ? (
-                                                <span style={{ fontSize: '1rem' }}>{meta.icon}</span>
-                                            ) : (
-                                                <img src={meta.icon} alt="icon" style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
-                                            )}
-                                        </div>
-
-                                        {/* Content */}
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <p className="mb-0 font-poppins" style={{ fontSize: '0.87rem', lineHeight: 1.5, color: 'var(--theme-content-text)' }}>
-                                                {log.message}
-                                            </p>
-                                            <div className="d-flex gap-3 mt-1 flex-wrap">
-                                                <small className="text-muted d-flex align-items-center gap-1" style={{ fontSize: '0.72rem' }}>
-                                                    <img src={timeIcon} alt="Time Icon" style={{ width: '12px' }} />
-                                                    {new Date(log.createdAt).toLocaleString('en-PH')}
-                                                </small>
-                                                {log.actorName && (
-                                                    <small className="d-flex align-items-center gap-1" style={{ fontSize: '0.72rem', color: meta.color, fontWeight: 500 }}>
-                                                        <img src={userIcon} alt="User Icon" style={{ width: '12px' }} />
-                                                        {log.actorName} ({log.actorRole})
-                                                    </small>
-                                                )}
-                                                {log.meta?.fromStatus && (
-                                                    <small className="text-muted" style={{ fontSize: '0.72rem' }}>
-                                                        {log.meta.fromStatus} → {log.meta.toStatus}
-                                                    </small>
+            <div className="rounded-4 shadow-sm overflow-hidden d-flex flex-column" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)', minHeight: 685 }} >
+                {
+                    isLoading ? (
+                        <div className="p-0" > <TableSkeleton /></div>
+                    ) : currentItems.length === 0 ? (
+                        <div className="p-5 text-center text-muted font-poppins">No activity records found matching your "<strong>{searchTerm}</strong>"</div>
+                    ) : (
+                        <>
+                            <div className="flex-grow-1">
+                                {currentItems.map((log, idx) => {
+                                    const meta = ACTION_META[log.action] || { icon: '📌', color: '#888' };
+                                    return (
+                                        <div
+                                            key={log._id}
+                                            className={`d-flex align-items-start gap-3 px-4 py-3 ${idx !== currentItems.length - 1 ? 'border-bottom' : ''}`}
+                                            style={{ transition: 'background 0.2s', background: !log.isRead ? 'var(--theme-table-row-hover)' : 'transparent', borderColor: 'var(--theme-content-border)' }}
+                                        >
+                                            {/* Icon bubble */}
+                                            <div style={{
+                                                width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                                                background: `${meta.color}1a`,
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                marginTop: 2
+                                            }}>
+                                                {typeof meta.icon === 'string' && meta.icon.length <= 2 ? (
+                                                    <span style={{ fontSize: '1rem' }}>{meta.icon}</span>
+                                                ) : (
+                                                    <img src={meta.icon} alt="icon" style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
                                                 )}
                                             </div>
+
+                                            {/* Content */}
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <p className="mb-0 font-poppins" style={{ fontSize: '0.87rem', lineHeight: 1.5, color: 'var(--theme-content-text)' }}>
+                                                    {log.message}
+                                                </p>
+                                                <div className="d-flex gap-3 mt-1 flex-wrap">
+                                                    <small className="text-muted d-flex align-items-center gap-1" style={{ fontSize: '0.72rem' }}>
+                                                        <img src={timeIcon} alt="Time Icon" style={{ width: '12px' }} />
+                                                        {new Date(log.createdAt).toLocaleString('en-PH')}
+                                                    </small>
+                                                    {log.actorName && (
+                                                        <small className="d-flex align-items-center gap-1" style={{ fontSize: '0.72rem', color: meta.color, fontWeight: 500 }}>
+                                                            <img src={userIcon} alt="User Icon" style={{ width: '12px' }} />
+                                                            {log.actorName} ({log.actorRole})
+                                                        </small>
+                                                    )}
+                                                    {log.meta?.fromStatus && (
+                                                        <small className="text-muted" style={{ fontSize: '0.72rem' }}>
+                                                            {log.meta.fromStatus} → {log.meta.toStatus}
+                                                        </small>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Unread dot */}
+                                            {!log.isRead && (
+                                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: meta.color, flexShrink: 0, marginTop: 8 }} />
+                                            )}
                                         </div>
-
-                                        {/* Unread dot */}
-                                        {!log.isRead && (
-                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: meta.color, flexShrink: 0, marginTop: 8 }} />
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Pagination Controls */}
-                        {finalLogs.length > 0 && (
-                            <div className="card-footer bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center border-top mt-auto">
-                                <small className="text-muted font-poppins">
-                                    Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, finalLogs.length)} of {finalLogs.length} entries
-                                </small>
-                                <div className="d-flex align-items-center gap-2">
-                                    <button
-                                        className="page-link btn-next rounded-circle border-0 shadow-none d-flex align-items-center justify-content-center"
-                                        disabled={currentPage === 1}
-                                        onClick={() => handlePageChange(currentPage - 1)}
-                                        style={{ width: '32px', height: '32px', background: currentPage === 1 ? '#f1f5f9' : 'transparent' }}
-                                    >
-                                        <img src={leftArrowIcon} alt="Left Arrow" style={{ width: '10px', height: '10px', opacity: currentPage === 1 ? 0.3 : 0.7 }} />
-                                    </button>
-
-                                    {getPaginationRange(currentPage, totalPages).map((p, idx) => (
-                                        p === '...' ? (
-                                            <span key={`dot-${idx}`} className="px-2 text-muted">...</span>
-                                        ) : (
-                                            <button
-                                                key={`page-${p}`}
-                                                onClick={() => handlePageChange(p)}
-                                                className={`page-link rounded-circle border-0 shadow-none d-flex align-items-center justify-content-center fw-bold ${currentPage === p ? 'brand-primary text-white shadow-sm' : 'text-dark-secondary'}`}
-                                                style={{
-                                                    width: '32px',
-                                                    height: '32px',
-                                                    fontSize: '0.75rem',
-                                                    background: currentPage === p ? '#23A0CE' : 'transparent',
-                                                    color: currentPage === p ? '#fff' : 'inherit'
-                                                }}
-                                            >
-                                                {p}
-                                            </button>
-                                        )
-                                    ))}
-
-                                    <button
-                                        className="page-link btn-next rounded-circle border-0 shadow-none d-flex align-items-center justify-content-center"
-                                        disabled={currentPage === totalPages}
-                                        onClick={() => handlePageChange(currentPage + 1)}
-                                        style={{ width: '32px', height: '32px', background: currentPage === totalPages ? '#f1f5f9' : 'transparent' }}
-                                    >
-                                        <img src={rightArrowIcon} alt="Right Arrow" style={{ width: '10px', height: '10px', opacity: currentPage === totalPages ? 0.3 : 0.7 }} />
-                                    </button>
-                                </div>
+                                    );
+                                })}
                             </div>
-                        )}
-                    </>
-                )}
-            </div>
-        </div>
+
+                            {/* Pagination Controls */}
+                            {finalLogs.length > 0 && (
+                                <div className="card-footer bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center border-top mt-auto">
+                                    <small className="text-muted font-poppins">
+                                        Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, finalLogs.length)} of {finalLogs.length} entries
+                                    </small>
+                                    <div className="d-flex align-items-center gap-2">
+                                        <button
+                                            className="page-link btn-next rounded-circle border-0 shadow-none d-flex align-items-center justify-content-center"
+                                            disabled={currentPage === 1}
+                                            onClick={() => handlePageChange(currentPage - 1)}
+                                            style={{ width: '32px', height: '32px', background: currentPage === 1 ? '#f1f5f9' : 'transparent' }}
+                                        >
+                                            <img src={leftArrowIcon} alt="Left Arrow" style={{ width: '10px', height: '10px', opacity: currentPage === 1 ? 0.3 : 0.7 }} />
+                                        </button>
+
+                                        {getPaginationRange(currentPage, totalPages).map((p, idx) => (
+                                            p === '...' ? (
+                                                <span key={`dot-${idx}`} className="px-2 text-muted">...</span>
+                                            ) : (
+                                                <button
+                                                    key={`page-${p}`}
+                                                    onClick={() => handlePageChange(p)}
+                                                    className={`page-link rounded-circle border-0 shadow-none d-flex align-items-center justify-content-center fw-bold ${currentPage === p ? 'brand-primary text-white shadow-sm' : 'text-dark-secondary'}`}
+                                                    style={{
+                                                        width: '32px',
+                                                        height: '32px',
+                                                        fontSize: '0.75rem',
+                                                        background: currentPage === p ? '#23A0CE' : 'transparent',
+                                                        color: currentPage === p ? '#fff' : 'inherit'
+                                                    }}
+                                                >
+                                                    {p}
+                                                </button>
+                                            )
+                                        ))}
+
+                                        <button
+                                            className="page-link btn-next rounded-circle border-0 shadow-none d-flex align-items-center justify-content-center"
+                                            disabled={currentPage === totalPages}
+                                            onClick={() => handlePageChange(currentPage + 1)}
+                                            style={{ width: '32px', height: '32px', background: currentPage === totalPages ? '#f1f5f9' : 'transparent' }}
+                                        >
+                                            <img src={rightArrowIcon} alt="Right Arrow" style={{ width: '10px', height: '10px', opacity: currentPage === totalPages ? 0.3 : 0.7 }} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )
+                }
+            </div >
+        </div >
     );
 };
 

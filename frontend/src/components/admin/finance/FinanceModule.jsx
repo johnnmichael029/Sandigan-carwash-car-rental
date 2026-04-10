@@ -629,11 +629,11 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                     <thead className="bg-light text-muted" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                                         <tr>
                                                             <th className="ps-4 py-3">Date</th>
-                                                            <th>Description</th>
-                                                            <th>Category</th>
-                                                            <th>Source</th>
-                                                            <th>Type</th>
-                                                            <th className="pe-4 text-end">Amount</th>
+                                                            <th className="py-3">Description</th>
+                                                            <th className="py-3">Category</th>
+                                                            <th className="py-3">Source</th>
+                                                            <th className="py-3">Type</th>
+                                                            <th className="pe-4 text-end py-3">Amount</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -1039,10 +1039,10 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                         <thead className="bg-light text-dark-gray400 font-poppins">
                                                             <tr>
                                                                 <th className="ps-4 py-3">Expense Details</th>
-                                                                <th>Category</th>
-                                                                <th>Date</th>
-                                                                <th>Amount</th>
-                                                                <th className="pe-4 text-end">Action</th>
+                                                                <th className="py-3">Category</th>
+                                                                <th className="py-3">Date</th>
+                                                                <th className="py-3">Amount</th>
+                                                                <th className="pe-4 text-end py-3">Action</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -1189,10 +1189,11 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                     <thead className="bg-light text-dark-gray400 font-poppins">
                                                         <tr>
                                                             <th className="ps-4 py-3">Income Source / Title</th>
-                                                            <th>Category</th>
-                                                            <th>Reference</th>
-                                                            <th>Date Recorded</th>
-                                                            <th className="pe-4 text-end">Amount Realized</th>
+                                                            <th className="py-3">Category</th>
+                                                            <th className="py-3">Reference</th>
+                                                            <th className="py-3">Date Recorded</th>
+                                                            <th className=" py-3">Amount Realized</th>
+                                                            <th className="pe-4 text-end py-3">Action</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -1222,7 +1223,7 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                                     </td>
                                                                     <td><code style={{ fontSize: '0.75rem' }}>#{rev.referenceId || '--'}</code></td>
                                                                     <td className="text-dark-gray200">{new Date(rev.date).toLocaleString('en-PH')}</td>
-                                                                    <td className="pe-4 text-end fw-bold brand-primary">+ ₱{rev.amount.toLocaleString()}</td>
+                                                                    <td className="pe-4 fw-bold brand-primary">+ ₱{rev.amount.toLocaleString()}</td>
                                                                     <td className="pe-4 text-end">
                                                                         <button onClick={() => deleteRevenue(rev._id)} className="btn btn-sm text-danger-hover p-0 border-0 bg-transparent">
                                                                             <img src={deleteIcon} alt="Delete" style={{ width: '18px' }} />

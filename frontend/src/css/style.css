@@ -937,3 +937,249 @@ label {
         padding: 0 1.25rem;
     }
 }
+
+/* -------------------------------------------
+   LIVE BAY STATUS & ANIMATIONS
+------------------------------------------- */
+
+.live-bay-section {
+    background: var(--background-primary);
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.bay-card-outer {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+}
+
+.bay-card-outer:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.bg-occupied {
+    background: rgba(35, 160, 206, 0.05) !important;
+    border: 1px solid rgba(35, 160, 206, 0.15) !important;
+}
+
+.bg-available {
+    background: rgba(35, 160, 206, 0.05) !important;
+    border: 1px solid rgba(35, 160, 206, 0.15) !important;
+}
+
+/* Base Visualization Container */
+.bay-viz-container {
+    height: 180px;
+    position: relative;
+    background: #23A0CE20;
+    border-radius: 12px;
+    overflow: hidden;
+    perspective: 1000px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+
+
+/* Car Animation */
+.animated-car-wrapper {
+    position: relative;
+    width: 140px;
+    height: 80px;
+    animation: carSway 3s ease-in-out infinite;
+}
+
+.vector-car {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.5));
+}
+
+@keyframes carSway {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0);
+    }
+
+    50% {
+        transform: translateY(-3px) rotate(0.5deg);
+    }
+}
+
+/* Wash Effects */
+.wash-particles {
+    position: absolute;
+    top: -20px;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    background: white;
+}
+
+/* .shower {
+    top: 0;
+    width: 100%;
+    height: 60px;
+    background: linear-gradient(to bottom, rgba(232, 246, 255, 0.4), transparent);
+    clip-path: polygon(10% 0, 12% 0, 15% 100%, 8% 100%);
+    animation: showerFlow 0.5s linear infinite;
+} */
+
+
+@keyframes showerFlow {
+    from {
+        opacity: 0.3;
+        transform: translateX(-5%);
+    }
+
+    to {
+        opacity: 0.6;
+        transform: translateX(5%);
+    }
+}
+
+.wash-bubble {
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(35, 160, 206, 0.3);
+    animation: washBubbleRise 2s infinite ease-out;
+}
+
+.b1 {
+    width: 8px;
+    height: 8px;
+    left: 20%;
+    animation-delay: 0s;
+}
+
+.b2 {
+    width: 12px;
+    height: 12px;
+    left: 50%;
+    animation-delay: 0.5s;
+}
+
+.b3 {
+    width: 6px;
+    height: 6px;
+    left: 80%;
+    animation-delay: 1s;
+}
+
+@keyframes washBubbleRise {
+    0% {
+        transform: translateY(80px) scale(0.5);
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: translateY(-20px) scale(1.2);
+        opacity: 0;
+    }
+}
+
+.mist {
+    bottom: -10px;
+    width: 100%;
+    height: 30px;
+    background: radial-gradient(circle, rgba(35, 160, 206, 0.2) 0%, transparent 70%);
+    filter: blur(5px);
+    animation: mistFloat 4s infinite alternate;
+}
+
+@keyframes mistFloat {
+    from {
+        transform: scale(0.8);
+        opacity: 0.3;
+    }
+
+    to {
+        transform: scale(1.2);
+        opacity: 0.6;
+    }
+}
+
+/* Available Pulse */
+.bay-ready-pulse {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.pulse-circle {
+    width: 50px;
+    height: 50px;
+    background: var(--brand-accent);
+    border-radius: 50%;
+    animation: pulseGlow 2s infinite;
+}
+
+@keyframes pulseGlow {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(0, 232, 233, 0.7);
+    }
+
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 20px rgba(0, 232, 233, 0);
+    }
+
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(0, 232, 233, 0);
+    }
+}
+
+.ready-text {
+    color: var(--brand-accent);
+    letter-spacing: 4px;
+    font-weight: 700;
+}
+
+/* Live Dot Indicator */
+.live-dot {
+    width: 10px;
+    height: 10px;
+    background-color: #ff3333;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.live-dot.pulse {
+    animation: dotPulse 1.5s infinite;
+}
+
+@keyframes dotPulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 51, 51, 0.7);
+    }
+
+    70% {
+        transform: scale(1.2);
+        box-shadow: 0 0 0 10px rgba(255, 51, 51, 0);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 51, 51, 0);
+    }
+}

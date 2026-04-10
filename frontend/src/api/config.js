@@ -11,6 +11,10 @@ const API_BASE = window.location.hostname === 'localhost'
     ? 'http://localhost:4000/api'
     : 'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net/api';
 
+const SOCKET_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:4000'
+    : 'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net';
+
 /** Module-level CSRF token (fetched once at app startup). */
 let _csrfToken = null;
 
@@ -38,4 +42,4 @@ const authHeaders = () => ({
     ...(_csrfToken ? { 'X-CSRF-Token': _csrfToken } : {}),
 });
 
-export { API_BASE, authHeaders, initCsrf };
+export { API_BASE, SOCKET_URL, authHeaders, initCsrf };

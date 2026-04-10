@@ -257,15 +257,34 @@ const updateBooking = async (req, res) => {
 
         // If bay changed, free the old bay immediately
         if (oldBayId && oldBayId.toString() !== (newBayId ? newBayId.toString() : '')) {
-            await Bay.findByIdAndUpdate(oldBayId, { status: 'Available' }, { returnDocument: 'after', runValidators: true });
+            const freedBay = await Bay.findByIdAndUpdate(oldBayId, { status: 'Available', startTime: null, currentBookingId: null }, { returnDocument: 'after', runValidators: true });
+            if (freedBay) {
+                const io = req.app.get('io');
+                if (io) io.emit('update_bay', freedBay);
+            }
         }
 
         // Update the new bay's status based on the final booking status
         if (newBayId) {
+            let bayUpdate = null;
             if (finalStatus === 'In-progress') {
-                await Bay.findByIdAndUpdate(newBayId, { status: 'Occupied' }, { returnDocument: 'after', runValidators: true });
+                bayUpdate = await Bay.findByIdAndUpdate(newBayId, {
+                    status: 'Occupied',
+                    startTime: new Date(),
+                    currentBookingId: currentBooking.batchId
+                }, { returnDocument: 'after', runValidators: true });
             } else if (['Completed', 'Cancelled', 'Pending', 'Confirmed', 'Queued'].includes(finalStatus)) {
-                await Bay.findByIdAndUpdate(newBayId, { status: 'Available' }, { returnDocument: 'after', runValidators: true });
+                bayUpdate = await Bay.findByIdAndUpdate(newBayId, {
+                    status: 'Available',
+                    startTime: null,
+                    currentBookingId: null
+                }, { returnDocument: 'after', runValidators: true });
+            }
+
+            // Emit update for real-time UI
+            if (bayUpdate) {
+                const io = req.app.get('io');
+                if (io) io.emit('update_bay', bayUpdate);
             }
         }
 

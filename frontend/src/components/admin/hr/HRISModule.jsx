@@ -1050,15 +1050,15 @@ const HRISPage = ({ user, isDark }) => {
                 <div className="d-flex gap-2">
                     {/* Pending bills badge on Settings button */}
                     <div className="btn-group p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
-                        <button onClick={() => setHrTab('directory')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'directory' ? 'shadow-sm' : 'text-muted'}`} style={{ background: hrTab === 'directory' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'directory' ? 'var(--theme-content-text)' : 'inherit' }}>
+                        <button onClick={() => setHrTab('directory')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'directory' ? 'shadow-sm fw-bold' : 'text-muted'}`} style={{ background: hrTab === 'directory' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'directory' ? 'var(--theme-content-text)' : 'inherit' }}>
                             <img src={directoryIcon} alt="Directory Icon" style={{ width: '16px' }} />Directory</button>
-                        <button onClick={() => setHrTab('payroll')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'payroll' ? 'shadow-sm' : 'text-muted'}`} style={{ background: hrTab === 'payroll' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'payroll' ? 'var(--theme-content-text)' : 'inherit' }}>
+                        <button onClick={() => setHrTab('payroll')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'payroll' ? 'shadow-sm fw-bold' : 'text-muted'}`} style={{ background: hrTab === 'payroll' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'payroll' ? 'var(--theme-content-text)' : 'inherit' }}>
                             <img src={payrollIcon} alt="Payroll Icon" style={{ width: '16px' }} />Payroll</button>
-                        <button onClick={() => setHrTab('analytics')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'analytics' ? 'shadow-sm' : 'text-muted'}`} style={{ background: hrTab === 'analytics' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'analytics' ? 'var(--theme-content-text)' : 'inherit' }}>
+                        <button onClick={() => setHrTab('analytics')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'analytics' ? 'shadow-sm fw-bold' : 'text-muted'}`} style={{ background: hrTab === 'analytics' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'analytics' ? 'var(--theme-content-text)' : 'inherit' }}>
                             <img src={analyticsIcon} alt="Analytics Icon" style={{ width: '16px' }} />Analytics</button>
-                        <button onClick={() => setHrTab('attendance')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'attendance' ? 'shadow-sm' : 'text-muted'}`} style={{ background: hrTab === 'attendance' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'attendance' ? 'var(--theme-content-text)' : 'inherit' }}>
+                        <button onClick={() => setHrTab('attendance')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'attendance' ? 'shadow-sm fw-bold' : 'text-muted'}`} style={{ background: hrTab === 'attendance' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'attendance' ? 'var(--theme-content-text)' : 'inherit' }}>
                             <img src={attendanceIcon} alt="Attendance Icon" style={{ width: '16px' }} />Attendance History</button>
-                        <button onClick={() => setHrTab('leaves')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 position-relative ${hrTab === 'leaves' ? 'shadow-sm' : 'text-muted'}`} style={{ background: hrTab === 'leaves' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'leaves' ? 'var(--theme-content-text)' : 'inherit' }}>
+                        <button onClick={() => setHrTab('leaves')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 position-relative ${hrTab === 'leaves' ? 'shadow-sm fw-bold' : 'text-muted'}`} style={{ background: hrTab === 'leaves' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'leaves' ? 'var(--theme-content-text)' : 'inherit' }}>
                             {leaveLogs.filter(l => l.status === 'Pending').length > 0 && (
                                 <span className="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.5rem', padding: '2px 5px', marginTop: '4px' }}>{leaveLogs.filter(l => l.status === 'Pending').length}</span>
                             )}
@@ -1659,7 +1659,7 @@ const HRISPage = ({ user, isDark }) => {
                                                             <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
                                                                 <div className="p-4 pb-3" style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.08), rgba(35,160,206,0.05))' }}>
                                                                     <div className="d-flex align-items-center gap-3 mb-3">
-                                                                        <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style={{ width: 44, height: 44, background: '#fff', color: '#22c55e', fontSize: '1.2rem', flexShrink: 0 }}>
+                                                                        <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style={{ width: 44, height: 44, background: 'rgba(34,197,94,0.1)', color: '#22c55e', fontSize: '1.2rem', flexShrink: 0 }}>
                                                                             {getEmpName(detailer).charAt(0).toUpperCase()}
                                                                         </div>
                                                                         <div>
@@ -1682,7 +1682,7 @@ const HRISPage = ({ user, isDark }) => {
                                                                             </div>
                                                                         </div>
                                                                         <div className="col-6">
-                                                                            <div className="p-2 rounded-3" style={{ background: '#fff8f0' }}>
+                                                                            <div className="p-2 rounded-3" style={{ background: 'var(--theme-card-bg)' }}>
                                                                                 <div className="text-muted" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>Total Earned</div>
                                                                                 <div className="fw-bold" style={{ fontSize: '1.1rem', color: '#f59e0b' }}>₱{totalCommission.toLocaleString()}</div>
                                                                             </div>
@@ -1810,7 +1810,7 @@ const HRISPage = ({ user, isDark }) => {
                                                                 <div className="p-4 pb-3" style={{ background: 'linear-gradient(135deg, rgba(35,160,206,0.08), rgba(35,130,206,0.05))' }}>
                                                                     <div className="d-flex justify-content-between align-items-start mb-3">
                                                                         <div className="d-flex align-items-center gap-3">
-                                                                            <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style={{ width: 44, height: 44, background: '#fff', color: '#23A0CE', fontSize: '1.2rem', flexShrink: 0 }}>
+                                                                            <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style={{ width: 44, height: 44, background: 'rgba(35,160,206,0.1)', color: '#23A0CE', fontSize: '1.2rem', flexShrink: 0 }}>
                                                                                 {p.fullName.charAt(0).toUpperCase()}
                                                                             </div>
                                                                             <div>
@@ -1825,7 +1825,7 @@ const HRISPage = ({ user, isDark }) => {
                                                                         </div>
                                                                         <div className="text-end">
                                                                             <div className="text-muted" style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Net Pay</div>
-                                                                            <div className="fw-bold text-dark-secondary" style={{ fontSize: '1.2rem' }}>₱{p.netAmount.toLocaleString()}</div>
+                                                                            <div className="fw-bold text-dark-secondary" style={{ fontSize: '1.2rem' }}>₱{p.netAmount.toFixed(2)}</div>
                                                                         </div>
                                                                     </div>
 
@@ -2794,8 +2794,8 @@ const HRISPage = ({ user, isDark }) => {
                                                 const totalPages = Math.ceil(filtered.length / historyPerPage);
                                                 const paginated = filtered.slice((historyPage - 1) * historyPerPage, historyPage * historyPerPage);
                                                 return (
-                                                    <div className="card rounded-4 border overflow-hidden">
-                                                        <div className="table-responsive">
+                                                    <div className="card rounded-4 border overflow-hidden d-flex flex-column" style={{ minHeight: 410, background: 'var(--theme-card-bg)' }}>
+                                                        <div className="table-responsive flex-grow-1">
                                                             <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.82rem' }}>
                                                                 <thead className="bg-light text-muted sticky-top shadow-sm" style={{ zIndex: 1, fontSize: '0.7rem', textTransform: 'uppercase' }}>
                                                                     <tr>
@@ -2841,7 +2841,7 @@ const HRISPage = ({ user, isDark }) => {
 
                                                         {/* ── Pagination Footer ── */}
                                                         {filtered.length > historyPerPage && (
-                                                            <div className="card-footer bg-white border-top py-2 d-flex justify-content-between align-items-center">
+                                                            <div className="card-footer border-top py-2 d-flex justify-content-between align-items-center" style={{ background: 'transparent' }}>
                                                                 <div className="text-muted" style={{ fontSize: '0.8rem' }}>
                                                                     Showing {(historyPage - 1) * historyPerPage + 1}–{Math.min(historyPage * historyPerPage, filtered.length)} of {filtered.length}
                                                                 </div>

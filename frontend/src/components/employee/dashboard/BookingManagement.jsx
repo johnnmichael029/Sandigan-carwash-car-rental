@@ -403,6 +403,7 @@ const BookingManagement = ({ employee, onNavigate, onShowSMC, isDark }) => {
                 <ReceiptModal
                     booking={receiptBooking}
                     onClose={() => setIsReceiptModalOpen(false)}
+                    isDark={isDark}
                 />
             )}
 

@@ -132,7 +132,7 @@ const MaintenanceProjects = ({ projects, assets, bays, employees, inventoryItems
 
             </div>
 
-            <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 d-flex flex-column" style={{ minHeight: 500 }}>
+            <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 d-flex flex-column" style={{ minHeight: 475 }}>
                 <div className="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                     <h6 className="mb-0 fw-bold text-dark-secondary">Maintenance Projects</h6>
                     <button className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"

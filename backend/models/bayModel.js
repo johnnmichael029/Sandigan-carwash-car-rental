@@ -20,6 +20,14 @@ const baySchema = new Schema({
     description: {
         type: String,
         default: ''
+    },
+    startTime: {
+        type: Date,
+        default: null
+    },
+    currentBookingId: {
+        type: String,
+        default: null
     }
 }, { timestamps: true });
 

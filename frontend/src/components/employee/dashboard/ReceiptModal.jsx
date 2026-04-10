@@ -8,7 +8,7 @@ import { API_BASE, authHeaders } from '../../../api/config';
 import sandiganLogo from '../../../assets/logo/sandigan-logo.png';
 import AdminModalWrapper from '../../admin/shared/AdminModalWrapper';
 
-const ReceiptModal = ({ booking, onClose }) => {
+const ReceiptModal = ({ booking, onClose, isDark }) => {
     const receiptRef = useRef();
     const [dynamicPricingData, setDynamicPricingData] = useState([]);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -74,20 +74,20 @@ const ReceiptModal = ({ booking, onClose }) => {
 
     return (
         <AdminModalWrapper show={!!booking} onClose={onClose} dialogStyle={{ maxWidth: '400px' }} dialogClassName="no-print-dialog">
-            <div className="modal-content rounded-4 shadow border-0 overflow-hidden bg-white">
+            <div className="modal-content rounded-4 shadow border-0 overflow-hidden">
                 <div className="modal-header border-bottom-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center no-print">
-                    <h5 className="modal-title font-poppins fw-bold text-dark-secondary">Receipt Preview</h5>
+                    <h5 className="modal-title font-poppins fw-bold" style={{ color: '#333333' }}>Receipt Preview</h5>
                     <button type="button" className="btn-close shadow-none" onClick={onClose}></button>
                 </div>
 
                 <div className="modal-body p-0 pt-3">
                     {/* THE ACTUAL RECEIPT CONTAINER */}
-                    <div id="receipt-content" ref={receiptRef} className="receipt-paper mx-auto p-4 bg-white" style={{ fontFamily: 'monospace', color: '#333' }}>
+                    <div id="receipt-content" ref={receiptRef} className="receipt-paper mx-auto p-4" style={{ fontFamily: 'monospace' }}>
                         <div className="text-center mb-4">
                             <img src={sandiganLogo} alt="Logo" style={{ width: '80px', marginBottom: '10px', filter: 'grayscale(1)' }} />
-                            <p className="mb-0 fw-bold" style={{ fontSize: '0.9rem' }}>Carwash & Car Rental</p>
-                            <p className="mb-0 text-muted" style={{ fontSize: '0.65rem' }}>68 Ruhale st. Calzada Tipas Taguig City</p>
-                            <p className="mb-0 text-muted" style={{ fontSize: '0.65rem' }}>+63 912 345 6789</p>
+                            <p className="mb-0 fw-bold" style={{ fontSize: '0.9rem', color: '#333 !important' }}>Carwash & Car Rental</p>
+                            <p className="mb-0" style={{ fontSize: '0.65rem', color: '#666 !important' }}>68 Ruhale st. Calzada Tipas Taguig City</p>
+                            <p className="mb-0" style={{ fontSize: '0.65rem', color: '#666 !important' }}>+63 912 345 6789</p>
                         </div>
 
                         <div className="d-flex justify-content-between mb-2" style={{ borderTop: '1px dashed #ccc', paddingTop: '10px' }}>
@@ -182,9 +182,29 @@ const ReceiptModal = ({ booking, onClose }) => {
                     <button className="btn btn-light rounded-pill px-4 shadow-sm w-100 font-poppins" style={{ fontSize: '0.85rem' }} onClick={onClose}>Close</button>
                 </div>
 
-                {/* Print-only CSS injection */}
+                {/* Force Light Theme for Receipt Content regardless of global theme */}
                 <style>
                     {`
+                    .no-print-dialog .modal-content,
+                    .no-print-dialog .modal-header,
+                    .no-print-dialog .modal-body,
+                    .no-print-dialog .modal-footer {
+                        background-color: #ffffff !important;
+                        color: #333333 !important;
+                    }
+                    .no-print-dialog .btn-close {
+                        filter: none !important;
+                    }
+                    #receipt-content, #receipt-content * {
+                        color: #000000 !important;
+                    }
+                    #receipt-content .text-muted {
+                        color: #666666 !important;
+                    }
+                    #receipt-content strong {
+                        color: #000000 !important;
+                        font-weight: 700 !important;
+                    }
                     @media print {
                         @page {
                             margin: 0;
