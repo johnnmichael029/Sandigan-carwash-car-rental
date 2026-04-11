@@ -234,6 +234,7 @@ const DashboardOverview = ({ employee, onNavigate, isDark }) => {
                 title="System Overview"
                 subtitle={todayDate}
                 onNavigate={onNavigate}
+                isDark={isDark}
             />
 
             {/* ATTENDANCE WIDGET */}

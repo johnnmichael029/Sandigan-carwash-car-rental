@@ -3,11 +3,12 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 import { API_BASE, authHeaders } from '../../../api/config';
 import notifIcon from '../../../assets/icon/notif.png';
+import darkThemeNotifIcon from '../../../assets/icon/dark-theme-notif.png';
 
 /* ─────────────────────────────────────────────
    REUSABLE HEADER COMPONENT WITH NOTIFICATIONS
  ───────────────────────────────────────────── */
-const TopHeader = ({ employee, title, subtitle, onNavigate }) => {
+const TopHeader = ({ employee, title, subtitle, onNavigate, isDark }) => {
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
@@ -76,7 +77,7 @@ const TopHeader = ({ employee, title, subtitle, onNavigate }) => {
                 </div>
                 <div className="position-relative" style={{ cursor: 'pointer' }}>
                     <div onClick={() => setIsOpen(!isOpen)} className="position-relative d-inline-block p-1">
-                        <img src={notifIcon} alt="Notification Icon" style={{ width: '24px' }} />
+                        <img src={isDark ? darkThemeNotifIcon : notifIcon} alt="Notification Icon" style={{ width: '24px' }} />
                         {unreadCount > 0 && (
                             <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.65rem' }}>
                                 {unreadCount > 9 ? '9+' : unreadCount}

@@ -144,6 +144,7 @@ const RetailManagement = ({ employee, onSMCRequest, isDark }) => {
                 employee={employee}
                 title="Retail Store"
                 subtitle="Direct product sales and membership issuance"
+                isDark={isDark}
             />
 
             <div className="row g-4">

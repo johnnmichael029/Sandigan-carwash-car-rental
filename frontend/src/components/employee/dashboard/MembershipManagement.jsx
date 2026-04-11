@@ -134,7 +134,10 @@ const MembershipManagement = ({ employee, onSMCRequest, isDark }) => {
 
     return (
         <div className="animate-fade-in p-1">
-            <TopHeader employee={employee} title="Membership Console" subtitle="Track card usage and process renewals" />
+            <TopHeader employee={employee}
+                title="Membership Console"
+                subtitle="Track card usage and process renewals"
+                isDark={isDark} />
 
             <div className="row g-4">
                 {/* 1. Renewal Panel */}

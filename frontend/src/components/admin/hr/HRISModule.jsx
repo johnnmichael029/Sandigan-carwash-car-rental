@@ -373,7 +373,7 @@ const HRISPage = ({ user, isDark }) => {
         try {
             const res = await axios.post(`${API_BASE}/attendance/approve-ot`, { attendanceId, approved }, { headers: authHeaders(), withCredentials: true });
             fetchAttendance();
-            Swal.fire('Success', res.data.message, 'success');
+            Swal.fire({ title: 'Success', text: res.data.message, icon: 'success', background: 'var(--theme-card-bg)', color: 'var(--theme-content-text)' });
         } catch (err) {
             console.error(err);
             Swal.fire('Error', err.response?.data?.error || 'Failed to update OT status.', 'error');

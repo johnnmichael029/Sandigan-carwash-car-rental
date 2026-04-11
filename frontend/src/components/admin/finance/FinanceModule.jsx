@@ -855,7 +855,8 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                     const combinedItems = [
                                                         ...inventoryCats.map(c => ({ _id: c._id, name: c.name, color: c.color, textColor: c.textColor, isSystem: false })),
                                                         { _id: 'sys-service', name: 'Service', color: '#6366f1', textColor: '#ffffff', isSystem: true },
-                                                        { _id: 'sys-mixed', name: 'Mixed', color: '#8b5cf6', textColor: '#ffffff', isSystem: true }
+                                                        { _id: 'sys-mixed', name: 'Mixed', color: '#6366f1', textColor: '#ffffff', isSystem: true },
+                                                        { _id: 'sys-car-rental', name: 'Car Rental', color: '#6366f1', textColor: '#ffffff', isSystem: true }
                                                     ];
                                                     return combinedItems.map(cat => {
                                                         const current = erpMapping.find(m => m.inventoryCategory === cat.name)?.revenueGroup || '';

@@ -166,10 +166,10 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
                     <button type="button" className="btn-close shadow-none ms-auto" onClick={onClose}></button>
                 </div>
 
-                <div className="p-4 pt-3">
+                <div className="p-4 pt-3 ">
                     <div className="row g-4 overflow-hidden">
                         {/* Details Section (Left) */}
-                        <div className="col-md-7">
+                        <div className="col-md-7 border-end" >
                             <div className="d-flex justify-content-between align-items-center mb-4">
                                 <h6 className="text-uppercase fw-bold mb-0" style={{ color: '#23A0CE', fontSize: '0.65rem', letterSpacing: '1px' }}>Customer Information</h6>
                             </div>
@@ -181,7 +181,7 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
                                     {isEditing ? (
                                         <input type="text" className="form-control form-control-sm shadow-none" value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} />
                                     ) : (
-                                        <div className="p-2 rounded-2" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)' }}>{rental.fullName}</div>
+                                        <div className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)' }}>{rental.fullName}</div>
                                     )}
                                 </div>
 
@@ -191,12 +191,12 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
                                     {isEditing ? (
                                         <input type="text" className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)' }} value={editForm.contactNumber} onChange={(e) => setEditForm({ ...editForm, contactNumber: e.target.value })} />
                                     ) : (
-                                        <div className="p-2 rounded-2" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)' }}>{rental.contactNumber}</div>
+                                        <div className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)' }}>{rental.contactNumber}</div>
                                     )}
                                 </div>
                                 <div className="col-6">
                                     <label className="text-muted mb-1 d-block" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Vehicle Type</label>
-                                    <div className="p-2 rounded-2" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)' }}>{rental.vehicleName}</div>
+                                    <div className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)' }}>{rental.vehicleName}</div>
                                 </div>
 
                                 {/* Destination */}
@@ -205,7 +205,7 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
                                     {isEditing ? (
                                         <input type="text" className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)' }} value={editForm.destination} onChange={(e) => setEditForm({ ...editForm, destination: e.target.value })} />
                                     ) : (
-                                        <div className="p-2 rounded-2" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)' }}>{rental.destination}</div>
+                                        <div className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)' }}>{rental.destination}</div>
                                     )}
                                 </div>
 
@@ -215,7 +215,7 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
                                     {isEditing ? (
                                         <textarea className="form-control form-control-sm shadow-none" rows="2" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)', fontWeight: 500, fontSize: '0.85rem' }} value={editForm.notes || ''} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} placeholder="Add any special requirements..." />
                                     ) : (
-                                        <div className="p-2 rounded-2" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)', fontWeight: 500, fontSize: '0.85rem', minHeight: '40px' }}>{rental.notes || 'No special notes provided.'}</div>
+                                        <div className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)', fontWeight: 500, fontSize: '0.85rem', minHeight: '40px' }}>{rental.notes || 'No special notes provided.'}</div>
                                     )}
                                 </div>
 
@@ -227,7 +227,7 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
                                             {isEditing ? (
                                                 <input type="date" className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)', fontWeight: 600 }} value={editForm.rentalStartDate} onChange={(e) => setEditForm({ ...editForm, rentalStartDate: e.target.value })} />
                                             ) : (
-                                                <div className="p-2 rounded-2" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)', fontSize: '0.85rem' }}>{new Date(rental.rentalStartDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                                                <div className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)', fontSize: '0.85rem' }}>{new Date(rental.rentalStartDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                                             )}
                                         </div>
                                         <div className="col-5">
@@ -235,7 +235,7 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
                                             {isEditing ? (
                                                 <input type="date" className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)', fontWeight: 600 }} value={editForm.returnDate} onChange={(e) => setEditForm({ ...editForm, returnDate: e.target.value })} />
                                             ) : (
-                                                <div className="p-2 rounded-2" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)', fontSize: '0.85rem' }}>{new Date(rental.returnDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                                                <div className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)', fontSize: '0.85rem' }}>{new Date(rental.returnDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                                             )}
                                         </div>
                                         <div className="col-2">
@@ -250,14 +250,14 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
                         </div>
 
                         {/* Timeline Section */}
-                        <div className="col-md-5 ps-md-4 border-start position-relative" style={{ borderColor: 'var(--theme-content-border)!important' }}>
+                        <div className="col-md-5 ps-md-4 position-relative" style={{ borderColor: 'var(--theme-content-border)!important' }}>
                             <p className="text-uppercase fw-bold mb-4" style={{ color: '#23A0CE', fontSize: '0.65rem', letterSpacing: '1px' }}>STATUS LOGS</p>
 
                             <div className="d-flex flex-column gap-4 position-relative">
                                 {/* Optimized Timeline Connector Line */}
                                 <div style={{ position: 'absolute', left: '15px', top: '15px', bottom: '15px', width: '2px', background: 'rgba(35,160,206,0.2)', zIndex: 0 }} />
 
-                                {rental.statusLogs?.slice().reverse().map((log, i) => (
+                                {rental.statusLogs?.map((log, i) => (
                                     <div key={i} className="position-relative d-flex gap-3 align-items-start" style={{ zIndex: 1 }}>
                                         <div className="rounded-circle d-flex align-items-center justify-content-center shadow-sm"
                                             style={{ width: '32px', height: '32px', background: 'var(--theme-card-bg)', border: '2px solid #23A0CE', color: '#23A0CE', flexShrink: 0 }}>
@@ -334,16 +334,20 @@ const CarRentManagement = ({ employee, isDark }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
 
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [fleet, setFleet] = useState([]);
+
     const fetchRentals = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`${API_BASE}/car-rentals`, {
-                headers: authHeaders(),
-                withCredentials: true
-            });
+            const res = await axios.get(`${API_BASE}/car-rentals`, { headers: authHeaders(), withCredentials: true });
             setRentals(res.data);
+
+            const fleetRes = await axios.get(`${API_BASE}/rental-fleet`);
+            setFleet(fleetRes.data);
         } catch (err) {
-            console.error('[RENTALS]', err);
+            console.error(err);
+            Swal.fire('Error', 'Failed to fetch rentals', 'error');
         } finally {
             setLoading(false);
         }
@@ -378,6 +382,16 @@ const CarRentManagement = ({ employee, isDark }) => {
                 background: 'var(--theme-card-bg)',
                 color: 'var(--theme-content-text)'
             });
+        });
+
+        // Listen for realtime fleet availability updates
+        socket.on('fleet_updated', async () => {
+            try {
+                const fleetRes = await axios.get(`${API_BASE}/rental-fleet`);
+                setFleet(fleetRes.data);
+            } catch (err) {
+                console.error('[SOCKET_SYNC_ERR] Failed to update fleet list:', err);
+            }
         });
 
         return () => socket.disconnect();
@@ -427,6 +441,7 @@ const CarRentManagement = ({ employee, isDark }) => {
                 employee={employee}
                 title="Car Rental Management"
                 subtitle="Track and manage all active car rental requests"
+                isDark={isDark}
             />
 
             {/* KPI Cards */}
@@ -493,9 +508,16 @@ const CarRentManagement = ({ employee, isDark }) => {
                     ))}
                 </div>
 
-                <button onClick={fetchRentals} className="btn btn-sm ms-md-auto" style={{ borderRadius: '10px', background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)', color: 'var(--theme-content-text)' }}>
-                    <img src={isDark ? refreshDarkThemeIcon : refreshIcon} alt="Refresh" style={{ width: '16px', height: '16px' }} />
-                </button>
+                <div className="ms-md-auto d-flex gap-2">
+                    <button className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
+                        style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600 }}
+                        onClick={() => setIsCreateModalOpen(true)}>
+                        + Rental
+                    </button>
+                    <button onClick={fetchRentals} className="btn btn-sm d-flex align-items-center justify-content-center shadow-sm" style={{ height: '36px', width: '36px', borderRadius: '8px', background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)', color: 'var(--theme-content-text)' }}>
+                        <img src={isDark ? refreshDarkThemeIcon : refreshIcon} alt="Refresh" style={{ width: '16px', height: '16px' }} />
+                    </button>
+                </div>
             </div>
 
             {/* Table */}
@@ -528,13 +550,13 @@ const CarRentManagement = ({ employee, isDark }) => {
                             <tbody>
                                 {paginatedRentals.map((r) => (
                                     <tr key={r._id}>
-                                        <td className="ps-4" style={{ color: '#23A0CE', fontWeight: 600 }}>{r.rentalId}</td>
+                                        <td className="ps-4" style={{ color: '#23A0CE', fontSize: '0.8rem', fontWeight: 700 }}>{r.rentalId}</td>
                                         <td>
-                                            <div className="fw-semibold">{r.fullName}</div>
-                                            <small style={{ color: 'var(--theme-content-text-secondary)' }}>{r.contactNumber}</small>
+                                            <div className="fw-semibold" style={{ fontSize: '0.8rem' }}>{r.fullName}</div>
+                                            <small style={{ color: 'var(--theme-content-text-secondary)', fontSize: '0.75rem' }}>{r.contactNumber}</small>
                                         </td>
-                                        <td>{r.vehicleName}</td>
-                                        <td style={{ color: 'var(--theme-content-text-secondary)', whiteSpace: 'nowrap' }}>
+                                        <td >{r.vehicleName}</td>
+                                        <td style={{ color: 'var(--theme-content-text-secondary)', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
                                             {new Date(r.rentalStartDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}
                                             {' – '}
                                             {new Date(r.returnDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -612,9 +634,20 @@ const CarRentManagement = ({ employee, isDark }) => {
                     onStatusChange={handleStatusChange}
                     onReceipt={(r) => {
                         setShowReceipt(r);
-                        setSelectedRental(null);
                     }}
                     isDark={isDark}
+                />
+            )}
+
+            {/* Create Rental Modal */}
+            {isCreateModalOpen && (
+                <CreateRentalModal
+                    fleet={fleet}
+                    onClose={() => setIsCreateModalOpen(false)}
+                    onSuccess={(newRental) => {
+                        setRentals([newRental, ...rentals]);
+                        setIsCreateModalOpen(false);
+                    }}
                 />
             )}
 
@@ -627,6 +660,109 @@ const CarRentManagement = ({ employee, isDark }) => {
                 />
             )}
         </div>
+    );
+};
+
+const CreateRentalModal = ({ fleet, onClose, onSuccess, rental }) => {
+    const [form, setForm] = useState({
+        fullName: '', contactNumber: '', emailAddress: 'walkin@sandigan.com', address: 'Walk-in',
+        vehicleId: '', rentalStartDate: '', returnDate: '', destination: '', notes: '',
+        requirementsAcknowledged: true
+    });
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            const res = await axios.post(`${API_BASE}/car-rentals`, form, { headers: authHeaders(), withCredentials: true });
+            Swal.fire({ icon: 'success', title: 'Created!', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
+            onSuccess(res.data.rental);
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'Failed to create rental.', 'error');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+    let liveEstimatedTotal = 0;
+    if (form.vehicleId && form.rentalStartDate && form.returnDate) {
+        const vehicle = fleet.find(v => v._id === form.vehicleId);
+        if (vehicle) {
+            const start = new Date(form.rentalStartDate);
+            const end = new Date(form.returnDate);
+            if (end > start) {
+                const diffMs = end - start;
+                const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+                liveEstimatedTotal = days * vehicle.pricePerDay;
+            }
+        }
+    }
+    const nowLocal = new Date();
+    nowLocal.setMinutes(nowLocal.getMinutes() - nowLocal.getTimezoneOffset());
+    const minDateTime = nowLocal.toISOString().slice(0, 16);
+
+    return (
+        <AdminModalWrapper show={true} onClose={onClose} size="lg" >
+            <div className="modal-content rounded-4 shadow border-0" style={{ background: 'var(--theme-modal-bg)' }}>
+                <div className="modal-header border-bottom-0 pb-0 pt-4 px-4 d-flex align-items-center flex-wrap gap-2">
+                    <div className="me-auto">
+                        <h5 className="modal-title font-poppins text-dark-secondary fw-bold mb-0" style={{ fontSize: '1.25rem' }}>Create New Rental</h5>
+                        <div className="mt-1">
+                            <span className="badge rounded-pill px-3 py-2 font-poppins" style={{ background: 'rgba(35,160,206,0.1)', color: '#23A0CE', border: '1px solid rgba(35,160,206,0.3)', fontSize: '0.85rem', fontWeight: 600 }}>
+                                Estimated Total: ₱{liveEstimatedTotal.toLocaleString()}
+                            </span>
+                        </div>
+                    </div>
+                    <button type="button" className="btn-close shadow-none ms-auto" onClick={onClose}></button>
+                </div>
+                <form onSubmit={handleSubmit} className="modal-body p-4 pt-4">
+                    <div className="row g-3">
+                        <div className="col-md-6 text-start">
+                            <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Full Name </label>
+                            <input required type="text" className="form-control" value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} placeholder="Customer name" />
+                        </div>
+                        <div className="col-md-6 text-start">
+                            <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Contact Number </label>
+                            <input required type="text" className="form-control" value={form.contactNumber} onChange={e => setForm({ ...form, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 11) })} placeholder="e.g. 09123456789" />
+                        </div>
+
+                        <div className="col-md-12 text-start">
+                            <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Vehicle </label>
+                            <select required className="form-select" value={form.vehicleId} onChange={e => setForm({ ...form, vehicleId: e.target.value })}>
+                                <option value="">Select Vehicle...</option>
+                                {fleet.map(v => (
+                                    <option key={v._id} value={v._id}>{v.vehicleName} ({v.vehicleType}) - ₱{v.pricePerDay}/day - {v.isAvailable ? 'AVAILABLE' : 'RESERVED'}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="col-md-6 text-start">
+                            <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Pick-up Date </label>
+                            <input required type="datetime-local" className="form-control" min={minDateTime} value={form.rentalStartDate} onChange={e => setForm({ ...form, rentalStartDate: e.target.value })} />
+                        </div>
+                        <div className="col-md-6 text-start">
+                            <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Return Date </label>
+                            <input required type="datetime-local" className="form-control" min={form.rentalStartDate || minDateTime} value={form.returnDate} onChange={e => setForm({ ...form, returnDate: e.target.value })} />
+                        </div>
+
+                        <div className="col-12 text-start">
+                            <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Destination </label>
+                            <input required type="text" className="form-control" value={form.destination} onChange={e => setForm({ ...form, destination: e.target.value })} placeholder="e.g. Manila, Tagaytay" />
+                        </div>
+
+                        <div className="col-12 text-start">
+                            <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Special Notes (Optional)</label>
+                            <textarea className="form-control" rows="2" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Any additional notes?" />
+                        </div>
+                    </div>
+                    <div className="d-flex justify-content-end mt-4 pt-3 border-top">
+                        <button type="submit" className="btn btn-save px-4 rounded-pill shadow-sm py-2 text-white fw-bold" disabled={submitting}>
+                            {submitting ? 'Creating...' : 'Create'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </AdminModalWrapper>
     );
 };
 

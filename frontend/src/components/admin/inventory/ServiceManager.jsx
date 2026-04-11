@@ -4,14 +4,13 @@ import Swal from 'sweetalert2';
 import { API_BASE, authHeaders } from '../../../api/config';
 import { TableSkeleton, InventorySkeleton } from '../../SkeletonLoaders';
 import deleteIcon from '../../../assets/icon/delete.png';
-import AdminModalWrapper from '../shared/AdminModalWrapper';
 
 const ServiceSettingsPage = ({ user, isDark }) => {
     // Shared state
     const [activeTab, setActiveTab] = useState('wash');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [addModal, setAddModal] = useState({ isOpen: false, type: '', input: '' });
+
 
     // Wash Pricing State
     const [vehicles, setVehicles] = useState([]);
@@ -51,8 +50,32 @@ const ServiceSettingsPage = ({ user, isDark }) => {
         setEditingDoc(JSON.parse(JSON.stringify(v)));
     };
 
-    const handleCreateVehicle = () => {
-        setAddModal({ isOpen: true, type: 'wash', input: '' });
+    const handleCreateVehicle = async () => {
+        const { value: name, isConfirmed } = await Swal.fire({
+            title: 'New Vehicle Type',
+            input: 'text',
+            inputPlaceholder: 'e.g., Luxury SUV',
+            showCancelButton: true,
+            confirmButtonText: 'Create',
+            confirmButtonColor: '#23A0CE',
+            background: 'var(--theme-modal-bg)',
+            color: 'var(--theme-content-text)',
+            inputValidator: (value) => {
+                if (!value || !value.trim()) return 'Please enter a vehicle type name.';
+            }
+        });
+        if (!isConfirmed || !name?.trim()) return;
+        try {
+            const res = await axios.post(`${API_BASE}/pricing`, {
+                vehicleType: name.trim(), services: [], addons: []
+            }, { headers: authHeaders(), withCredentials: true });
+            setVehicles(prev => [...prev, res.data]);
+            setSelectedVehicle(res.data);
+            setEditingDoc(JSON.parse(JSON.stringify(res.data)));
+            Swal.fire({ title: 'Vehicle Added!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'Failed to create vehicle.', 'error');
+        }
     };
 
     const handleDeleteVehicle = async (id, name) => {
@@ -61,6 +84,8 @@ const ServiceSettingsPage = ({ user, isDark }) => {
             text: "This will remove all its pricing data permanently.",
             icon: 'warning',
             showCancelButton: true,
+            background: 'var(--theme-modal-bg)',
+            color: 'var(--theme-content-text)',
             confirmButtonColor: '#f43f5e'
         });
         if (!result.isConfirmed) return;
@@ -72,7 +97,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                 setSelectedVehicle(null);
                 setEditingDoc(null);
             }
-            Swal.fire('Deleted!', '', 'success');
+            Swal.fire({ title: 'Deleted!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
         } catch (err) {
             Swal.fire('Error', 'Failed to delete', 'error');
         }
@@ -126,36 +151,31 @@ const ServiceSettingsPage = ({ user, isDark }) => {
         setEditingFleet(JSON.parse(JSON.stringify(f)));
     };
 
-    const handleCreateFleetVehicle = () => {
-        setAddModal({ isOpen: true, type: 'rental', input: '' });
-    };
-
-    const handleAddModalSubmit = async () => {
-        const { type, input: name } = addModal;
-        if (!name.trim()) return;
-
-        setAddModal({ ...addModal, isOpen: false });
-
-        if (type === 'wash') {
-            try {
-                const res = await axios.post(`${API_BASE}/pricing`, {
-                    vehicleType: name, services: [], addons: []
-                }, { headers: authHeaders(), withCredentials: true });
-                setVehicles([...vehicles, res.data]);
-                Swal.fire('Success', 'Vehicle added. Select it to add services.', 'success');
-            } catch (err) {
-                Swal.fire('Error', err.response?.data?.error || 'Failed to create', 'error');
+    const handleCreateFleetVehicle = async () => {
+        const { value: name, isConfirmed } = await Swal.fire({
+            title: 'New Rental Vehicle',
+            input: 'text',
+            inputPlaceholder: 'e.g., Toyota Fortuner 2024',
+            showCancelButton: true,
+            confirmButtonText: 'Create',
+            confirmButtonColor: '#23A0CE',
+            background: 'var(--theme-modal-bg)',
+            color: 'var(--theme-content-text)',
+            inputValidator: (value) => {
+                if (!value || !value.trim()) return 'Please enter a vehicle name.';
             }
-        } else if (type === 'rental') {
-            try {
-                const res = await axios.post(`${API_BASE}/rental-fleet`, {
-                    vehicleName: name, vehicleType: 'Sedan', seats: 5, pricePerDay: 2000
-                }, { headers: authHeaders(), withCredentials: true });
-                setFleet([...fleet, res.data]);
-                Swal.fire('Success', 'Rental vehicle added.', 'success');
-            } catch (err) {
-                Swal.fire('Error', err.response?.data?.error || 'Failed to create', 'error');
-            }
+        });
+        if (!isConfirmed || !name?.trim()) return;
+        try {
+            const res = await axios.post(`${API_BASE}/rental-fleet`, {
+                vehicleName: name.trim(), vehicleType: 'Sedan', seats: 5, pricePerDay: 2000
+            }, { headers: authHeaders(), withCredentials: true });
+            setFleet(prev => [...prev, res.data]);
+            setSelectedFleet(res.data);
+            setEditingFleet(JSON.parse(JSON.stringify(res.data)));
+            Swal.fire({ title: 'Rental Vehicle Added!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'Failed to create vehicle.', 'error');
         }
     };
 
@@ -165,6 +185,8 @@ const ServiceSettingsPage = ({ user, isDark }) => {
             text: "This vehicle will be permanently removed.",
             icon: 'warning',
             showCancelButton: true,
+            background: 'var(--theme-modal-bg)',
+            color: 'var(--theme-content-text)',
             confirmButtonColor: '#f43f5e'
         });
         if (!result.isConfirmed) return;
@@ -173,7 +195,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
             await axios.delete(`${API_BASE}/rental-fleet/${id}`, { headers: authHeaders(), withCredentials: true });
             setFleet(fleet.filter(f => f._id !== id));
             if (selectedFleet?._id === id) { setSelectedFleet(null); setEditingFleet(null); }
-            Swal.fire('Deleted!', '', 'success');
+            Swal.fire({ title: 'Deleted!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
         } catch (err) {
             Swal.fire('Error', 'Failed to delete', 'error');
         }
@@ -239,21 +261,25 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                     <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>Service Settings</h4>
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Configure car wash pricing and rental fleet.</p>
                 </div>
-                <div className="d-flex bg-light rounded-pill p-1 shadow-sm" style={{ border: '1px solid #e2e8f0' }}>
+                {/* Tab Navigation matching HRIS design */}
+                <div className="d-flex gap-2 p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
                     <button
-                        className={`btn rounded-pill px-4 py-2 ${activeTab === 'wash' ? 'btn-primary text-white shadow-sm' : 'btn-light text-muted'}`}
-                        style={{ fontWeight: 600, border: 'none', transition: 'all 0.3s' }}
+                        className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'wash' ? 'shadow-sm fw-bold' : 'text-muted'}`}
                         onClick={() => setActiveTab('wash')}
+                        style={{ fontSize: '0.85rem', background: activeTab === 'wash' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'wash' ? 'var(--theme-content-text)' : 'inherit' }}
                     >
+
                         Car Wash Pricing
                     </button>
                     <button
-                        className={`btn rounded-pill px-4 py-2 ${activeTab === 'rental' ? 'btn-primary text-white shadow-sm' : 'btn-light text-muted'}`}
-                        style={{ fontWeight: 600, border: 'none', transition: 'all 0.3s' }}
+                        className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'rental' ? 'shadow-sm fw-bold' : 'text-muted'}`}
                         onClick={() => setActiveTab('rental')}
+                        style={{ fontSize: '0.85rem', background: activeTab === 'rental' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'rental' ? 'var(--theme-content-text)' : 'inherit' }}
                     >
+
                         Car Rental Fleet
                     </button>
+
                 </div>
             </div>
 
@@ -510,32 +536,6 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                     </div>
                 </div>
             )}
-            {/* Custom Admin Add Modal using AdminModalWrapper */}
-            <AdminModalWrapper
-                show={addModal.isOpen}
-                onClose={() => setAddModal({ isOpen: false, type: '', input: '' })}
-                size="md"
-            >
-                <div className="rounded border-0 p-4 p-md-5 text-center shadow-lg" style={{ backgroundColor: 'var(--theme-modal-bg)', width: '450px', maxWidth: '100%', margin: '0 auto' }}>
-                    <h3 className="fw-bold mb-4" style={{ color: 'var(--theme-content-text)' }}>
-                        {addModal.type === 'wash' ? 'New Vehicle Type' : 'New Rental Vehicle'}
-                    </h3>
-                    <input
-                        type="text"
-                        className="form-control form-control-lg mb-4"
-                        style={{ border: '2px solid var(--theme-input-border)', color: 'var(--theme-content-text)', backgroundColor: 'var(--theme-input-bg)', borderRadius: '4px' }}
-                        placeholder={addModal.type === 'wash' ? "e.g., Luxury SUV" : "e.g., Toyota Fortuner 2024"}
-                        value={addModal.input}
-                        onChange={(e) => setAddModal({ ...addModal, input: e.target.value })}
-                        autoFocus
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddModalSubmit(); }}
-                    />
-                    <div className="d-flex justify-content-center gap-3">
-                        <button className="btn btn-save px-4 fw-bold text-white shadow-sm" onClick={handleAddModalSubmit}>OK</button>
-                        <button className="btn btn-secondary px-4 fw-bold shadow-sm" onClick={() => setAddModal({ isOpen: false, type: '', input: '' })}>Cancel</button>
-                    </div>
-                </div>
-            </AdminModalWrapper>
         </div>
     );
 };

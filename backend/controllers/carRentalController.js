@@ -196,13 +196,32 @@ const updateStatus = async (req, res) => {
 
         await rental.save();
 
-        // Automatic Vehicle Availability Management
+        // Automatic Vehicle Availability Management & Revenue Generation
         try {
             const io = req.app.get('io');
             if (status === 'Confirmed' || status === 'Active') {
                 // Mark vehicle as UNAVAILABLE
                 await RentalFleet.findByIdAndUpdate(rental.vehicleId, { isAvailable: false }, { returnDocument: 'after', runValidators: true });
                 if (io) io.emit('fleet_updated');
+
+                if (status === 'Active') {
+                    // Generate Revenue Entry for Ledger
+                    const Revenue = require('../models/revenueModel');
+                    const existingRevenue = await Revenue.findOne({ referenceId: rental.rentalId });
+
+                    if (!existingRevenue) {
+                        await Revenue.create({
+                            title: `Car Rental — ${rental.fullName}`,
+                            amount: rental.estimatedTotal,
+                            category: 'Rental',
+                            source: 'Rental',
+                            referenceId: rental.rentalId,
+                            notes: `Vehicle: ${rental.vehicleName} | Days: ${rental.rentalDays}`
+                        });
+                        if (io) io.emit('revenue_updated'); // Trigger frontend finance refresh
+                    }
+                }
+
             } else if (status === 'Returned' || status === 'Cancelled') {
                 // Mark vehicle as AVAILABLE again
                 await RentalFleet.findByIdAndUpdate(rental.vehicleId, { isAvailable: true }, { returnDocument: 'after', runValidators: true });

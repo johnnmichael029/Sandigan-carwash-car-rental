@@ -116,8 +116,8 @@ const io = new Server(server, {
     }
 });
 app.set('io', io);
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json()); // This is for parsing JSON bodies in POST requests
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: '10mb' })); // Increased limit to support base64 image uploads
 app.use(cookieParser());// <--- Required for CSRF protection and authentication
 
 // Debug logger for all API requests

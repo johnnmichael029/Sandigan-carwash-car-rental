@@ -360,7 +360,7 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
                 <div className="modal-body p-4">
                     <div className="row g-4">
                         {/* LEFT COLUMN: Customer & Edit Form */}
-                        <div className="col-md-7 border-end pe-4">
+                        <div className="col-md-7 border-end pe-4" style={{ borderColor: 'var(--theme-content-border)!important' }}>
                             <h6 className="fw-bold mb-3 font-poppins" style={{ fontSize: '0.9rem', color: '#23A0CE' }}>CUSTOMER INFORMATION</h6>
 
                             <div className="row g-3">
@@ -378,7 +378,7 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
                                 </div>
                                 <div className="col-12 col-sm-6">
                                     <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Phone</label>
-                                    <input type="text" name="phoneNumber" className="form-control form-control-sm shadow-none" value={formData.phoneNumber} onChange={handleChange} disabled={!editMode} />
+                                    <input type="text" name="phoneNumber" className="form-control form-control-sm shadow-none" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value.replace(/\D/g, '').slice(0, 11) })} disabled={!editMode} />
                                 </div>
                                 <div className="col-12 col-sm-6">
                                     <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Vehicle Type</label>

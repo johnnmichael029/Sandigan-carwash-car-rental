@@ -224,6 +224,7 @@ const BookingManagement = ({ employee, onNavigate, onShowSMC, isDark }) => {
                 title="Booking Management"
                 subtitle="View and update all carwash bookings"
                 onNavigate={onNavigate}
+                isDark={isDark}
             />
             <div className="d-flex justify-content-end align-items-center mb-4">
 
@@ -241,7 +242,7 @@ const BookingManagement = ({ employee, onNavigate, onShowSMC, isDark }) => {
                     <button className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
                         style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600 }}
                         onClick={() => setIsCreateModalOpen(true)}>
-                        + Add New Booking
+                        + Booking
                     </button>
                 </div>
 
@@ -260,21 +261,21 @@ const BookingManagement = ({ employee, onNavigate, onShowSMC, isDark }) => {
                             <table className="table table-hover align-middle">
                                 <thead className="table-light">
                                     <tr>
-                                        <th>Booking ID</th>
-                                        <th>Customer Name</th>
-                                        <th>Service</th>
-                                        <th>Bay</th>
-                                        <th>Total Price</th>
-                                        <th>Date & Time</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
+                                        <th className="border-0 font-poppins" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--theme-content-text-secondary)', textTransform: 'uppercase' }}>Booking ID</th>
+                                        <th className="border-0 font-poppins" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--theme-content-text-secondary)', textTransform: 'uppercase' }}>Customer Name</th>
+                                        <th className="border-0 font-poppins" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--theme-content-text-secondary)', textTransform: 'uppercase' }}>Service</th>
+                                        <th className="border-0 font-poppins" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--theme-content-text-secondary)', textTransform: 'uppercase' }}>Bay</th>
+                                        <th className="border-0 font-poppins" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--theme-content-text-secondary)', textTransform: 'uppercase' }}>Total Price</th>
+                                        <th className="border-0 font-poppins" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--theme-content-text-secondary)', textTransform: 'uppercase' }}>Date & Time</th>
+                                        <th className="border-0 font-poppins" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--theme-content-text-secondary)', textTransform: 'uppercase' }}>Status</th>
+                                        <th className='text-end border-0 pe-4' style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--theme-content-text-secondary)', textTransform: 'uppercase' }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {/* Loop through sliced bookings */}
                                     {filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((booking) => (
                                         <tr key={booking._id}>
-                                            <td>{booking.batchId || booking._id.substring(0, 8)}</td>
+                                            <td style={{ color: '#23A0CE', fontSize: '0.8rem', fontWeight: 700 }}>{booking.batchId || booking._id.substring(0, 8)}</td>
                                             <td>{booking.firstName} {booking.lastName}</td>
                                             <td>{Array.isArray(booking.serviceType) ? booking.serviceType.join(', ') : booking.serviceType}</td>
                                             <td>
@@ -286,8 +287,8 @@ const BookingManagement = ({ employee, onNavigate, onShowSMC, isDark }) => {
                                                     <span className="text-muted small">None</span>
                                                 )}
                                             </td>
-                                            <td>₱{booking.totalPrice.toLocaleString()}</td>
-                                            <td>{formatTo12Hour(booking.bookingTime)} {new Date(booking.createdAt).toLocaleDateString()}</td>
+                                            <td style={{ color: '#23A0CE', fontWeight: 700 }}>₱{booking.totalPrice.toLocaleString()}</td>
+                                            <td style={{ color: 'var(--theme-content-text-secondary)', fontSize: '0.8rem' }}>{formatTo12Hour(booking.bookingTime)} {new Date(booking.createdAt).toLocaleDateString()}</td>
                                             <td>
                                                 <select
                                                     className={`form-select form-select-sm fw-medium shadow-none ${booking.status === 'Completed' ? 'border-success text-success' :
@@ -310,9 +311,11 @@ const BookingManagement = ({ employee, onNavigate, onShowSMC, isDark }) => {
                                                     <option value="Cancelled" disabled={['In-progress', 'Completed'].includes(booking.status)}>🔴 Cancelled</option>
                                                 </select>
                                             </td>
-                                            <td>
-                                                <div className="d-flex gap-2 justify-content-center">
-                                                    <button className="btn btn-action btn-sm border-outline-primary brand-primary" onClick={() => setSelectedBooking(booking)}>View / Edit</button>
+                                            <td className="pe-4 text-end">
+                                                <div className="">
+                                                    <button className="btn btn-action btn-sm border-outline-primary brand-primary"
+                                                        style={{ background: 'rgba(35,160,206,0.1)', border: '1px solid rgba(35,160,206,0.3)', color: '#23A0CE', borderRadius: '8px', padding: '6px 14px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}
+                                                        onClick={() => setSelectedBooking(booking)}>View</button>
                                                 </div>
                                             </td>
                                         </tr>

@@ -329,7 +329,7 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
                                     </div>
                                     <div className="col-md-6 text-start">
                                         <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Phone (No leading 0)</label>
-                                        <input type="text" name="phoneNumber" className="form-control form-control-sm shadow-none" value={formData.phoneNumber} onChange={handleChange} placeholder="e.g. 9123456789" />
+                                        <input type="text" name="phoneNumber" className="form-control form-control-sm shadow-none" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value.replace(/\D/g, '').slice(0, 11) })} placeholder="e.g. 9123456789" />
                                     </div>
                                 </div>
                             </div>
