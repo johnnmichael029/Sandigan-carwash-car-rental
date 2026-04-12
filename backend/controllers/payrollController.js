@@ -21,6 +21,8 @@ const processPayrollCalculations = (employee, logs) => {
     let totalNDMinutes = 0;
     let totalLateMinutes = 0;
     let holidayPay = 0;
+    let restDayPay = 0;
+    let totalRestDayMinutes = 0;
 
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const restDayIdx = dayNames.indexOf(employee.restDay || 'Sunday');
@@ -29,6 +31,8 @@ const processPayrollCalculations = (employee, logs) => {
         if (!log.clockInTime || !log.clockOutTime) return;
         const clockIn = new Date(log.clockInTime);
         const clockOut = new Date(log.clockOutTime);
+
+        const isRestDay = clockIn.getDay() === restDayIdx;
 
         let shiftEndMarker = new Date(clockIn);
         if (employee.shiftType === 'Morning') shiftEndMarker.setHours(17, 0, 0, 0);
@@ -81,7 +85,36 @@ const processPayrollCalculations = (employee, logs) => {
 
         dayRegMins = Math.min(dayRegMins, 480);
 
-        totalRegMinutes += dayRegMins;
+        // --- DOLE REST DAY PAY ---
+        // If the employee works on their designated rest day, apply 30% premium
+        // The rest day premium replaces the regular minutes accumulation for that day
+        if (isRestDay) {
+            const workedHours = dayRegMins / 60;
+            let restMultiplier = 1.30; // DOLE: Regular rest day = 130% of daily wage
+
+            // If rest day coincides with a Regular Holiday: 260% (200% holiday pay + 30% rest day premium)
+            if (log.holidayType === 'Regular') {
+                restMultiplier = 2.60;
+            }
+            // If rest day coincides with a Special Non-Working Day: 180% (150% + 30%)
+            else if (log.holidayType === 'Special') {
+                restMultiplier = 1.80;
+            }
+
+            // Add rest day pay directly; do NOT accumulate into totalRegMinutes
+            restDayPay += workedHours * hourlyRate * restMultiplier;
+            totalRestDayMinutes += dayRegMins;
+        } else {
+            // Normal working day – accumulate into regular minutes
+            totalRegMinutes += dayRegMins;
+
+            // Holiday pay for non-rest days
+            if (log.holidayType && log.holidayType !== 'None' && log.wasPresentYesterday) {
+                if (log.holidayType === 'Regular') holidayPay += ((dayRegMins / 60) * hourlyRate);
+                else if (log.holidayType === 'Special') holidayPay += (((dayRegMins / 60) * hourlyRate) * 0.30);
+            }
+        }
+
         totalOTMinutes += dayOTMins;
 
         // Late Logic
@@ -98,11 +131,6 @@ const processPayrollCalculations = (employee, logs) => {
                     if (mins > 5) totalLateMinutes += mins;
                 }
             } catch (e) { }
-        }
-
-        if (log.holidayType && log.holidayType !== 'None' && log.wasPresentYesterday) {
-            if (log.holidayType === 'Regular') holidayPay += ((dayRegMins / 60) * hourlyRate);
-            else if (log.holidayType === 'Special') holidayPay += (((dayRegMins / 60) * hourlyRate) * 0.30);
         }
     });
 
@@ -135,12 +163,14 @@ const processPayrollCalculations = (employee, logs) => {
     const hdmf = calculateHDMF(accruedBase);
 
     // Taxable Income Breakdown
-    const grossTaxable = accruedBase + holidayPay + otPay + nightDiffPay - lateDeduction;
+    const grossTaxable = accruedBase + holidayPay + restDayPay + otPay + nightDiffPay - lateDeduction;
     const totalMandatoryEE = sss.employee + ph.employee + hdmf.employee;
     const withholdingTax = calculateWithholdingTax(grossTaxable - totalMandatoryEE);
 
     return {
         accruedBase,
+        restDayPay,
+        totalRestDayMinutes,
         totalOTMinutes,
         otPay,
         totalNDMinutes,
@@ -443,6 +473,8 @@ const getPendingFixedSalary = async (req, res) => {
             let totalNDMinutes = 0;
             let totalLateMinutes = 0;
             let holidayPay = 0;
+            let restDayPay = 0;
+            let totalRestDayMinutes = 0;
             let lateCount = 0;
 
             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -514,10 +546,35 @@ const getPendingFixedSalary = async (req, res) => {
                     }
                 }
 
+                const isRestDay = clockIn.getDay() === restDayIdx;
+
                 totalNDMinutes += dayNDMins;
                 dayRegMins = Math.min(dayRegMins, 480); // Strict Cap
 
-                totalRegMinutes += dayRegMins;
+                // --- DOLE REST DAY PAY ---
+                if (isRestDay) {
+                    const workedHours = dayRegMins / 60;
+                    let restMultiplier = 1.30; // Regular rest day = 130%
+
+                    if (log.holidayType === 'Regular') {
+                        restMultiplier = 2.60;  // Rest day + Regular Holiday = 260%
+                    } else if (log.holidayType === 'Special') {
+                        restMultiplier = 1.80;  // Rest day + Special Non-Working Day = 180%
+                    }
+
+                    restDayPay += workedHours * hourlyRate * restMultiplier;
+                    totalRestDayMinutes += dayRegMins;
+                } else {
+                    // Normal working day
+                    totalRegMinutes += dayRegMins;
+
+                    // Holiday pay for non-rest days
+                    if (log.holidayType && log.holidayType !== 'None' && log.wasPresentYesterday) {
+                        if (log.holidayType === 'Regular') holidayPay += ((dayRegMins / 60) * hourlyRate);
+                        else if (log.holidayType === 'Special') holidayPay += (((dayRegMins / 60) * hourlyRate) * 0.30);
+                    }
+                }
+
                 totalOTMinutes += dayOTMins;
 
                 // Late Logic
@@ -537,12 +594,6 @@ const getPendingFixedSalary = async (req, res) => {
                             }
                         }
                     } catch (e) { }
-                }
-
-                // Holiday logic (on Regular Phase)
-                if (log.holidayType && log.holidayType !== 'None' && log.wasPresentYesterday) {
-                    if (log.holidayType === 'Regular') holidayPay += ((dayRegMins / 60) * hourlyRate);
-                    else if (log.holidayType === 'Special') holidayPay += (((dayRegMins / 60) * hourlyRate) * 0.30);
                 }
             });
 
@@ -573,7 +624,7 @@ const getPendingFixedSalary = async (req, res) => {
             const sss = calculateSSS(accruedBase);
             const ph = calculatePhilHealth(accruedBase);
             const hdmf = calculateHDMF(accruedBase);
-            const grossTaxable = accruedBase + holidayPay + otPay + nightDiffPay - lateDeduction;
+            const grossTaxable = accruedBase + holidayPay + restDayPay + otPay + nightDiffPay - lateDeduction;
             const totalMandatoryEE = sss.employee + ph.employee + hdmf.employee;
             const predictedTax = calculateWithholdingTax(grossTaxable - totalMandatoryEE);
             const totalDeductions = totalMandatoryEE + predictedTax;
@@ -648,6 +699,8 @@ const getPendingFixedSalary = async (req, res) => {
                     ndHours: (totalNDMinutes / 60).toFixed(1),
                     ndPay: nightDiffPay,
                     holidayPay,
+                    restDayPay,
+                    restDayHours: (totalRestDayMinutes / 60).toFixed(1),
                     lateCount,
                     totalLateMinutes,
                     lateDeduction,
@@ -693,9 +746,9 @@ const payFixedSalary = async (req, res) => {
         const logs = await Attendance.find({ employee: employeeId, createdAt: { $gt: startDate } });
 
         const pStats = processPayrollCalculations(employee, logs);
-        const { accruedBase, totalOTMinutes, otPay, totalNDMinutes, nightDiffPay, holidayPay, totalLateMinutes, lateDeduction, absentCount, sss, ph, hdmf, grossTaxable, totalMandatoryEE, withholdingTax } = pStats;
+        const { accruedBase, restDayPay, totalOTMinutes, otPay, totalNDMinutes, nightDiffPay, holidayPay, totalLateMinutes, lateDeduction, absentCount, sss, ph, hdmf, grossTaxable, totalMandatoryEE, withholdingTax } = pStats;
 
-        const earningsGross = accruedBase + holidayPay + otPay + nightDiffPay + Number(bonus) + (employee.nonTaxableAllowance || 0);
+        const earningsGross = accruedBase + holidayPay + restDayPay + otPay + nightDiffPay + Number(bonus) + (employee.nonTaxableAllowance || 0);
         const totalDeductions = totalMandatoryEE + withholdingTax + Number(deductions) + lateDeduction;
         const netAmount = earningsGross - totalDeductions;
 

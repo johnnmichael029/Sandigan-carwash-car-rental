@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import { API_BASE, authHeaders } from '../../../api/config';
 import { TableSkeleton, InventorySkeleton } from '../../SkeletonLoaders';
 import deleteIcon from '../../../assets/icon/delete.png';
+import VehicleTypeSettings from './VehicleTypeSettings';
 
 const ServiceSettingsPage = ({ user, isDark }) => {
     // Shared state
@@ -22,8 +23,12 @@ const ServiceSettingsPage = ({ user, isDark }) => {
     const [selectedFleet, setSelectedFleet] = useState(null);
     const [editingFleet, setEditingFleet] = useState(null);
 
+    // Global Settings Modals State
+    const [vehicleTypesList, setVehicleTypesList] = useState([]);
+    const [showVehicleTypeModal, setShowVehicleTypeModal] = useState(false);
+
     useEffect(() => {
-        Promise.all([fetchPricing(), fetchFleet()]).finally(() => setIsLoading(false));
+        Promise.all([fetchPricing(), fetchFleet(), fetchVehicleTypes()]).finally(() => setIsLoading(false));
     }, []);
 
     const fetchPricing = async () => {
@@ -32,6 +37,15 @@ const ServiceSettingsPage = ({ user, isDark }) => {
             setVehicles(res.data.dynamicPricing || []);
         } catch (err) {
             console.error('Error fetching pricing:', err);
+        }
+    };
+
+    const fetchVehicleTypes = async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/vehicle-types`, { headers: authHeaders(), withCredentials: true });
+            setVehicleTypesList(res.data || []);
+        } catch (err) {
+            console.error('Error fetching vehicle types:', err);
         }
     };
 
@@ -168,7 +182,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
         if (!isConfirmed || !name?.trim()) return;
         try {
             const res = await axios.post(`${API_BASE}/rental-fleet`, {
-                vehicleName: name.trim(), vehicleType: 'Sedan', seats: 5, pricePerDay: 2000
+                vehicleName: name.trim(), vehicleType: vehicleTypesList.length > 0 ? vehicleTypesList[0].name : 'Sedan', seats: 5, pricePerDay: 2000
             }, { headers: authHeaders(), withCredentials: true });
             setFleet(prev => [...prev, res.data]);
             setSelectedFleet(res.data);
@@ -461,9 +475,14 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                             <div className="card border-0 shadow-sm rounded-4">
                                 <div className="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
                                     <h5 className="mb-0 fw-bold font-poppins">Edit {editingFleet.vehicleName}</h5>
-                                    <button onClick={() => handleDeleteFleet(editingFleet._id, editingFleet.vehicleName)} className="btn">
-                                        <img src={deleteIcon} alt="Delete" style={{ width: '16px' }} />
-                                    </button>
+                                    <div>
+                                        <button onClick={() => setShowVehicleTypeModal(true)} className="btn btn-sm btn-outline-secondary category-tags rounded-pill px-3">
+                                            Types Library
+                                        </button>
+                                        <button onClick={() => handleDeleteFleet(editingFleet._id, editingFleet.vehicleName)} className="btn">
+                                            <img src={deleteIcon} alt="Delete" style={{ width: '16px' }} />
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="card-body p-4 p-lg-5">
                                     <div className="row g-4">
@@ -490,14 +509,13 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                             </div>
                                             <div className="row g-3 mb-3">
                                                 <div className="col-md-6">
-                                                    <label className="form-label fw-bold text-muted small">Vehicle Type</label>
+                                                    <div className="d-flex justify-content-between align-items-end mb-1">
+                                                        <label className="form-label fw-bold text-muted small m-0">Vehicle Type</label>
+                                                    </div>
                                                     <select className="form-select" value={editingFleet.vehicleType} onChange={e => setEditingFleet({ ...editingFleet, vehicleType: e.target.value })}>
-                                                        <option value="Sedan">Sedan</option>
-                                                        <option value="SUV">SUV</option>
-                                                        <option value="Van">Van</option>
-                                                        <option value="Hatchback">Hatchback</option>
-                                                        <option value="Pick-up">Pick-up</option>
-                                                        <option value="Crossover">Crossover</option>
+                                                        {vehicleTypesList.map(type => (
+                                                            <option key={type._id} value={type.name}>{type.name}</option>
+                                                        ))}
                                                         <option value="Other">Other</option>
                                                     </select>
                                                 </div>
@@ -535,6 +553,15 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                         )}
                     </div>
                 </div>
+            )}
+            {/* Modals */}
+            {showVehicleTypeModal && (
+                <VehicleTypeSettings
+                    show={showVehicleTypeModal}
+                    isDark={isDark}
+                    onClose={() => setShowVehicleTypeModal(false)}
+                    onUpdate={fetchVehicleTypes}
+                />
             )}
         </div>
     );

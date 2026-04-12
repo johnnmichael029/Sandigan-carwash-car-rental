@@ -41,7 +41,18 @@ const CategoryManager = ({ show, onClose, onUpdate, endpoint, title, subtitle, i
 
     const handleDelete = async (cat) => {
         if (cat.isSystem) return Swal.fire('Blocked', `System ${itemName.toLowerCase()}s cannot be deleted.`, 'warning');
-        const result = await Swal.fire({ title: `Delete "${cat.name}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ff4444' });
+        const result = await Swal.fire({
+            title: `Delete "${cat.name}"?`,
+            text: "This action cannot be undone!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Delete',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            background: 'var(--theme-modal-bg)',
+            color: 'var(--theme-content-text)',
+        });
         if (!result.isConfirmed) return;
         try {
             await axios.delete(`${API_BASE}/${endpoint}/${cat._id}`, { headers: authHeaders(), withCredentials: true });

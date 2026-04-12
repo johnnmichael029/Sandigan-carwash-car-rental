@@ -43,6 +43,7 @@ const assetRoutes = require('./routes/assetRoutes');
 const maintenanceRoutes = require('./routes/maintenanceRoutes');
 const rentalFleetRoutes = require('./routes/rentalFleetRoutes');
 const carRentalRoutes = require('./routes/carRentalRoutes');
+const vehicleTypeRoutes = require('./routes/vehicleTypeRoutes');
 
 const path = require('path');
 
@@ -200,6 +201,7 @@ app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/rental-fleet', rentalFleetRoutes);
 app.post('/api/car-rentals', rentalLimiter);
 app.use('/api/car-rentals', carRentalRoutes);
+app.use('/api/vehicle-types', vehicleTypeRoutes);
 
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {

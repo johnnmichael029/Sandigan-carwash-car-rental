@@ -137,16 +137,34 @@ const HRISPage = ({ user, isDark }) => {
 
         const { regMins, otMins, ndMins } = getPayableMinutes(log, emp);
 
-        let total = (regMins / 60) * hourlyRate;
-        if (log.holidayType && log.holidayType !== 'None' && log.wasPresentYesterday) {
-            if (log.holidayType === 'Regular') {
-                total += ((regMins / 60) * hourlyRate);
-                total += ((otMins / 60) * hourlyRate * 1.30);
-            } else if (log.holidayType === 'Special') {
-                total += ((regMins / 60) * hourlyRate * 0.30);
-                total += ((otMins / 60) * hourlyRate * 0.39);
+        // --- DOLE REST DAY DETECTION ---
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const restDayIdx = dayNames.indexOf(emp.restDay || 'Sunday');
+        const clockIn = new Date(log.clockInTime);
+        const isRestDay = clockIn.getDay() === restDayIdx;
+
+        let total = 0;
+
+        if (isRestDay) {
+            // DOLE: Rest day pays at premium rate (replaces regular pay)
+            let restMultiplier = 1.30; // Regular rest day = 130%
+            if (log.holidayType === 'Regular') restMultiplier = 2.60;      // Rest day + Regular Holiday = 260%
+            else if (log.holidayType === 'Special') restMultiplier = 1.80; // Rest day + Special NWD = 180%
+            total = (regMins / 60) * hourlyRate * restMultiplier;
+        } else {
+            // Normal working day
+            total = (regMins / 60) * hourlyRate;
+            if (log.holidayType && log.holidayType !== 'None' && log.wasPresentYesterday) {
+                if (log.holidayType === 'Regular') {
+                    total += ((regMins / 60) * hourlyRate);
+                    total += ((otMins / 60) * hourlyRate * 1.30);
+                } else if (log.holidayType === 'Special') {
+                    total += ((regMins / 60) * hourlyRate * 0.30);
+                    total += ((otMins / 60) * hourlyRate * 0.39);
+                }
             }
         }
+
         if (otMins > 0) total += (otMins / 60) * (hourlyRate * 1.30);
         if (ndMins > 0) total += (ndMins / 60) * (hourlyRate * 0.10);
         return total;
@@ -3023,31 +3041,37 @@ const HRISPage = ({ user, isDark }) => {
                                 {/* KPI CARDS  */}
                                 <div className="row row-cols-1 row-cols-md-5 g-3 mb-4">
                                     <div className="col">
-                                        <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)' }}>
+                                        <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: isDark ? 'var(--theme-card-bg)' : 'linear-gradient(135deg, #f8fafc, #f1f5f9)' }}>
                                             <div className="text-muted small fw-bold text-uppercase mb-2">Cycle Work Hours</div>
                                             <div className="d-flex align-items-baseline gap-2">
-                                                <h3 className="fw-bold text-dark-secondary mb-0">{selectedPayoutStaff.stats.totalHours}</h3>
-                                                <span className="text-muted">/ {selectedPayoutStaff.stats.targetHours}h</span>
+                                                <h3 className="fw-bold text-dark-secondary mb-0">₱{Math.round(selectedPayoutStaff.accruedBase || 0).toLocaleString()}</h3>
                                             </div>
-                                            <small className="text-muted mt-1">Total Hours</small>
+                                            <small className="text-muted mt-1">
+                                                {Math.round(selectedPayoutStaff.stats.totalHours).toLocaleString()}h / {selectedPayoutStaff.stats.targetHours}h
+                                            </small>
                                         </div>
                                     </div>
                                     <div className="col">
-                                        <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)' }}>
-                                            <div className="text-muted small fw-bold text-uppercase mb-2">OT & Holiday Pay</div>
-                                            <h3 className="fw-bold brand-primary mb-0">₱{Math.round(selectedPayoutStaff.stats.otPay + selectedPayoutStaff.stats.holidayPay).toLocaleString()}</h3>
-                                            <small className="text-muted mt-1">{selectedPayoutStaff.stats.otHours}h OT + Premium</small>
+                                        <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: isDark ? 'var(--theme-card-bg)' : 'linear-gradient(135deg, #f8fafc, #f1f5f9)' }}>
+                                            <div className="text-muted small fw-bold text-uppercase mb-2">OT, RD & Holiday</div>
+                                            <h3 className="fw-bold brand-primary mb-0">
+                                                ₱{Math.round((selectedPayoutStaff.stats.otPay || 0) + (selectedPayoutStaff.stats.holidayPay || 0) + (selectedPayoutStaff.stats.restDayPay || 0)).toLocaleString()}
+                                            </h3>
+                                            <small className="text-muted mt-1">
+                                                {selectedPayoutStaff.stats.otHours}h OT
+                                                {(selectedPayoutStaff.stats.restDayHours > 0) && <span style={{ color: '#f97316' }}> · {selectedPayoutStaff.stats.restDayHours}h RD</span>}
+                                            </small>
                                         </div>
                                     </div>
                                     <div className="col">
-                                        <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)' }}>
+                                        <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: isDark ? 'var(--theme-card-bg)' : 'linear-gradient(135deg, #f8fafc, #f1f5f9)' }}>
                                             <div className="text-muted small fw-bold text-uppercase mb-2">NT Allowance</div>
                                             <h3 className="fw-bold mb-0" style={{ color: '#9333ea' }}>₱{Math.round(selectedPayoutStaff.nonTaxableAllowance || 0).toLocaleString()}</h3>
                                             <small className="text-muted mt-1">Fixed Cycle Benefit</small>
                                         </div>
                                     </div>
                                     <div className="col">
-                                        <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: 'linear-gradient(135deg, #fff7ed, #fff1f2)', border: '1px solid #fee2e2' }}>
+                                        <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: isDark ? 'var(--theme-card-bg)' : 'linear-gradient(135deg, #fff7ed, #fff1f2)', border: '1px solid #fee2e2' }}>
                                             <div className="text-danger small fw-bold text-uppercase mb-2">Late & Absences</div>
                                             <h3 className="fw-bold text-danger mb-0">₱{Math.round(selectedPayoutStaff.stats.lateDeduction || 0).toLocaleString()}</h3>
                                             <small className="text-muted mt-1">{selectedPayoutStaff.stats.totalLateMinutes || 0}m Late | {selectedPayoutStaff.stats.absentCount || 0}d Absent</small>
@@ -3097,6 +3121,13 @@ const HRISPage = ({ user, isDark }) => {
                                                             <td>{Math.floor(log.durationMinutes / 60)}h {log.durationMinutes % 60}m</td>
                                                             <td>
                                                                 {log.holidayType !== 'None' && <span className="badge bg-danger-subtle text-danger border border-danger me-1" style={{ fontSize: '0.65rem' }}>{log.holidayType}</span>}
+                                                                {(() => {
+                                                                    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                                                    const restDayIdx = dayNames.indexOf(selectedPayoutStaff.restDay || 'Sunday');
+                                                                    const isRestDay = new Date(log.clockInTime).getDay() === restDayIdx;
+                                                                    if (isRestDay) return <span className="badge me-1" style={{ fontSize: '0.65rem', backgroundColor: '#f97316', color: '#fff' }}>Rest Day</span>;
+                                                                    return null;
+                                                                })()}
                                                                 {log.otMinutes > 0 && log.isOTApproved && (
                                                                     <span className="badge bg-success-subtle text-success border border-success" style={{ fontSize: '0.65rem' }}>
                                                                         +OT ({Math.floor(log.otMinutes / 60)}h {log.otMinutes % 60}m)
@@ -3163,7 +3194,7 @@ const HRISPage = ({ user, isDark }) => {
                                     <div className="row align-items-center">
                                         <div className="col-md-7">
                                             <div className="d-flex align-items-center gap-3">
-                                                <span className="badge rounded-pill bg-white text-dark shadow-sm" style={{ fontSize: '0.75rem' }}>FINAL PAYOUT</span>
+                                                <span className="badge rounded-pill bg-white shadow-sm" style={{ fontSize: '0.75rem', color: 'var(--theme-content-text)' }}>FINAL PAYOUT</span>
                                                 <p className="text-white-50 mb-0 small">This marks all current attendance logs as Settled and records a liquidation expense.</p>
                                             </div>
                                         </div>
@@ -3402,9 +3433,25 @@ const HRISPage = ({ user, isDark }) => {
                                             <h2 className="fw-bold mb-0 " style={{ color: '#059669' }}>₱{totalPay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h2>
                                         </div>
                                         <div className="text-end">
-                                            <span className={`badge rounded-pill ${log.holidayType && log.holidayType !== 'None' ? (log.holidayType === 'Regular' ? 'bg-danger' : 'bg-warning text-dark') : 'bg-secondary'}`}>
-                                                {log.holidayType && log.holidayType !== 'None' ? `${log.holidayType} Holiday` : 'Standard Work Day'}
-                                            </span>
+                                            {(() => {
+                                                const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                                const restDayIdx = dayNames.indexOf(emp.restDay || 'Sunday');
+                                                const isRestDay = new Date(log.clockInTime).getDay() === restDayIdx;
+                                                const isHoliday = log.holidayType && log.holidayType !== 'None';
+                                                let badgeClass = 'bg-secondary';
+                                                let label = 'Standard Work Day';
+                                                if (isRestDay && isHoliday) {
+                                                    badgeClass = log.holidayType === 'Regular' ? 'bg-danger' : 'bg-warning text-dark';
+                                                    label = `Rest Day + ${log.holidayType} Holiday`;
+                                                } else if (isRestDay) {
+                                                    badgeClass = 'bg-orange text-white';
+                                                    label = 'Rest Day (130%)';
+                                                } else if (isHoliday) {
+                                                    badgeClass = log.holidayType === 'Regular' ? 'bg-danger' : 'bg-warning text-dark';
+                                                    label = `${log.holidayType} Holiday`;
+                                                }
+                                                return <span className={`badge rounded-pill ${badgeClass}`} style={isRestDay && !isHoliday ? { backgroundColor: '#f97316' } : {}}>{label}</span>;
+                                            })()}
                                             <div className="small text-muted mt-1">{emp.shiftType} Shift • 8h Base</div>
                                         </div>
                                     </div>
@@ -3434,6 +3481,16 @@ const HRISPage = ({ user, isDark }) => {
                                                     {emp.shiftType === 'Night' && <li>1h Smart break deducted (12AM-1AM).</li>}
                                                     {regMins >= 480 && <li>Regular pay capped at strictly 8 hours.</li>}
                                                     {log.isOTApproved ? <li>OT is approved (+30% premium applied).</li> : <li>OT not approved (excluded from pay).</li>}
+                                                    {(() => {
+                                                        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                                        const restDayIdx = dayNames.indexOf(emp.restDay || 'Sunday');
+                                                        const isRestDay = new Date(log.clockInTime).getDay() === restDayIdx;
+                                                        if (!isRestDay) return null;
+                                                        let pct = '130%'; let rule = 'regular rest day';
+                                                        if (log.holidayType === 'Regular') { pct = '260%'; rule = 'rest day + Regular Holiday'; }
+                                                        else if (log.holidayType === 'Special') { pct = '180%'; rule = 'rest day + Special NWD'; }
+                                                        return <li style={{ color: '#f97316', fontWeight: 600 }}>Rest day pay applied at {pct} DOLE rate ({rule}).</li>;
+                                                    })()}
                                                 </ul>
                                             </div>
                                         </div>
@@ -3450,15 +3507,43 @@ const HRISPage = ({ user, isDark }) => {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {/* Regular Pay */}
-                                                    <tr>
-                                                        <td className="py-2">
-                                                            <div className="fw-semibold">Regular Pay</div>
-                                                            <small className="text-muted">Standard 8h Shift</small>
-                                                        </td>
-                                                        <td className="text-center">{(regMins / 60).toFixed(1)}h @ ₱{hourlyRate.toFixed(2)}</td>
-                                                        <td className="text-end fw-bold">₱{regPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                    </tr>
+                                                    {/* Regular Pay OR Rest Day Pay */}
+                                                    {(() => {
+                                                        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                                        const restDayIdx = dayNames.indexOf(emp.restDay || 'Sunday');
+                                                        const isRestDay = new Date(log.clockInTime).getDay() === restDayIdx;
+                                                        let restMultiplier = 1.30;
+                                                        if (log.holidayType === 'Regular') restMultiplier = 2.60;
+                                                        else if (log.holidayType === 'Special') restMultiplier = 1.80;
+                                                        const restDayPayAmt = (regMins / 60) * hourlyRate * restMultiplier;
+
+                                                        if (isRestDay) {
+                                                            return (
+                                                                <tr>
+                                                                    <td className="py-2">
+                                                                        <div className="fw-semibold" style={{ color: '#f97316' }}>Rest Day Pay</div>
+                                                                        <small className="text-muted">
+                                                                            {restMultiplier === 2.60 ? '260% (Rest Day + Regular Holiday)'
+                                                                                : restMultiplier === 1.80 ? '180% (Rest Day + Special NWD)'
+                                                                                    : '130% DOLE Premium'}
+                                                                        </small>
+                                                                    </td>
+                                                                    <td className="text-center">{(regMins / 60).toFixed(1)}h @ ₱{(hourlyRate * restMultiplier).toFixed(2)}</td>
+                                                                    <td className="text-end fw-bold" style={{ color: '#f97316' }}>₱{restDayPayAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                </tr>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <tr>
+                                                                <td className="py-2">
+                                                                    <div className="fw-semibold">Regular Pay</div>
+                                                                    <small className="text-muted">Standard 8h Shift</small>
+                                                                </td>
+                                                                <td className="text-center">{(regMins / 60).toFixed(1)}h @ ₱{hourlyRate.toFixed(2)}</td>
+                                                                <td className="text-end fw-bold">₱{regPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                            </tr>
+                                                        );
+                                                    })()}
 
                                                     {/* Holiday Bonus */}
                                                     {holidayBonus > 0 && (

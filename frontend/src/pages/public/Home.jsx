@@ -392,15 +392,20 @@ const AboutSection = () => (
 ═══════════════════════════════════════════ */
 
 // Reusable service card component
-const ServiceCard = ({ image, title, duration, price, description, icons, type, onRentNow }) => (
+const ServiceCard = ({ image, title, duration, price, description, icons, type, onRentNow, vehicleTypeName, vehicleTypeBg, vehicleTypeText }) => (
     <div className="service-card d-flex flex-column align-items-start gap-0 ">
         {/* Card image - Edge to Edge */}
-        <div className="service-img-wrapper w-100 overflow-hidden" style={{ borderTopLeftRadius: '24px', borderTopRightRadius: '24px' }}>
+        <div className="service-img-wrapper w-100 overflow-hidden" style={{ borderTopLeftRadius: '24px', borderTopRightRadius: '24px', position: 'relative' }}>
             <img src={image} className="img-fluid w-100" style={{ objectFit: 'cover', aspectRatio: '16/12' }} alt={title} />
+            {vehicleTypeName && (
+                <span className="badge rounded-pill position-absolute" style={{ top: '16px', left: '16px', background: vehicleTypeBg || '#6c757d', color: vehicleTypeText || '#fff', fontSize: '0.75rem', padding: '0.4rem 0.8rem', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>
+                    {vehicleTypeName}
+                </span>
+            )}
         </div>
 
         {/* Text content - Padded */}
-        <div className="service-text-container p-4 w-100">
+        <div className="service-text-container p-4 w-100 ">
             <h3 className="service-title fw-bold mb-1 hero-title" style={{ fontSize: '1.25rem' }}>{title}</h3>
 
             {type === 'rental' ? (
@@ -425,18 +430,20 @@ const ServiceCard = ({ image, title, duration, price, description, icons, type, 
                 </p>
             )}
 
-            {/* Rent Now — for rental cards */}
-            {type === 'rental' && (
-                <div className="mt-4">
-                    <button
-                        onClick={onRentNow}
-                        className="btn btn-primary w-100 d-flex align-items-center justify-content-center text-white gap-2"
-                        style={{ height: '2.75rem', borderRadius: '24px', border: 'none', fontSize: '0.875rem', fontWeight: 600 }}
-                    >
-                        🚗 Rent Now
-                    </button>
-                </div>
-            )}
+            <div className=" pt-5 w-100">
+                {/* Rent Now — for rental cards */}
+                {type === 'rental' && (
+                    <div className="mt-5">
+                        <button
+                            onClick={onRentNow}
+                            className="btn btn-primary w-100 d-flex align-items-center justify-content-center text-white gap-2"
+                            style={{ height: '2.75rem', borderRadius: '24px', border: 'none', fontSize: '0.875rem', fontWeight: 600 }}
+                        >
+                            Rent Now
+                        </button>
+                    </div>
+                )}
+            </div>
 
             {/* Icons + Book button - Only show for wash */}
             {type !== 'rental' && (
@@ -460,7 +467,7 @@ const ServiceCard = ({ image, title, duration, price, description, icons, type, 
                 </div>
             )}
         </div>
-    </div>
+    </div >
 );
 
 const serviceData = [
@@ -497,14 +504,21 @@ const ServiceSection = () => {
     const [activeCategory, setActiveCategory] = useState('wash');
     const [rentalFleet, setRentalFleet] = useState([]);
     const [rentalLoading, setRentalLoading] = useState(false);
+    const [vehicleTypesList, setVehicleTypesList] = useState([]);
     const scrollRef = useRef(null);
     const displayData = activeCategory === 'wash' ? serviceData : rentalFleet;
 
     const fetchFleet = () => {
         setRentalLoading(true);
-        axios.get(`${API_BASE}/rental-fleet`)
-            .then(res => setRentalFleet(res.data))
-            .catch(() => {})
+        Promise.all([
+            axios.get(`${API_BASE}/rental-fleet`),
+            axios.get(`${API_BASE}/vehicle-types`)
+        ])
+            .then(([fleetRes, typeRes]) => {
+                setRentalFleet(fleetRes.data);
+                setVehicleTypesList(typeRes.data);
+            })
+            .catch(() => { })
             .finally(() => setRentalLoading(false));
     };
 
@@ -517,7 +531,13 @@ const ServiceSection = () => {
         socket.on('fleet_updated', () => {
             fetchFleet();
         });
-        
+
+        socket.on('vehicle_types_updated', () => {
+            axios.get(`${API_BASE}/vehicle-types`)
+                .then(res => setVehicleTypesList(res.data))
+                .catch(() => { });
+        });
+
         // Also refresh if pricing/settings change (if Home were dynamic)
         socket.on('pricing_updated', () => {
             // If we had dynamic car wash pricing on landing, we'd fetch it here
@@ -559,114 +579,117 @@ const ServiceSection = () => {
         <>
             <section id="services" className="service-price-section position-relative py-5">
                 <div className="bubble-container d-flex align-items-center justify-content-between position-absolute w-100 h-100" style={{ pointerEvents: 'none' }}>
-                <img src={bubble1} className="bubble bubble1" alt="" aria-hidden="true" />
-                <img src={bubble2} className="bubble bubble2" alt="" aria-hidden="true" />
-            </div>
+                    <img src={bubble1} className="bubble bubble1" alt="" aria-hidden="true" />
+                    <img src={bubble2} className="bubble bubble2" alt="" aria-hidden="true" />
+                </div>
 
-            <div className="container py-5">
-                {/* Section header */}
-                <div className="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-end mb-5 gap-4">
-                    <div>
-                        <div className="section-badge d-flex align-items-center gap-2 mb-1">
-                            <img src={fluentbubblewhite} alt="" aria-hidden="true" />
-                            <h6 className="text-uppercase fst-italic fw-light mb-0">Services</h6>
+                <div className="container py-5">
+                    {/* Section header */}
+                    <div className="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-end mb-5 gap-4">
+                        <div>
+                            <div className="section-badge d-flex align-items-center gap-2 mb-1">
+                                <img src={fluentbubblewhite} alt="" aria-hidden="true" />
+                                <h6 className="text-uppercase fst-italic fw-light mb-0">Services</h6>
+                            </div>
+                            <h1 className="fw-bold hero-title display-1 mb-0">
+                                What We <span className="brand-accent">Offer</span>
+                            </h1>
                         </div>
-                        <h1 className="fw-bold hero-title display-1 mb-0">
-                            What We <span className="brand-accent">Offer</span>
-                        </h1>
+                        <p className="lead hero-description mb-0" style={{ maxWidth: '480px' }}>
+                            From keeping your vehicle spotless to providing reliable transportation, our services are designed to make every drive easier, cleaner, and more convenient.
+                        </p>
                     </div>
-                    <p className="lead hero-description mb-0" style={{ maxWidth: '480px' }}>
-                        From keeping your vehicle spotless to providing reliable transportation, our services are designed to make every drive easier, cleaner, and more convenient.
-                    </p>
-                </div>
 
-                {/* Category Toggle */}
-                <div className="service-toggle-wrapper">
-                    <div className="toggle-capsule shadow-lg">
-                        <button
-                            className={`toggle-btn  ${activeCategory === 'wash' ? 'active' : ''}`}
-                            onClick={() => setActiveCategory('wash')}
-                        >
-                            <img src={carwashIcon} alt="Car Wash" /> Car Wash
-                        </button>
-                        <button
-                            className={`toggle-btn ${activeCategory === 'rental' ? 'active' : ''}`}
-                            onClick={() => setActiveCategory('rental')}
-                        >
-                            <img src={carRentalIcon} alt="Car Rental" /> Car Rental
-                        </button>
-                    </div>
-                </div>
-
-                {/* Service cards grid — with navigation arrows for rental */}
-                <div className="position-relative">
-                    {activeCategory === 'rental' && (
-                        <>
+                    {/* Category Toggle */}
+                    <div className="service-toggle-wrapper">
+                        <div className="toggle-capsule shadow-lg">
                             <button
-                                className="carousel-nav-btn prev shadow-lg"
-                                onClick={() => scroll('left')}
+                                className={`toggle-btn  ${activeCategory === 'wash' ? 'active' : ''}`}
+                                onClick={() => setActiveCategory('wash')}
                             >
-                                <svg width="24" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                                <img src={carwashIcon} alt="Car Wash" /> Car Wash
                             </button>
                             <button
-                                className="carousel-nav-btn next shadow-lg"
-                                onClick={() => scroll('right')}
+                                className={`toggle-btn ${activeCategory === 'rental' ? 'active' : ''}`}
+                                onClick={() => setActiveCategory('rental')}
                             >
-                                <svg width="24" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                                <img src={carRentalIcon} alt="Car Rental" /> Car Rental
                             </button>
-                        </>
-                    )}
+                        </div>
+                    </div>
 
-                    <div
-                        ref={scrollRef}
-                        className={`row g-4 ${activeCategory === 'rental' ? 'flex-nowrap overflow-hidden justify-content-start ps-2 py-4' : 'justify-content-center'}`}
-                        style={{ scrollBehavior: 'smooth' }}
-                    >
-                        {rentalLoading && activeCategory === 'rental' && (
-                            <div className="w-100 text-center py-5">
-                                <div className="spinner-border text-info" role="status"></div>
-                                <p className="text-muted mt-3">Loading available vehicles...</p>
-                            </div>
+                    {/* Service cards grid — with navigation arrows for rental */}
+                    <div className="position-relative">
+                        {activeCategory === 'rental' && (
+                            <>
+                                <button
+                                    className="carousel-nav-btn prev shadow-lg"
+                                    onClick={() => scroll('left')}
+                                >
+                                    <svg width="24" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                                </button>
+                                <button
+                                    className="carousel-nav-btn next shadow-lg"
+                                    onClick={() => scroll('right')}
+                                >
+                                    <svg width="24" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                                </button>
+                            </>
                         )}
-                        {!rentalLoading && activeCategory === 'rental' && rentalFleet.length === 0 && (
-                            <div className="w-100 text-center py-5">
-                                <p className="text-muted">No vehicles currently available. Please check back soon.</p>
-                            </div>
-                        )}
-                        {displayData.map((service, index) => {
-                            const isRental = activeCategory === 'rental';
-                            const cardData = isRental ? {
-                                image: service.imageBase64 || rentalcar1Img,
-                                title: service.vehicleName,
-                                duration: `${service.seats}-SEATER`,
-                                price: `₱${service.pricePerDay?.toLocaleString()}/day`,
-                                type: 'rental',
-                                onRentNow: () => window.location.href = `/book?type=rental&vehicleId=${service._id}`
-                            } : service;
-                            return (
-                                <div key={isRental ? service._id : `${service.title}-${index}`} className={!isRental ? "col-xl-4 col-md-6 col-12" : "col-xl-3 col-lg-4 col-md-6 col-12 flex-shrink-0"}>
-                                    <ServiceCard {...cardData} />
+
+                        <div
+                            ref={scrollRef}
+                            className={`row g-4 ${activeCategory === 'rental' ? 'flex-nowrap overflow-hidden justify-content-start ps-2 py-4' : 'justify-content-center'}`}
+                            style={{ scrollBehavior: 'smooth' }}
+                        >
+                            {rentalLoading && activeCategory === 'rental' && (
+                                <div className="w-100 text-center py-5">
+                                    <div className="spinner-border text-info" role="status"></div>
+                                    <p className="text-muted mt-3">Loading available vehicles...</p>
                                 </div>
-                            );
-                        })}
+                            )}
+                            {!rentalLoading && activeCategory === 'rental' && rentalFleet.length === 0 && (
+                                <div className="w-100 text-center py-5">
+                                    <p className="text-muted">No vehicles currently available. Please check back soon.</p>
+                                </div>
+                            )}
+                            {displayData.map((service, index) => {
+                                const isRental = activeCategory === 'rental';
+                                const cardData = isRental ? {
+                                    image: service.imageBase64 || rentalcar1Img,
+                                    title: service.vehicleName,
+                                    duration: `${service.seats}-SEATER`,
+                                    price: `₱${service.pricePerDay?.toLocaleString()}/day`,
+                                    type: 'rental',
+                                    onRentNow: () => window.location.href = `/book?type=rental&vehicleId=${service._id}`,
+                                    vehicleTypeName: service.vehicleType,
+                                    vehicleTypeBg: vehicleTypesList.find(t => t.name === service.vehicleType)?.color || '#6c757d',
+                                    vehicleTypeText: vehicleTypesList.find(t => t.name === service.vehicleType)?.textColor || '#ffffff'
+                                } : service;
+                                return (
+                                    <div key={isRental ? service._id : `${service.title}-${index}`} className={!isRental ? "col-xl-4 col-md-6 col-12" : "col-xl-3 col-lg-4 col-md-6 col-12 flex-shrink-0"}>
+                                        <ServiceCard {...cardData} />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Bottom CTA */}
+                    <div className="mt-4 pt-3 text-center">
+                        <Link
+                            to="/services"
+                            className="btn btn-primary d-inline-flex align-items-center gap-2 px-5 py-3 text-white shadow-sm"
+                            style={{ borderRadius: '50px', fontWeight: 600, fontSize: '1rem' }}
+                        >
+                            Learn More About What We Offer
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M5 12h14m-7-7 7 7-7 7" />
+                            </svg>
+                        </Link>
                     </div>
                 </div>
-
-                {/* Bottom CTA */}
-                <div className="mt-4 pt-3 text-center">
-                    <Link
-                        to="/services"
-                        className="btn btn-primary d-inline-flex align-items-center gap-2 px-5 py-3 text-white shadow-sm"
-                        style={{ borderRadius: '50px', fontWeight: 600, fontSize: '1rem' }}
-                    >
-                        Learn More About What We Offer
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M5 12h14m-7-7 7 7-7 7" />
-                        </svg>
-                    </Link>
-                </div>
-            </div>
-        </section>
+            </section>
         </>
     );
 }; const GallerySection = () => {

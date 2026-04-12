@@ -8,9 +8,7 @@ const rentalFleetSchema = new mongoose.Schema({
     },
     vehicleType: {
         type: String,
-        required: true,
-        enum: ['Sedan', 'SUV', 'Van', 'Hatchback', 'Pick-up', 'Crossover', 'Other'],
-        default: 'Sedan'
+        required: true
     },
     seats: {
         type: Number,
