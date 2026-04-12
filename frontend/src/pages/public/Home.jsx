@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import SandiBot from '../../components/public/SandiBot';
 import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -209,7 +210,6 @@ const LiveBayStatus = () => {
             withCredentials: true
         });
 
-        socket.on('connect', () => console.log('Bay Monitor Connected to Socket'));
 
         socket.on('update_bay', (updatedBay) => {
             console.log('Bay Update received:', updatedBay.name);
@@ -1005,6 +1005,7 @@ const Home = () => {
                 <ContactSection />
             </main>
             <Footer />
+            <SandiBot />
         </>
     );
 };

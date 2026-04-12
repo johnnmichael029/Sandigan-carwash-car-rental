@@ -44,7 +44,7 @@ const maintenanceRoutes = require('./routes/maintenanceRoutes');
 const rentalFleetRoutes = require('./routes/rentalFleetRoutes');
 const carRentalRoutes = require('./routes/carRentalRoutes');
 const vehicleTypeRoutes = require('./routes/vehicleTypeRoutes');
-
+const chatbotRoutes = require('./routes/chatbotRoutes');
 const path = require('path');
 
 // Middleware
@@ -119,6 +119,12 @@ const io = new Server(server, {
 app.set('io', io);
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.json({ limit: '10mb' })); // Increased limit to support base64 image uploads
+
+// ─────────────────────────────────────────────────────────────────────────────
+//   SANDIBOT — Exempt from CSRF for public access (Must be above CSRF/Cookie)
+// ─────────────────────────────────────────────────────────────────────────────
+app.use('/api/chat', chatbotRoutes);
+
 app.use(cookieParser());// <--- Required for CSRF protection and authentication
 
 // Debug logger for all API requests
