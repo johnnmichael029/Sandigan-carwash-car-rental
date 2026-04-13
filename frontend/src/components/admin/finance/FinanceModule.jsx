@@ -96,6 +96,10 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
     const [expCurrentPage, setExpCurrentPage] = useState(1);
     const expItemsPerPage = 4;
 
+    // Global Date Range Global State
+    const [rangeFrom, setRangeFrom] = useState('');
+    const [rangeTo, setRangeTo] = useState('');
+
     // Client-side filtered revenues
     const filteredRevenues = filterDataBySearch(revenues, revSearchTerm, ['title', 'category', 'reference', 'amount'], ['createdAt', 'date']);
 
@@ -139,7 +143,11 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
             }).catch(err => console.warn("Failed to fetch settings:", err));
 
             // Fetch summary
-            axios.get(`${API_BASE}/finance/summary?period=${financePeriod}`, { headers: authHeaders(), withCredentials: true })
+            const summaryUrl = rangeFrom && rangeTo
+                ? `${API_BASE}/finance/summary?from=${rangeFrom}&to=${rangeTo}`
+                : `${API_BASE}/finance/summary?period=${financePeriod}`;
+
+            axios.get(summaryUrl, { headers: authHeaders(), withCredentials: true })
                 .then(res => setSummary(res.data))
                 .catch(err => console.error("Summary fetch error:", err));
 
@@ -167,18 +175,42 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
     };
 
     useEffect(() => {
-        if (activeTab === 'overview') {
+        if (activeTab === 'overview' || activeTab === 'revenues' || activeTab === 'expenses') {
             fetchFinanceData();
             fetchForecast();
             fetchExpenses();
-            isFinanceMounted.current = true; // Mark as mounted after first fetch
+            fetchRevenues();
+            isFinanceMounted.current = true;
         }
-    }, [financePeriod, activeTab]);
+    }, [financePeriod, activeTab, rangeFrom, rangeTo]);
 
     const fetchExpenses = async () => {
         setIsExpLoading(true);
         try {
-            const res = await axios.get(`${API_BASE}/finance/expenses`, {
+            let url = '';
+            if (rangeFrom && rangeTo) {
+                url = `${API_BASE}/finance/expenses?from=${rangeFrom}&to=${rangeTo}`;
+            } else {
+                let fromDate = null;
+                if (financePeriod !== 'all') {
+                    const now = new Date();
+                    if (financePeriod === 'today') {
+                        fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+                    } else if (financePeriod === 'week') {
+                        const day = now.getDay();
+                        fromDate = new Date(now);
+                        fromDate.setDate(now.getDate() - day);
+                        fromDate.setHours(0, 0, 0, 0);
+                    } else if (financePeriod === 'month') {
+                        fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    } else if (financePeriod === 'year') {
+                        fromDate = new Date(now.getFullYear(), 0, 1);
+                    }
+                }
+                url = fromDate ? `${API_BASE}/finance/expenses?from=${fromDate.toISOString()}` : `${API_BASE}/finance/expenses`;
+            }
+
+            const res = await axios.get(url, {
                 headers: authHeaders(),
                 withCredentials: true
             });
@@ -190,7 +222,30 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
     const fetchRevenues = async () => {
         setIsRevLoading(true);
         try {
-            const res = await axios.get(`${API_BASE}/revenue`, {
+            let url = '';
+            if (rangeFrom && rangeTo) {
+                url = `${API_BASE}/revenue?from=${rangeFrom}&to=${rangeTo}`;
+            } else {
+                let fromDate = null;
+                if (financePeriod !== 'all') {
+                    const now = new Date();
+                    if (financePeriod === 'today') {
+                        fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+                    } else if (financePeriod === 'week') {
+                        const day = now.getDay();
+                        fromDate = new Date(now);
+                        fromDate.setDate(now.getDate() - day);
+                        fromDate.setHours(0, 0, 0, 0);
+                    } else if (financePeriod === 'month') {
+                        fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    } else if (financePeriod === 'year') {
+                        fromDate = new Date(now.getFullYear(), 0, 1);
+                    }
+                }
+                url = fromDate ? `${API_BASE}/revenue?from=${fromDate.toISOString()}` : `${API_BASE}/revenue`;
+            }
+
+            const res = await axios.get(url, {
                 headers: authHeaders(),
                 withCredentials: true
             });
@@ -376,7 +431,7 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
         if (activeTab === 'overview') {
             fetchExpenses();
         }
-    }, [activeTab, budgetMonth, ledgerTypeFilter, ledgerFrom, ledgerTo]);
+    }, [activeTab, budgetMonth, ledgerTypeFilter, ledgerFrom, ledgerTo, financePeriod]);
 
     const fetchLedger = async () => {
         setIsLedgerLoading(true);
@@ -915,7 +970,20 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                     <>
                         {activeTab === 'overview' && (
                             <>
-                                <div className="d-flex align-items-center justify-content-end mb-4 flex-wrap gap-3">
+                                <div className="d-flex align-items-center justify-content-end mb-4 flex-wrap gap-2">
+                                    <div className="d-flex align-items-center gap-1 me-2 bg-white p-1 rounded-pill border shadow-sm px-3">
+                                        <input type="date" className="form-control form-control-sm rounded-3 border-light" style={{ width: 110, fontSize: '0.75rem', outline: 'none', boxShadow: 'none' }}
+                                            value={rangeFrom} onChange={e => { setRangeFrom(e.target.value); if (e.target.value) setFinancePeriod('custom'); }} />
+                                        <span className="text-muted small">→</span>
+                                        <input type="date" className="form-control form-control-sm rounded-3 border-light" style={{ width: 110, fontSize: '0.75rem', outline: 'none', boxShadow: 'none' }}
+                                            value={rangeTo} onChange={e => { setRangeTo(e.target.value); if (e.target.value) setFinancePeriod('custom'); }} />
+                                        {(rangeFrom || rangeTo) && (
+                                            <button onClick={() => { setRangeFrom(''); setRangeTo(''); setFinancePeriod('month'); }} className="btn btn-sm text-danger p-0 border-0 ms-1" title="Clear Dates">
+                                                <span className="bi bi-x-circle-fill">X</span>
+                                            </button>
+
+                                        )}
+                                    </div>
                                     <div className="btn-group shadow-sm bg-white p-1 rounded-pill border align-self-end">
                                         {[
                                             { id: 'today', label: 'Today' },
@@ -926,7 +994,11 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                         ].map(p => (
                                             <button
                                                 key={p.id}
-                                                onClick={() => setFinancePeriod(p.id)}
+                                                onClick={() => {
+                                                    setFinancePeriod(p.id);
+                                                    setRangeFrom('');
+                                                    setRangeTo('');
+                                                }}
                                                 className={`btn btn-sm px-4 rounded-pill border-0 transition-all btn-active ${financePeriod === p.id ? 'btn-save text-white shadow-sm' : 'text-muted'}`}
                                                 style={{ fontSize: '0.75rem' }}
                                             >
@@ -941,7 +1013,7 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                             <div className="col-12 col-sm-6 col-md" key={i}><KPICardSkeleton /></div>
                                         ))
                                         : [
-                                            { title: "Gross Revenue", value: summary.totalRevenue, icon: <img src={grossRevenueIcon} alt="Gross Revenue" style={{ width: '24px' }} />, color: "#a855f7", bg: "linear-gradient(135deg,#a855f715,#a855f705)", dot: "#a855f7", desc: "Total from completed bookings" },
+                                            { title: "Gross Revenue", value: summary.totalRevenue, icon: <img src={grossRevenueIcon} alt="Gross Revenue" style={{ width: '24px' }} />, color: "#a855f7", bg: "linear-gradient(135deg,#a855f715,#a855f705)", dot: "#a855f7", desc: "Total from all business streams" },
                                             { title: "Staff Commissions", value: summary.totalCommissionOwed, icon: <img src={commisionIcon} alt="Staff Commissions" style={{ width: '24px' }} />, color: "#22c55e", bg: "linear-gradient(135deg,#22c55e15,#22c55e05)", dot: "#22c55e", desc: `${(commissionRate * 100).toFixed(0)}% detailer cut (owed)` },
                                             { title: "Operation Costs", value: summary.totalExpenses, icon: <img src={operationCostIcon} alt="Operation Costs" style={{ width: '24px' }} />, color: "#23A0CE", bg: "linear-gradient(135deg,#23A0CE15,#23A0CE05)", dot: "#23A0CE", desc: "Supplies, Rent, Utilities" },
                                             { title: "Total Payables", value: summary.totalPayables, icon: <img src={accountPayableIcon} alt="Total Payables" style={{ width: '24px' }} />, color: "#f43f5e", bg: "linear-gradient(135deg,#f43f5e15,#f43f5e05)", dot: "#f43f5e", desc: "Money owed to suppliers" },
@@ -1146,9 +1218,9 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                     <div className="progress-bar bg-success" style={{ width: `${100 - (commissionRate * 100)}%` }} />
                                                 </div>
                                             </div>
-                                            <div className="p-3 rounded-3" style={{ background: 'var(--theme-card-bg)', border: '1px dashed #dee2e6' }}>
-                                                <p className="mb-1 text-dark-secondary fw-bold" style={{ fontSize: '0.8rem', color: 'var(--theme-content-text)' }}>Admin Tip:</p>
-                                                <small className="text-muted d-block" style={{ fontSize: '0.72rem', lineHeight: 1.4, color: 'var(--theme-content-text)' }}>
+                                            <div className="p-3 rounded-3 mt-4" style={{ background: 'var(--theme-card-bg)', border: '1px dashed #dee2e6' }}>
+                                                <p className="mb-1 text-dark-secondary fw-bold" style={{ fontSize: '0.8rem' }}>Admin Tip:</p>
+                                                <small className="text-muted d-block" style={{ fontSize: '0.72rem', lineHeight: 1.4 }}>
                                                     Track all water and electricity bills under "Utilities" to get an accurate view of your net profit per wash.
                                                 </small>
                                             </div>
@@ -1159,6 +1231,42 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                         )}
                         {activeTab === 'revenues' && (
                             <div className="animate-fade-in">
+                                <div className="d-flex align-items-center justify-content-end mb-4 flex-wrap gap-2">
+                                    <div className="d-flex align-items-center gap-1 me-2 bg-white p-1 rounded-pill border shadow-sm px-3">
+                                        <input type="date" className="form-control form-control-sm border-0 bg-transparent p-0" style={{ width: 110, fontSize: '0.75rem', outline: 'none', boxShadow: 'none' }}
+                                            value={rangeFrom} onChange={e => { setRangeFrom(e.target.value); if (e.target.value) setFinancePeriod('custom'); }} />
+                                        <span className="text-muted small">→</span>
+                                        <input type="date" className="form-control form-control-sm border-0 bg-transparent p-0" style={{ width: 110, fontSize: '0.75rem', outline: 'none', boxShadow: 'none' }}
+                                            value={rangeTo} onChange={e => { setRangeTo(e.target.value); if (e.target.value) setFinancePeriod('custom'); }} />
+                                        {(rangeFrom || rangeTo) && (
+                                            <button onClick={() => { setRangeFrom(''); setRangeTo(''); setFinancePeriod('month'); }} className="btn btn-sm text-danger p-0 border-0 ms-1" title="Clear Dates">
+                                                <i className="bi bi-x-circle-fill"></i>
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="btn-group shadow-sm bg-white p-1 rounded-pill border align-self-end">
+                                        {[
+                                            { id: 'today', label: 'Today' },
+                                            { id: 'week', label: 'Week' },
+                                            { id: 'month', label: 'Month' },
+                                            { id: 'year', label: 'Year' },
+                                            { id: 'all', label: 'All' }
+                                        ].map(p => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => {
+                                                    setFinancePeriod(p.id);
+                                                    setRangeFrom('');
+                                                    setRangeTo('');
+                                                }}
+                                                className={`btn btn-sm px-4 rounded-pill border-0 transition-all btn-active ${financePeriod === p.id ? 'btn-save text-white shadow-sm' : 'text-muted'}`}
+                                                style={{ fontSize: '0.75rem' }}
+                                            >
+                                                {p.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                                 <div className="row g-4 mb-4">
                                     <div className="col-md-4">
                                         <div className="card border-0 shadow-sm rounded-4 p-4 text-white" style={{ background: 'linear-gradient(135deg, #23A0CE, #0a58ca)' }}>

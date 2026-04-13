@@ -1,5 +1,7 @@
 const Revenue = require('../models/revenueModel');
 const Expense = require('../models/expenseModel');
+const Booking = require('../models/bookingModel');
+const { getSettingValue } = require('./settingController');
 
 /**
  * Generates an End-of-Month (EOM) financial forecast based on moving averages.
@@ -28,32 +30,89 @@ const getForecast = async (req, res) => {
         ]);
 
         const mtdRevenue = mtdRevenuesAgg[0]?.total || 0;
-        const mtdExpense = mtdExpensesAgg[0]?.total || 0;
-        const mtdNetProfit = mtdRevenue - mtdExpense;
+        const mtdExpenseModel = mtdExpensesAgg[0]?.total || 0;
 
-        // 2. Fetch trailing 30-day totals to compute accurate daily averages
+        const commissionRate = await getSettingValue('commission_rate', 0.30);
+
+        // 1. Calculate MTD Commission (Split into Paid and Unpaid)
+        const mtdBookings = await Booking.find({
+            status: 'Completed',
+            updatedAt: { $gte: startOfMonth, $lte: now }
+        });
+        
+        let mtdTotalCommission = 0;
+        let mtdUnpaidCommission = 0;
+        
+        mtdBookings.forEach(b => {
+            const retailTotal = (b.purchasedProducts || []).reduce((s, p) => s + (Number(p.price || 0) * Number(p.quantity || 0)), 0);
+            const comm = Math.max(0, (b.totalPrice || 0) - retailTotal) * commissionRate;
+            mtdTotalCommission += comm;
+            if (b.commissionStatus !== 'Paid') mtdUnpaidCommission += comm;
+        });
+
+        // Current MTD Expense = Everything in model (including paid salaries/comms) + Unpaid commissions
+        const mtdExpenseFull = mtdExpenseModel + mtdUnpaidCommission;
+        const mtdNetProfit = mtdRevenue - mtdExpenseFull;
+
+        // 2. Fetch trailing 30-day totals for Velocity
+        const thirtyDaysStart = new Date(thirtyDaysAgo);
+        thirtyDaysStart.setHours(0, 0, 0, 0);
+
         const trailingRevenuesAgg = await Revenue.aggregate([
-            { $match: { date: { $gte: thirtyDaysAgo, $lte: now } } },
-            { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]);
-        const trailingExpensesAgg = await Expense.aggregate([
-            { $match: { date: { $gte: thirtyDaysAgo, $lte: now } } },
+            { 
+                $match: { 
+                    $or: [
+                        { date: { $gte: thirtyDaysStart, $lte: now } },
+                        { createdAt: { $gte: thirtyDaysStart, $lte: now } }
+                    ]
+                } 
+            },
             { $group: { _id: null, total: { $sum: '$amount' } } }
         ]);
 
-        const trailingRevenue = trailingRevenuesAgg[0]?.total || 0;
-        const trailingExpense = trailingExpensesAgg[0]?.total || 0;
+        const trailingRevenue = (trailingRevenuesAgg[0]?.total || 0);
+
+        // A. Logged Overhead Velocity (Operations without Salaries)
+        // Use $or to be safe across different date recording formats
+        const trailingExpensesRaw = await Expense.find({
+            $or: [
+                { date: { $gte: thirtyDaysStart, $lte: now } },
+                { createdAt: { $gte: thirtyDaysStart, $lte: now } }
+            ]
+        });
+        
+        const trailingOverhead = trailingExpensesRaw
+            .filter(e => e.category !== 'Salaries')
+            .reduce((sum, e) => sum + (e.amount || 0), 0);
+
+        // B. Accruing Commission Velocity (Owed Labor speed from bookings)
+        // Use 'updatedAt' to match the summary API logic (when the work was completed)
+        const trailingBookings = await Booking.find({
+            status: 'Completed',
+            updatedAt: { $gte: thirtyDaysAgo, $lte: now }
+        });
+        
+        // Final fallback for rate if needed
+        const effectiveRate = Number(commissionRate) || 0.30;
+
+        const trailingCommissionAccrued = trailingBookings.reduce((sum, b) => {
+            const retailTotal = (b.purchasedProducts || []).reduce((s, p) => s + (Number(p.price || 0) * Number(p.quantity || 0)), 0);
+            const commissionablePrice = Math.max(0, (b.totalPrice || 0) - retailTotal);
+            const comm = commissionablePrice * effectiveRate;
+            return sum + (comm || 0);
+        }, 0);
 
         const dailyAvgRevenue = trailingRevenue / 30;
-        const dailyAvgExpense = trailingExpense / 30;
+        // True Speed = (Other Costs) + (Real Labor Accrual Rate)
+        const dailyAvgExpense = (trailingOverhead + trailingCommissionAccrued) / 30;
 
-        // 3. Project for the remaining days of the month
-        const projectedRemainingRevenue = dailyAvgRevenue * daysRemaining;
-        const projectedRemainingExpense = dailyAvgExpense * daysRemaining;
+        // 3. Project for the remaining days
+        const projectedFutureRevenue = dailyAvgRevenue * daysRemaining;
+        const projectedFutureExpense = dailyAvgExpense * daysRemaining;
 
-        // 4. Calculate Final EOM Projections
-        const projectedEOMRevenue = mtdRevenue + projectedRemainingRevenue;
-        const projectedEOMExpense = mtdExpense + projectedRemainingExpense;
+        // 4. Final EOM Projections
+        const projectedEOMRevenue = mtdRevenue + projectedFutureRevenue;
+        const projectedEOMExpense = mtdExpenseFull + projectedFutureExpense;
         const projectedEOMNetProfit = projectedEOMRevenue - projectedEOMExpense;
 
         res.status(200).json({
@@ -61,7 +120,7 @@ const getForecast = async (req, res) => {
             daysRemaining,
             mtd: {
                 revenue: mtdRevenue,
-                expense: mtdExpense,
+                expense: mtdExpenseFull,
                 netProfit: mtdNetProfit
             },
             dailyAverages: {

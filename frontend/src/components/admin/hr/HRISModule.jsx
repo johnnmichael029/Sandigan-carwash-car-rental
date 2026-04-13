@@ -3053,13 +3053,20 @@ const HRISPage = ({ user, isDark }) => {
                                     </div>
                                     <div className="col">
                                         <div className="card h-100 border-0 rounded-4 p-4 shadow-sm" style={{ background: isDark ? 'var(--theme-card-bg)' : 'linear-gradient(135deg, #f8fafc, #f1f5f9)' }}>
-                                            <div className="text-muted small fw-bold text-uppercase mb-2">OT, RD & Holiday</div>
+                                            <div className="text-muted small fw-bold text-uppercase mb-2">OT, RD, ND & Holiday</div>
                                             <h3 className="fw-bold brand-primary mb-0">
-                                                ₱{Math.round((selectedPayoutStaff.stats.otPay || 0) + (selectedPayoutStaff.stats.holidayPay || 0) + (selectedPayoutStaff.stats.restDayPay || 0)).toLocaleString()}
+                                                ₱{Math.round(
+                                                    (selectedPayoutStaff.stats.otPay || 0) + 
+                                                    (selectedPayoutStaff.stats.holidayPay || 0) + 
+                                                    (selectedPayoutStaff.stats.restDayPay || 0) + 
+                                                    (selectedPayoutStaff.stats.ndPay || 0)
+                                                ).toLocaleString()}
                                             </h3>
                                             <small className="text-muted mt-1">
                                                 {selectedPayoutStaff.stats.otHours}h OT
                                                 {(selectedPayoutStaff.stats.restDayHours > 0) && <span style={{ color: '#f97316' }}> · {selectedPayoutStaff.stats.restDayHours}h RD</span>}
+                                                {(selectedPayoutStaff.stats.ndHours > 0) && <span style={{ color: '#9333ea' }}> · {selectedPayoutStaff.stats.ndHours}h ND</span>}
+                                                {(selectedPayoutStaff.stats.holidayPay > 0) && <span style={{ color: '#0ea5e9' }}> · HOL</span>}
                                             </small>
                                         </div>
                                     </div>

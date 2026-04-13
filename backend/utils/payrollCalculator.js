@@ -25,15 +25,19 @@ const calculatePhilHealth = (basicSalary) => {
  * @param {number} basicSalary 
  * @returns {object} { employee: number, employer: number, total: number }
  */
-const calculateHDMF = (basicSalary) => {
+const calculateHDMF = (income, frequency = 'Monthly') => {
     // Standard Pag-IBIG contribution is ₱200 EE / ₱200 ER for salary above 1500
-    // Recent 2024 update increased to ₱200 base for most
-    if (basicSalary <= 0) return { employee: 0, employer: 0, total: 0 };
+    if (income <= 0) return { employee: 0, employer: 0, total: 0 };
+
+    let amount = 200;
+    if (frequency === 'Bi-Weekly') amount = 100;
+    else if (frequency === 'Weekly') amount = 50;
+    else if (frequency === 'Daily') amount = 8; // ~200 / 26 days
 
     return {
-        employee: 200,
-        employer: 200,
-        total: 400
+        employee: amount,
+        employer: amount,
+        total: amount * 2
     };
 };
 

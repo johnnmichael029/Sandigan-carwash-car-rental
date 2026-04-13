@@ -4,8 +4,18 @@ const { createLog } = require('./activityLogController');
 // Get all expenses
 const getExpenses = async (req, res) => {
     try {
-        const { search } = req.query;
+        const { search, from, to } = req.query;
         const filter = {};
+
+        if (from || to) {
+            filter.date = {};
+            if (from) filter.date.$gte = new Date(from);
+            if (to) {
+                const end = new Date(to);
+                end.setHours(23, 59, 59, 999);
+                filter.date.$lte = end;
+            }
+        }
 
         if (search && search.trim()) {
             const query = search.trim();

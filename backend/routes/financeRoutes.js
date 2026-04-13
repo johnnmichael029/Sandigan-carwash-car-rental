@@ -18,12 +18,20 @@ router.post('/settings', requireAuth, adminOnly, updateSetting);
 // Special route for financial summary (Profit/Loss data)
 router.get('/summary', requireAuth, adminOnly, async (req, res) => {
     try {
-        const { period = 'all' } = req.query;
+        const { period = 'all', from, to } = req.query;
 
         // Build date range
         let startDate = null;
-        if (period !== 'all') {
+        let endDate = null;
+
+        if (from && to) {
+            startDate = new Date(from);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(to);
+            endDate.setHours(23, 59, 59, 999);
+        } else if (period !== 'all') {
             const now = new Date();
+            endDate = new Date(); // Current time for relative periods
             if (period === 'today') {
                 startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
             } else if (period === 'week') {
@@ -38,15 +46,24 @@ router.get('/summary', requireAuth, adminOnly, async (req, res) => {
             }
         }
 
-        const query = startDate ? { updatedAt: { $gte: startDate } } : {};
-        const bookings = await Booking.find({ 
-            status: 'Completed',
-            ...query
-        });
+        const query = {};
+        if (startDate) query.$gte = startDate;
+        if (endDate) query.$lte = endDate;
+
+        const mainQuery = Object.keys(query).length > 0 ? { date: query } : {};
+        const bookingDateQuery = Object.keys(query).length > 0 ? { updatedAt: query } : {};
+        
+        const Revenue = require('../models/revenueModel');
+        const [bookings, revenues] = await Promise.all([
+            Booking.find({ 
+                status: 'Completed',
+                ...bookingDateQuery
+            }),
+            Revenue.find(mainQuery)
+        ]);
 
         const Expense = require('../models/expenseModel');
-        const expenseQuery = startDate ? { date: { $gte: startDate } } : {};
-        const expenses = await Expense.find(expenseQuery);
+        const expenses = await Expense.find(mainQuery);
 
         const AccountPayable = require('../models/payableModel');
         const payables = await AccountPayable.find({ status: { $ne: 'Paid' } });
@@ -55,8 +72,8 @@ router.get('/summary', requireAuth, adminOnly, async (req, res) => {
         const { getSettingValue } = require('../controllers/settingController');
         const commissionRate = await getSettingValue('commission_rate', 0.30);
 
-        // Calculate Revenue
-        const totalRevenue = bookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+        // Calculate Revenue from the master Revenue model (includes bookings, rentals, retail)
+        const totalRevenue = revenues.reduce((sum, r) => sum + (r.amount || 0), 0);
 
         // Calculate commissions that are strictly OWED (Unpaid)
         // We only show UNPAID because already-paid commissions are already in 'totalExpenses'

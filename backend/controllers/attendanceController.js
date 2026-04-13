@@ -4,8 +4,10 @@ const Holiday = require('../models/holidayModel');
 /**
  * Helper to get YYYY-MM-DD in local time
  */
-const getLocalDateStr = () => {
-    return new Date().toLocaleDateString('en-CA');
+const getLocalDateStr = (date = new Date()) => {
+    // Force Philippine Time (UTC+8) manually to avoid server timezone issues
+    const phtDate = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+    return phtDate.toISOString().split('T')[0];
 };
 
 /**
@@ -328,9 +330,13 @@ const updateAttendance = async (req, res) => {
         if (holidayName !== undefined) record.holidayName = holidayName;
         if (wasPresentYesterday !== undefined) record.wasPresentYesterday = wasPresentYesterday;
 
-        if (clockInTime && !isNaN(new Date(clockInTime).getTime())) record.clockInTime = new Date(clockInTime);
+        if (clockInTime && !isNaN(new Date(clockInTime).getTime())) {
+            record.clockInTime = new Date(clockInTime);
+            // Re-sync dateStr with new clockInTime to ensure reports show the correct 'Work Day'
+            record.dateStr = getLocalDateStr(record.clockInTime);
+        }
         if (clockOutTime && !isNaN(new Date(clockOutTime).getTime())) record.clockOutTime = new Date(clockOutTime);
-        else if (clockOutTime === '') record.clockOutTime = null; // Clear if empty
+        else if (clockOutTime === '') record.clockOutTime = null; 
 
         // If clock times are updated, RECALCULATE DURATION & OT
         if (record.clockInTime && record.clockOutTime) {

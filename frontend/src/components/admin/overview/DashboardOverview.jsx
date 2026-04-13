@@ -12,22 +12,30 @@ import {
     BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip,
     ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend
 } from 'recharts';
+import SandiAssistant from './SandiAssistant';
 
 const AdminOverview = ({ user, onNavigate, isDark }) => {
     const [bookings, setBookings] = useState([]);
     const [employees, setEmployees] = useState([]);
+    const [revenues, setRevenues] = useState([]);
+    const [totalGross, setTotalGross] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [chartFilter, setChartFilter] = useState('daily');
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [bookingsRes, employeesRes] = await Promise.all([
+                const [bookingsRes, employeesRes, revenueRes] = await Promise.all([
                     axios.get(`${API_BASE}/booking`, { headers: authHeaders(), withCredentials: true }),
                     axios.get(`${API_BASE}/employees`, { headers: authHeaders(), withCredentials: true }),
+                    axios.get(`${API_BASE}/revenue`, { headers: authHeaders(), withCredentials: true }),
                 ]);
                 setBookings(bookingsRes.data);
                 setEmployees(employeesRes.data);
+                
+                // revenueRes.data is { revenues, total }
+                setRevenues(revenueRes.data.revenues || []);
+                setTotalGross(revenueRes.data.total || 0);
             } catch (err) {
                 console.error('Failed to fetch admin overview data', err);
             } finally {
@@ -44,19 +52,21 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
 
     /* ── KPI Metrics ── */
     const metrics = useMemo(() => {
-        const completed = bookings.filter(b => b.status === 'Completed');
-        const allTimeRevenue = completed.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+        // Use totalGross fetched directly from the Revenue API for All-Time
+        const allTimeRevenue = totalGross;
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const todayBookings = bookings.filter(b => {
-            const d = new Date(b.createdAt); d.setHours(0, 0, 0, 0);
-            return d.getTime() === today.getTime();
-        });
-        const todayRevenue = todayBookings.filter(b => b.status === 'Completed').reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+
+        // Filter centralized revenues for today
+        const todayRevenue = revenues.reduce((sum, r) => {
+            const rDate = new Date(r.date); rDate.setHours(0, 0, 0, 0);
+            return (rDate.getTime() === today.getTime()) ? sum + (r.amount || 0) : sum;
+        }, 0);
+
         const activeStaff = employees.filter(e => e.role === 'employee').length;
 
-        // Calculate Top Performer for current month
+        // Calculate Top Performer for current month (Still using bookings to count services)
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
         const detailerStats = {};
@@ -81,7 +91,6 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
         if (topPerformerId) {
             const emp = employees.find(e => e._id === topPerformerId);
             topPerformerName = emp?.fullName || 'Unknown';
-            // Extract first name for brevity on dashboard widget if possible
             if (topPerformerName.includes(' ')) topPerformerName = topPerformerName.split(' ')[0];
         }
 
@@ -93,7 +102,7 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
             topPerformerName,
             maxBookings
         };
-    }, [bookings, employees]);
+    }, [bookings, employees, revenues, totalGross]);
 
     /* ── Chart Data ── */
     const chartData = useMemo(() => {
@@ -221,6 +230,9 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
         <div>
             {/* Header */}
             <TopHeader user={user} title="Admin Portal" subtitle={todayDate} onNavigate={onNavigate} isDark={isDark} />
+
+            {/* Sandi Assistant Greeting & Insights */}
+            <SandiAssistant isDark={isDark} />
 
             {/* KPI Cards */}
             <div className="row g-3 mb-4">

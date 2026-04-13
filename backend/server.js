@@ -208,6 +208,7 @@ app.use('/api/rental-fleet', rentalFleetRoutes);
 app.post('/api/car-rentals', rentalLimiter);
 app.use('/api/car-rentals', carRentalRoutes);
 app.use('/api/vehicle-types', vehicleTypeRoutes);
+app.use('/api/sandi', require('./routes/sandiRoutes'));
 
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {

@@ -157,15 +157,40 @@ const processPayrollCalculations = (employee, logs) => {
     const accruedBase = (totalRegMinutes / 480) * dailyRate;
     const lateDeduction = (totalLateMinutes / 60) * hourlyRate;
 
-    // Automated Deductions
-    const sss = calculateSSS(accruedBase);
-    const ph = calculatePhilHealth(accruedBase);
-    const hdmf = calculateHDMF(accruedBase);
+    // --- DEDUCTION BASIS: Total Gross Pay (includes OT, Holidays, etc.) ---
+    const grossEarnings = accruedBase + (holidayPay || 0) + (restDayPay || 0) + (otPay || 0) + (nightDiffPay || 0);
+    
+    // Indexing for government tables: Convert payout earnings to Monthly Equivalent
+    let multiplier = 1; // Default Monthly
+    if (employee.salaryFrequency === 'Bi-Weekly') multiplier = 2;
+    else if (employee.salaryFrequency === 'Weekly') multiplier = 4;
+    else if (employee.salaryFrequency === 'Daily') multiplier = 26;
+
+    const monthlyEquivalent = grossEarnings * multiplier;
+
+    // Calculate monthly-scale deductions
+    const sssFull = calculateSSS(monthlyEquivalent);
+    const phFull = calculatePhilHealth(monthlyEquivalent);
+
+    // Payout Share (Split the monthly deduction across the frequency)
+    const sss = {
+        employee: sssFull.employee / multiplier,
+        employer: sssFull.employer / multiplier
+    };
+    const ph = {
+        employee: phFull.employee / multiplier,
+        employer: phFull.employer / multiplier
+    };
+    const hdmf = calculateHDMF(grossEarnings, employee.salaryFrequency); // Uses the new frequency logic
+
+    const totalMandatoryEE = sss.employee + ph.employee + hdmf.employee;
 
     // Taxable Income Breakdown
-    const grossTaxable = accruedBase + holidayPay + restDayPay + otPay + nightDiffPay - lateDeduction;
-    const totalMandatoryEE = sss.employee + ph.employee + hdmf.employee;
-    const withholdingTax = calculateWithholdingTax(grossTaxable - totalMandatoryEE);
+    const grossTaxable = grossEarnings - lateDeduction;
+    
+    // For tax: Calculate monthly tax on monthly income, then divide by multiplier
+    const taxableMonthlyEquivalent = (grossTaxable * multiplier) - (totalMandatoryEE * multiplier);
+    const withholdingTax = calculateWithholdingTax(taxableMonthlyEquivalent) / multiplier;
 
     return {
         accruedBase,
@@ -620,15 +645,41 @@ const getPendingFixedSalary = async (req, res) => {
                 }
             }
 
-            // Predicted Deductions (For Preview)
-            const sss = calculateSSS(accruedBase);
-            const ph = calculatePhilHealth(accruedBase);
-            const hdmf = calculateHDMF(accruedBase);
-            const grossTaxable = accruedBase + holidayPay + restDayPay + otPay + nightDiffPay - lateDeduction;
+            // --- DEDUCTION BASIS: Total Gross Pay (includes OT, Holidays, etc.) ---
+            const grossEarnings = accruedBase + holidayPay + restDayPay + (otPay || 0) + (nightDiffPay || 0);
+
+            // Indexing for government tables: Convert payout earnings to Monthly Equivalent
+            let multiplier = 1;
+            if (emp.salaryFrequency === 'Bi-Weekly') multiplier = 2;
+            else if (emp.salaryFrequency === 'Weekly') multiplier = 4;
+            else if (emp.salaryFrequency === 'Daily') multiplier = 26;
+
+            const monthlyEquivalent = grossEarnings * multiplier;
+
+            // Calculate monthly-scale deductions
+            const sssFull = calculateSSS(monthlyEquivalent);
+            const phFull = calculatePhilHealth(monthlyEquivalent);
+
+            // Payout Share
+            const sss = {
+                employee: sssFull.employee / multiplier,
+                employer: sssFull.employer / multiplier
+            };
+            const ph = {
+                employee: phFull.employee / multiplier,
+                employer: phFull.employer / multiplier
+            };
+            const hdmf = calculateHDMF(grossEarnings, emp.salaryFrequency);
+
+            const grossTaxable = grossEarnings - lateDeduction;
             const totalMandatoryEE = sss.employee + ph.employee + hdmf.employee;
-            const predictedTax = calculateWithholdingTax(grossTaxable - totalMandatoryEE);
-            const totalDeductions = totalMandatoryEE + predictedTax;
-            const netAmount = grossTaxable + (emp.nonTaxableAllowance || 0) - totalDeductions;
+
+            // For tax: Calculate monthly tax on monthly income, then divide by multiplier
+            const taxableMonthlyEquivalent = (grossTaxable * multiplier) - (totalMandatoryEE * multiplier);
+            const predictedTax = calculateWithholdingTax(taxableMonthlyEquivalent) / multiplier;
+
+            const totalDeductions = totalMandatoryEE + predictedTax + lateDeduction;
+            const netAmount = grossEarnings + (emp.nonTaxableAllowance || 0) - totalDeductions;
 
             return {
                 _id: emp._id,
