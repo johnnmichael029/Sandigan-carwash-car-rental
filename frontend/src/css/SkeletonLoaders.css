@@ -12,6 +12,11 @@
     display: block;
 }
 
+[data-theme='dark'] .sk {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 400% 100%;
+}
+
 @keyframes sk-shimmer {
     0%   { background-position: 100% 0; }
     100% { background-position: -100% 0; }
@@ -47,10 +52,36 @@
     overflow: hidden;
 }
 
+[data-theme='dark'] .sk-card {
+    background: #253347;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
 /* ── Darker variant for chart bars ── */
 .sk-bar {
     background: linear-gradient(180deg, #e2e8f0 0%, #f8fafc 100%);
+    background-size: 100% 400%;
+    animation: sk-shimmer-vertical 1.4s ease infinite;
     border-radius: 4px 4px 0 0;
+}
+
+[data-theme='dark'] .sk-bar {
+    background: linear-gradient(180deg, #1e293b 0%, #334155 100%);
+    background-size: 100% 400%;
+}
+
+@keyframes sk-shimmer-vertical {
+    0%   { background-position: 0 100%; }
+    100% { background-position: 0 -100%; }
+}
+
+.sk-chart-container {
+    border-left: 2px solid #f0f0f0;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+[data-theme='dark'] .sk-chart-container {
+    border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 /* ─── Legacy compatibility (keep old class names working) ─── */

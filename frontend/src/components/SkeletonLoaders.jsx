@@ -44,7 +44,6 @@ const TableRows = ({ rows = 6, cols = 4, avatar = false }) => (
             <div
                 key={i}
                 className="d-flex align-items-center gap-3 px-4 py-3 border-bottom"
-                style={{ borderColor: '#f8fafc' }}
             >
                 {avatar && (
                     <S w={36} h={36} r={50} className="flex-shrink-0" />
@@ -67,7 +66,7 @@ const TableRows = ({ rows = 6, cols = 4, avatar = false }) => (
 const TableShell = ({ title = true, rows = 6, cols = 4, avatar = false }) => (
     <div className="card border-0 shadow-sm rounded-4 overflow-hidden sk-card">
         {title && (
-            <div className="d-flex justify-content-between align-items-center px-4 py-3 border-bottom" style={{ borderColor: '#f8fafc' }}>
+            <div className="d-flex justify-content-between align-items-center px-4 py-3 border-bottom">
                 <S w={160} h={18} r={6} />
                 <S w={110} h={32} r={8} />
             </div>
@@ -160,7 +159,7 @@ export const VendorSkeleton = () => (
         </div>
         {/* Bills table — date | vendor | bill# | description | balance */}
         <div className="sk-card overflow-hidden">
-            <div className="px-4 py-3 border-bottom" style={{ borderColor: '#f8fafc' }}>
+            <div className="px-4 py-3 border-bottom">
                 <S w={160} h={16} />
             </div>
             <TableRows rows={6} cols={5} avatar={false} />
@@ -188,7 +187,7 @@ export const HRISSkeleton = () => (
         </div>
         {/* Employee directory card */}
         <div className="sk-card overflow-hidden">
-            <div className="d-flex justify-content-between align-items-center px-4 py-3 border-bottom" style={{ borderColor: '#f8fafc' }}>
+            <div className="d-flex justify-content-between align-items-center px-4 py-3 border-bottom">
                 <S w={170} h={16} />
                 <div className="d-flex gap-2">
                     <S w={140} h={32} r={20} />
@@ -197,7 +196,7 @@ export const HRISSkeleton = () => (
             </div>
             {/* Employee rows with avatars */}
             {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="d-flex align-items-center gap-3 px-4 py-3 border-bottom" style={{ borderColor: '#f8fafc' }}>
+                <div key={i} className="d-flex align-items-center gap-3 px-4 py-3 border-bottom">
                     <S w={40} h={40} r={50} className="flex-shrink-0" />
                     <div className="flex-grow-1">
                         <S w="30%" h={13} r={4} className="mb-2" />
@@ -334,12 +333,12 @@ export const PromotionsSkeleton = () => (
    ══════════════════════════════════════════════════════════ */
 export const TableSkeleton = () => (
     <div className="card shadow-sm rounded-4 border-0 bg-white w-100 skeleton-wrapper sk-card overflow-hidden">
-        <div className="d-flex justify-content-between align-items-center px-4 py-3 border-bottom" style={{ borderColor: '#f8fafc' }}>
+        <div className="d-flex justify-content-between align-items-center px-4 py-3 border-bottom">
             <S w={180} h={18} r={6} />
             <S w={110} h={32} r={8} />
         </div>
         {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="d-flex align-items-center gap-3 px-4 py-3 border-bottom" style={{ borderColor: '#f8fafc' }}>
+            <div key={i} className="d-flex align-items-center gap-3 px-4 py-3 border-bottom">
                 <S w={36} h={36} r={50} className="flex-shrink-0" />
                 <div className="flex-grow-1">
                     <S w="28%" h={13} r={4} className="mb-2" />
@@ -358,18 +357,17 @@ export const TableSkeleton = () => (
    ══════════════════════════════════════════════════════════ */
 export const ChartSkeleton = () => (
     <div
-        className="skeleton-wrapper d-flex align-items-end gap-2 w-100 mt-2 px-2"
-        style={{ height: 220, borderLeft: '2px solid #f0f0f0', borderBottom: '2px solid #f0f0f0' }}
+        className="skeleton-wrapper d-flex align-items-end gap-2 w-100 mt-2 px-2 sk-chart-container"
+        style={{ height: 220 }}
     >
         {[38, 55, 28, 70, 90, 48, 82, 60, 35, 75, 50, 65].map((h, i) => (
             <div
                 key={i}
-                className="sk flex-fill"
+                className="sk-bar flex-fill"
                 style={{
                     height: `${h}%`,
-                    borderRadius: '4px 4px 0 0',
                     minWidth: 8,
-                    animationDelay: `${i * 0.06}s`
+                    animationDelay: `${i * 0.1}s`
                 }}
             />
         ))}
