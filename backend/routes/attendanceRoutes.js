@@ -3,39 +3,30 @@ const router = express.Router();
 const attendanceController = require('../controllers/attendanceController');
 const requireAuth = require('../middleware/requireAuth');
 const adminOnly = require('../middleware/adminOnly');
-/**
- * Handle Clock In and Clock Out toggle
- */
-router.post('/clock', requireAuth, attendanceController.clockToggle);
+const cache = require('../middleware/cacheMiddleware');
+const { invalidatePrefixes } = require('../utils/cache');
 
-/**
- * Approve Overtime (Admin Only)
- */
-router.post('/approve-ot', requireAuth, adminOnly, attendanceController.approveOT);
+const invalidateAttendance = (req, res, next) => { invalidatePrefixes('attendance', 'payroll', 'sandi'); next(); };
 
-/**
- * Get today's attendance status
- */
-router.get('/today', requireAuth, attendanceController.getTodayStatus);
+// Clock In / Clock Out
+router.post('/clock', requireAuth, invalidateAttendance, attendanceController.clockToggle);
 
-/**
- * Get all attendance logs (Admin Only)
- */
-router.get('/all', requireAuth, adminOnly, attendanceController.getAllAttendance);
+// Approve Overtime (Admin Only)
+router.post('/approve-ot', requireAuth, adminOnly, invalidateAttendance, attendanceController.approveOT);
 
-/**
- * Update attendance details (Admin Only)
- */
-router.patch('/:id', requireAuth, adminOnly, attendanceController.updateAttendance);
+// Get today's attendance status — short 30s TTL, changes on clock events
+router.get('/today', requireAuth, cache('attendance', 30), attendanceController.getTodayStatus);
 
-/**
- * Delete attendance record (Admin Only)
- */
-router.delete('/:id', requireAuth, adminOnly, attendanceController.deleteAttendance);
+// Get all attendance logs (Admin Only)
+router.get('/all', requireAuth, adminOnly, cache('attendance', 60), attendanceController.getAllAttendance);
 
-/**
- * Admin Controlled Clocking (For staff without accounts)
- */
-router.post('/admin-clock', requireAuth, adminOnly, attendanceController.adminClockToggle);
+// Update attendance (Admin Only)
+router.patch('/:id', requireAuth, adminOnly, invalidateAttendance, attendanceController.updateAttendance);
+
+// Delete attendance record (Admin Only)
+router.delete('/:id', requireAuth, adminOnly, invalidateAttendance, attendanceController.deleteAttendance);
+
+// Admin Controlled Clocking
+router.post('/admin-clock', requireAuth, adminOnly, invalidateAttendance, attendanceController.adminClockToggle);
 
 module.exports = router;

@@ -3,21 +3,22 @@ const router = express.Router();
 const { getAllBills, createBill, recordBillPayment, getPayableSummary, getNextBillNumber } = require('../controllers/payableController');
 const requireAuth = require('../middleware/requireAuth');
 const adminOnly = require('../middleware/adminOnly');
+const cache = require('../middleware/cacheMiddleware');
+const { invalidatePrefixes } = require('../utils/cache');
 
-// 1. Overall AP Dashboard (Total Debt, Overdue, Upcoming)
-router.get('/summary', requireAuth, adminOnly, getPayableSummary);
+const invalidatePayables = (req, res, next) => { invalidatePrefixes('payable', 'finance', 'forecast', 'sandi'); next(); };
 
-// 1.1 Generate next sequential bill number (Frontend Prediction)
-router.get('/next-bill-number', requireAuth, adminOnly, getNextBillNumber);
+// AP Dashboard summary — cached 2 min
+router.get('/summary', requireAuth, adminOnly, cache('payable', 120), getPayableSummary);
 
-// 2. Fetch all bills (filterable by status, vendor, overdue)
-router.get('/', requireAuth, getAllBills);
+// Next bill number prediction — cached 30s
+router.get('/next-bill-number', requireAuth, adminOnly, cache('payable', 30), getNextBillNumber);
 
-// 3. Create a new bill (AP record)
-router.post('/add', requireAuth, adminOnly, createBill);
+// All bills — cached 90s
+router.get('/', requireAuth, cache('payable', 90), getAllBills);
 
-// 4. Critical Logic: Record a full or partial payment for a bill
-// This will auto-sync to the financial expense logs.
-router.post('/:id/pay', requireAuth, adminOnly, recordBillPayment);
+// Mutations — both invalidate finance + forecast (bill payments affect net profit)
+router.post('/add', requireAuth, adminOnly, invalidatePayables, createBill);
+router.post('/:id/pay', requireAuth, adminOnly, invalidatePayables, recordBillPayment);
 
 module.exports = router;

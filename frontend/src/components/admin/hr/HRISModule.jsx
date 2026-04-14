@@ -4,7 +4,8 @@ import { TableSkeleton, HRISSkeleton, KPICardSkeleton } from '../../SkeletonLoad
 import ROLE_COLORS from '../RoleColors';
 import Swal from 'sweetalert2';
 import jsPDF from 'jspdf';
-
+import useSWR from 'swr';
+import { swrFetcher, SWR_CONFIG } from '../../../api/swrFetcher';
 import axios from 'axios';
 import directoryIcon from '../../../assets/icon/directory.png';
 import attendanceIcon from '../../../assets/icon/attendance.png';
@@ -297,12 +298,30 @@ const HRISPage = ({ user, isDark }) => {
         return () => clearInterval(timer);
     }, []);
 
+    // ── SWR: Employee List ──────────────────────────────────────────────────────
+    // Cached in browser — no skeleton flash when switching tabs or navigating back.
+    const {
+        data: swrEmployees,
+        isLoading: swrEmpLoading,
+        mutate: mutateEmployees
+    } = useSWR('/employees', swrFetcher, SWR_CONFIG);
+
+    // Sync SWR data into local state so all existing code still works unchanged
+    useEffect(() => {
+        if (swrEmployees) {
+            setEmployees(swrEmployees);
+            setIsLoading(false);
+        }
+    }, [swrEmployees]);
+
+    useEffect(() => {
+        if (swrEmpLoading !== undefined) setIsLoading(swrEmpLoading);
+    }, [swrEmpLoading]);
+    // ───────────────────────────────────────────────────────────────────────────
+
     const fetchEmployees = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/employees`, { headers: authHeaders(), withCredentials: true });
-            setEmployees(res.data);
-        } catch (err) { console.error(err); }
-        finally { setIsLoading(false); }
+        // Still available for cases where we need a forced fresh fetch
+        await mutateEmployees();
     };
 
     const fetchLeaves = async (search = '') => {
@@ -639,9 +658,9 @@ const HRISPage = ({ user, isDark }) => {
 
     useEffect(() => {
         isHrisMounted.current = true;
-        fetchEmployees();
-        fetchLeaves(); // Load leaves on mount for the badge
-        fetchSkills(); // Load dynamic skills list
+        // SWR handles employees automatically — no manual fetch needed
+        fetchLeaves();
+        fetchSkills();
     }, []);
     useEffect(() => { if (hrTab === 'payroll' || hrTab === 'analytics') fetchPayroll(); }, [hrTab, payrollPeriod]);
     useEffect(() => { if (hrTab === 'attendance' || hrTab === 'directory') { fetchAttendance(); } if (hrTab === 'attendance') fetchHolidays(); }, [hrTab]);

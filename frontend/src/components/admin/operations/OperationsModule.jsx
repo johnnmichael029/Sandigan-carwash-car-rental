@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState } from 'react';
+import useSWR from 'swr';
 import { API_BASE, authHeaders } from '../../../api/config';
+import { swrFetcher, SWR_CONFIG } from '../../../api/swrFetcher';
 import { KPICardSkeleton, TableSkeleton } from '../../SkeletonLoaders';
 import BayManager from './BayManager';
 import AssetTracker from './AssetTracker';
@@ -10,32 +11,24 @@ import assetIcon from '../../../assets/icon/asset.png';
 import maintenanceIcon from '../../../assets/icon/maintenance.png';
 
 const OperationsModule = ({ user, isDark }) => {
-    const [bays, setBays] = useState([]);
-    const [assets, setAssets] = useState([]);
-    const [projects, setProjects] = useState([]);
-    const [employees, setEmployees] = useState([]);
-    const [inventoryItems, setInventoryItems] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    // ── SWR Data Fetching ──────────────────────────────────────────────────────
+    const { data: baysData, isLoading: loadingBays, mutate: mutateBays } = useSWR('/bays', swrFetcher, SWR_CONFIG);
+    const { data: assetsData, isLoading: loadingAssets, mutate: mutateAssets } = useSWR('/assets', swrFetcher, SWR_CONFIG);
+    const { data: projectsData, isLoading: loadingProjects, mutate: mutateProjects } = useSWR('/maintenance', swrFetcher, SWR_CONFIG);
+    const { data: empData, isLoading: loadingEmp, mutate: mutateEmp } = useSWR('/employees', swrFetcher, SWR_CONFIG);
+    const { data: invData, isLoading: loadingInv, mutate: mutateInv } = useSWR('/inventory', swrFetcher, SWR_CONFIG);
+
+    const bays = baysData || [];
+    const assets = assetsData || [];
+    const projects = projectsData || [];
+    const employees = (empData?.employees || empData) || [];
+    const inventoryItems = invData || [];
+    const isLoading = loadingBays || loadingAssets || loadingProjects || loadingEmp || loadingInv;
+
+    // Refresh all data — passed as onRefresh to child panels
+    const fetchAll = () => { mutateBays(); mutateAssets(); mutateProjects(); mutateEmp(); mutateInv(); };
+
     const [activeTab, setActiveTab] = useState('bays');
-
-    const fetchAll = async () => {
-        setIsLoading(true);
-        try {
-            const [bayRes, assetRes, projRes, empRes, invRes] = await Promise.all([
-                axios.get(`${API_BASE}/bays`, { headers: authHeaders(), withCredentials: true }),
-                axios.get(`${API_BASE}/assets`, { headers: authHeaders(), withCredentials: true }),
-                axios.get(`${API_BASE}/maintenance`, { headers: authHeaders(), withCredentials: true }),
-                axios.get(`${API_BASE}/employees`, { headers: authHeaders(), withCredentials: true }),
-                axios.get(`${API_BASE}/inventory`, { headers: authHeaders(), withCredentials: true }),
-            ]);
-            setBays(bayRes.data); setAssets(assetRes.data); setProjects(projRes.data);
-            setEmployees(empRes.data?.employees || empRes.data || []);
-            setInventoryItems(invRes.data || []);
-        } catch (err) { console.error('Operations fetch error:', err); }
-        setIsLoading(false);
-    };
-
-    useEffect(() => { fetchAll(); }, []);
 
     // KPI calculations
     const now = new Date();

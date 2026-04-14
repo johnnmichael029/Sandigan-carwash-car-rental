@@ -1,19 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const requireAuth = require('../middleware/requireAuth');
-const { 
-    getPricing, 
-    createVehiclePricing, 
-    updateVehiclePricing, 
-    deleteVehiclePricing 
-} = require('../controllers/pricingController');
+const { getPricing, createVehiclePricing, updateVehiclePricing, deleteVehiclePricing } = require('../controllers/pricingController');
+const cache = require('../middleware/cacheMiddleware');
+const { invalidatePrefixes } = require('../utils/cache');
 
-// GET all prices (public so booking page can use it)
-router.get('/', getPricing);
+const invalidatePricing = (req, res, next) => { invalidatePrefixes('pricing'); next(); };
 
-// CRUD routes for Admin
-router.post('/', requireAuth, createVehiclePricing);
-router.put('/:id', requireAuth, updateVehiclePricing);
-router.delete('/:id', requireAuth, deleteVehiclePricing);
+// Pricing is public (used on booking page) — cached 1 hour (rarely changes)
+router.get('/', cache('pricing', 3600), getPricing);
+
+router.post('/', requireAuth, invalidatePricing, createVehiclePricing);
+router.put('/:id', requireAuth, invalidatePricing, updateVehiclePricing);
+router.delete('/:id', requireAuth, invalidatePricing, deleteVehiclePricing);
 
 module.exports = router;

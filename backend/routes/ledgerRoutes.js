@@ -3,8 +3,9 @@ const router = express.Router();
 const requireAuth = require('../middleware/requireAuth');
 const adminOnly = require('../middleware/adminOnly');
 const { getLedger } = require('../controllers/ledgerController');
+const cache = require('../middleware/cacheMiddleware');
 
-// GET /api/ledger — admin-only unified general ledger
-router.get('/', requireAuth, adminOnly, getLedger);
+// General Ledger — cached 2 min (read-heavy, expensive aggregation)
+router.get('/', requireAuth, adminOnly, cache('ledger', 120), getLedger);
 
 module.exports = router;

@@ -3,16 +3,18 @@ const router = express.Router();
 const { getAllVendors, createVendor, updateVendor, deleteVendor, getVendorStats } = require('../controllers/vendorController');
 const requireAuth = require('../middleware/requireAuth');
 const adminOnly = require('../middleware/adminOnly');
+const cache = require('../middleware/cacheMiddleware');
+const { invalidatePrefixes } = require('../utils/cache');
 
-// 1. Fetch overall vendor list (with totals)
-router.get('/', requireAuth, getAllVendors);
+const invalidateVendor = (req, res, next) => { invalidatePrefixes('vendor', 'payable'); next(); };
 
-// 2. Fetch specific vendor with full bill history
-router.get('/:id/stats', requireAuth, adminOnly, getVendorStats);
+// Vendor list — cached 2 min
+router.get('/', requireAuth, cache('vendor', 120), getAllVendors);
+// Vendor stats — cached 90s
+router.get('/:id/stats', requireAuth, adminOnly, cache('vendor', 90), getVendorStats);
 
-// 3. CRUD for vendors
-router.post('/add', requireAuth, adminOnly, createVendor);
-router.put('/:id/update', requireAuth, adminOnly, updateVendor);
-router.delete('/:id/delete', requireAuth, adminOnly, deleteVendor);
+router.post('/add', requireAuth, adminOnly, invalidateVendor, createVendor);
+router.put('/:id/update', requireAuth, adminOnly, invalidateVendor, updateVendor);
+router.delete('/:id/delete', requireAuth, adminOnly, invalidateVendor, deleteVendor);
 
 module.exports = router;

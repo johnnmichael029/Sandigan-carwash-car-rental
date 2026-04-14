@@ -1,34 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import useSWR from 'swr';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE, authHeaders } from '../../../api/config';
+import { swrFetcher } from '../../../api/swrFetcher';
 
 // Replace with the actual generated mascot path
 import sandiMascot from '../../../assets/sandi_front.png';
 
 const SandiAssistant = ({ isDark }) => {
-    const [insights, setInsights] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState("");
+    const [message, setMessage] = useState('');
 
+    // SWR with refreshInterval replaces the manual setInterval pattern
+    const { data: insights, isLoading: loading } = useSWR('/sandi/insights', swrFetcher, {
+        revalidateOnFocus: false,
+        refreshInterval: 5 * 60 * 1000, // 5 minutes
+        dedupingInterval: 5 * 60 * 1000,
+        shouldRetryOnError: false,
+    });
 
     useEffect(() => {
-        fetchInsights();
-        const interval = setInterval(fetchInsights, 300000); // Refresh every 5 mins
-        return () => clearInterval(interval);
-    }, []);
-
-    const fetchInsights = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/sandi/insights`, { headers: authHeaders(), withCredentials: true });
-            setInsights(res.data);
-            generateMessage(res.data);
-        } catch (err) {
-            console.error('Sandi fetch error:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
+        if (insights) generateMessage(insights);
+    }, [insights]);
 
     const generateMessage = (data) => {
         const { finance, operations, hr, inventory } = data;

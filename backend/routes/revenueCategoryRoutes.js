@@ -3,15 +3,15 @@ const router = express.Router();
 const { getCategories, createCategory, updateCategory, deleteCategory } = require('../controllers/revenueCategoryController');
 const requireAuth = require('../middleware/requireAuth');
 const adminOnly = require('../middleware/adminOnly');
+const cache = require('../middleware/cacheMiddleware');
+const { invalidatePrefixes } = require('../utils/cache');
 
-// Route applies to: /api/revenue-categories
+const invalidateCat = (req, res, next) => { invalidatePrefixes('rev-cat', 'revenue'); next(); };
 
-// All authenticated staff can see categories for display purposes
-router.get('/', requireAuth, getCategories);
-
-// Management (Admin only)
-router.post('/', requireAuth, adminOnly, createCategory);
-router.patch('/:id', requireAuth, adminOnly, updateCategory);
-router.delete('/:id', requireAuth, adminOnly, deleteCategory);
+// Revenue categories — cached 1 hour (rarely changes)
+router.get('/', requireAuth, cache('rev-cat', 3600), getCategories);
+router.post('/', requireAuth, adminOnly, invalidateCat, createCategory);
+router.patch('/:id', requireAuth, adminOnly, invalidateCat, updateCategory);
+router.delete('/:id', requireAuth, adminOnly, invalidateCat, deleteCategory);
 
 module.exports = router;

@@ -1,5 +1,7 @@
 const express = require('express');
 const requireAuth = require('../middleware/requireAuth');
+const cache = require('../middleware/cacheMiddleware');
+const { invalidatePrefixes } = require('../utils/cache');
 const {
     getBookings,
     getBooking,
@@ -11,29 +13,15 @@ const {
 } = require('../controllers/bookingController');
 const router = express.Router();
 
-// --- PUBLIC ROUTES (customers don't need to log in to book) ---
+// --- PUBLIC ROUTES ---
+router.get('/availability', cache('booking', 30), getAvailableTimeSlots);
+router.post('/', (req, res, next) => { invalidatePrefixes('booking', 'forecast', 'finance', 'revenue', 'sandi'); next(); }, createBooking);
 
-// Check available time slots (public — used on booking form)
-router.get('/availability', getAvailableTimeSlots);
-
-// Create a booking (public — customers submit this)
-router.post('/', createBooking);
-
-// --- PROTECTED ROUTES (employee or admin only) ---
-
-// Performance history — employees only
-router.get('/employee-history/:id', requireAuth, getEmployeeHistory);
-
-// Get all bookings — employees only
-router.get('/', requireAuth, getBookings);
-
-// Get a single booking — employees only
-router.get('/:id', requireAuth, getBooking);
-
-// Update booking status — employees only
-router.patch('/:id', requireAuth, updateBooking);
-
-// Delete a booking — employees only
-router.delete('/:id', requireAuth, deleteBooking);
+// --- PROTECTED ROUTES ---
+router.get('/employee-history/:id', requireAuth, cache('booking', 60), getEmployeeHistory);
+router.get('/', requireAuth, cache('booking', 60), getBookings);
+router.get('/:id', requireAuth, cache('booking', 30), getBooking);
+router.patch('/:id', requireAuth, (req, res, next) => { invalidatePrefixes('booking', 'forecast', 'finance', 'revenue', 'sandi'); next(); }, updateBooking);
+router.delete('/:id', requireAuth, (req, res, next) => { invalidatePrefixes('booking', 'forecast', 'finance', 'revenue', 'sandi'); next(); }, deleteBooking);
 
 module.exports = router;

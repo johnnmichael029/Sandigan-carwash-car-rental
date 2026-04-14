@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import useSWR from 'swr';
+import { swrFetcher, SWR_CONFIG } from '../../../api/swrFetcher';
 import { API_BASE, authHeaders } from '../../../api/config';
 import { FinanceSkeleton, TableSkeleton, ChartSkeleton, KPICardSkeleton } from '../../SkeletonLoaders';
 import BillCategorySettings from './BillCategorySettings';
@@ -142,16 +144,6 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                 if (mapSetting && mapSetting.value?.mappings) setErpMapping(mapSetting.value.mappings);
             }).catch(err => console.warn("Failed to fetch settings:", err));
 
-            // Fetch summary
-            const summaryUrl = rangeFrom && rangeTo
-                ? `${API_BASE}/finance/summary?from=${rangeFrom}&to=${rangeTo}`
-                : `${API_BASE}/finance/summary?period=${financePeriod}`;
-
-            axios.get(summaryUrl, { headers: authHeaders(), withCredentials: true })
-                .then(res => setSummary(res.data))
-                .catch(err => console.error("Summary fetch error:", err));
-
-
             // Fetch categories in parallel
             Promise.allSettled([
                 axios.get(`${API_BASE}/inventory-categories`, { headers: authHeaders(), withCredentials: true }),
@@ -167,17 +159,45 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
         finally { setIsLoading(false); }
     };
 
+    // ── SWR: Financial Summary ─────────────────────────────────────────────
+    // The key includes the period + date range so each filter has its own cache.
+    const summaryKey = rangeFrom && rangeTo
+        ? `/finance/summary?from=${rangeFrom}&to=${rangeTo}`
+        : `/finance/summary?period=${financePeriod}`;
+
+    const {
+        data: swrSummary,
+        isLoading: swrSummaryLoading,
+        mutate: mutateSummary
+    } = useSWR(summaryKey, swrFetcher, SWR_CONFIG);
+
+    useEffect(() => {
+        if (swrSummary) {
+            setSummary(swrSummary);
+            setIsLoading(false);
+        }
+    }, [swrSummary]);
+
+    // ── SWR: Forecast ────────────────────────────────────────────────────
+    // 5-min deduplication matches our backend cache TTL exactly.
+    const {
+        data: swrForecast,
+        mutate: mutateForecast
+    } = useSWR('/forecast', swrFetcher, SWR_CONFIG);
+
+    useEffect(() => {
+        if (swrForecast) setForecast(swrForecast);
+    }, [swrForecast]);
+    // ───────────────────────────────────────────────────────────────────────────
+
     const fetchForecast = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/forecast`, { headers: authHeaders(), withCredentials: true });
-            setForecast(res.data);
-        } catch (err) { console.error('Error fetching forecast:', err); }
+        // SWR handles forecast now — this triggers a fresh fetch
+        await mutateForecast();
     };
 
     useEffect(() => {
         if (activeTab === 'overview' || activeTab === 'revenues' || activeTab === 'expenses') {
-            fetchFinanceData();
-            fetchForecast();
+            fetchFinanceData(); // loads settings + categories (not summary/forecast — SWR handles those)
             fetchExpenses();
             fetchRevenues();
             isFinanceMounted.current = true;

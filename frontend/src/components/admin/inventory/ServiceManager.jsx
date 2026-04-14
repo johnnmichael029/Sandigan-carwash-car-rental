@@ -1,62 +1,41 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import useSWR from 'swr';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { API_BASE, authHeaders } from '../../../api/config';
+import { swrFetcher, SWR_CONFIG_STATIC } from '../../../api/swrFetcher';
 import { TableSkeleton, InventorySkeleton } from '../../SkeletonLoaders';
 import deleteIcon from '../../../assets/icon/delete.png';
 import VehicleTypeSettings from './VehicleTypeSettings';
 
 const ServiceSettingsPage = ({ user, isDark }) => {
+    // ── SWR Data Fetching (static configs — 1hr dedupe) ───────────────────────
+    const { data: pricingData, isLoading: loadingPricing, mutate: mutatePricing } = useSWR('/pricing', swrFetcher, SWR_CONFIG_STATIC);
+    const { data: fleetData, isLoading: loadingFleet, mutate: mutateFleet } = useSWR('/rental-fleet/admin', swrFetcher, SWR_CONFIG_STATIC);
+    const { data: vehicleTypesData, isLoading: loadingTypes, mutate: mutateVehicleTypes } = useSWR('/vehicle-types', swrFetcher, SWR_CONFIG_STATIC);
+
+    const isLoading = loadingPricing || loadingFleet || loadingTypes;
+    const vehicles = pricingData?.dynamicPricing || [];
+    const fleet = fleetData || [];
+    const vehicleTypesList = vehicleTypesData || [];
+
+    // Compat helpers for VehicleTypeSettings onUpdate callback
+    const fetchVehicleTypes = () => mutateVehicleTypes();
+
     // Shared state
     const [activeTab, setActiveTab] = useState('wash');
-    const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-
     // Wash Pricing State
-    const [vehicles, setVehicles] = useState([]);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [editingDoc, setEditingDoc] = useState(null);
 
     // Rental Fleet State
-    const [fleet, setFleet] = useState([]);
     const [selectedFleet, setSelectedFleet] = useState(null);
     const [editingFleet, setEditingFleet] = useState(null);
 
     // Global Settings Modals State
-    const [vehicleTypesList, setVehicleTypesList] = useState([]);
     const [showVehicleTypeModal, setShowVehicleTypeModal] = useState(false);
-
-    useEffect(() => {
-        Promise.all([fetchPricing(), fetchFleet(), fetchVehicleTypes()]).finally(() => setIsLoading(false));
-    }, []);
-
-    const fetchPricing = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/pricing`, { headers: authHeaders(), withCredentials: true });
-            setVehicles(res.data.dynamicPricing || []);
-        } catch (err) {
-            console.error('Error fetching pricing:', err);
-        }
-    };
-
-    const fetchVehicleTypes = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/vehicle-types`, { headers: authHeaders(), withCredentials: true });
-            setVehicleTypesList(res.data || []);
-        } catch (err) {
-            console.error('Error fetching vehicle types:', err);
-        }
-    };
-
-    const fetchFleet = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/rental-fleet/admin`, { headers: authHeaders(), withCredentials: true });
-            setFleet(res.data || []);
-        } catch (err) {
-            console.error('Error fetching fleet:', err);
-        }
-    };
 
     const handleSelectVehicle = (v) => {
         setSelectedVehicle(v);
@@ -83,7 +62,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
             const res = await axios.post(`${API_BASE}/pricing`, {
                 vehicleType: name.trim(), services: [], addons: []
             }, { headers: authHeaders(), withCredentials: true });
-            setVehicles(prev => [...prev, res.data]);
+            mutatePricing();
             setSelectedVehicle(res.data);
             setEditingDoc(JSON.parse(JSON.stringify(res.data)));
             Swal.fire({ title: 'Vehicle Added!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
@@ -106,7 +85,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
 
         try {
             await axios.delete(`${API_BASE}/pricing/${id}`, { headers: authHeaders(), withCredentials: true });
-            setVehicles(vehicles.filter(v => v._id !== id));
+            mutatePricing();
             if (selectedVehicle?._id === id) {
                 setSelectedVehicle(null);
                 setEditingDoc(null);
@@ -136,7 +115,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
             }, { headers: authHeaders(), withCredentials: true });
 
             if (res.data && res.data._id) {
-                setVehicles(prev => prev.map(v => v._id === res.data._id ? res.data : v));
+                mutatePricing();
                 setSelectedVehicle(res.data);
                 setEditingDoc(JSON.parse(JSON.stringify(res.data))); // Refresh edit buffer
                 Swal.fire({
@@ -184,7 +163,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
             const res = await axios.post(`${API_BASE}/rental-fleet`, {
                 vehicleName: name.trim(), vehicleType: vehicleTypesList.length > 0 ? vehicleTypesList[0].name : 'Sedan', seats: 5, pricePerDay: 2000
             }, { headers: authHeaders(), withCredentials: true });
-            setFleet(prev => [...prev, res.data]);
+            mutateFleet();
             setSelectedFleet(res.data);
             setEditingFleet(JSON.parse(JSON.stringify(res.data)));
             Swal.fire({ title: 'Rental Vehicle Added!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
@@ -207,7 +186,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
 
         try {
             await axios.delete(`${API_BASE}/rental-fleet/${id}`, { headers: authHeaders(), withCredentials: true });
-            setFleet(fleet.filter(f => f._id !== id));
+            mutateFleet();
             if (selectedFleet?._id === id) { setSelectedFleet(null); setEditingFleet(null); }
             Swal.fire({ title: 'Deleted!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
         } catch (err) {
@@ -220,7 +199,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
         setIsSaving(true);
         try {
             const res = await axios.put(`${API_BASE}/rental-fleet/${editingFleet._id}`, editingFleet, { headers: authHeaders(), withCredentials: true });
-            setFleet(prev => prev.map(f => f._id === res.data._id ? res.data : f));
+            mutateFleet();
             setSelectedFleet(res.data);
             setEditingFleet(JSON.parse(JSON.stringify(res.data)));
             Swal.fire({ title: 'Saved Successfully!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });

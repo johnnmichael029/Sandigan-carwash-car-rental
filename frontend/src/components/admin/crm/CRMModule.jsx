@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
+import useSWR from 'swr';
 import { API_BASE, authHeaders } from '../../../api/config';
+import { swrFetcher, SWR_CONFIG, SWR_CONFIG_STATIC } from '../../../api/swrFetcher';
 import { TableSkeleton, CRMSkeleton } from '../../SkeletonLoaders';
 import Swal from 'sweetalert2';
 import axios from 'axios';
@@ -18,8 +20,15 @@ import getPaginationRange from '../getPaginationRange';
 import sandiganLogo from '../../../assets/logo/sandigan-logo.png';
 
 const CRMPage = ({ user, isDark }) => {
-    const [customers, setCustomers] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    // ── SWR Data Fetching ──────────────────────────────────────────────────────
+    const { data: customersData, isLoading, mutate: mutateCustomers } = useSWR('/crm', swrFetcher, SWR_CONFIG);
+    const { data: tagsData, mutate: mutateTags } = useSWR('/crm/tags/all', swrFetcher, SWR_CONFIG);
+    const { data: settingsData } = useSWR('/finance/settings', swrFetcher, SWR_CONFIG_STATIC);
+
+    const customers = customersData || [];
+    const availableTags = tagsData || [];
+    const smcConfigFromSettings = settingsData?.find(s => s.key === 'smc_config')?.value;
+
     const [isSyncing, setIsSyncing] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTab, setFilterTab] = useState('All');
@@ -41,7 +50,6 @@ const CRMPage = ({ user, isDark }) => {
     const [editClientData, setEditClientData] = useState(null);
 
     // Tag Manager State (saved on change)
-    const [availableTags, setAvailableTags] = useState([]);
     const [clientTags, setClientTags] = useState([]);
     const [isSavingTags, setIsSavingTags] = useState(false);
     // Tag Library CRUD
@@ -53,7 +61,7 @@ const CRMPage = ({ user, isDark }) => {
 
     // SMC Config and Print State
     const [showSMCConfig, setShowSMCConfig] = useState(false);
-    const [smcConfig, setSmcConfig] = useState({
+    const [smcConfig, setSmcConfig] = useState(smcConfigFromSettings || {
         cardName: 'Sandigan Membership Card',
         abbreviation: 'SMC',
         price: 500,
@@ -63,31 +71,6 @@ const CRMPage = ({ user, isDark }) => {
     });
     const [isSavingSMC, setIsSavingSMC] = useState(false);
     const [showSMCPrint, setShowSMCPrint] = useState(false);
-
-    const fetchCustomers = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/crm`, { headers: authHeaders(), withCredentials: true });
-            setCustomers(res.data);
-        } catch (err) { console.error('Error fetching CRM data:', err); }
-        finally { setIsLoading(false); }
-    };
-
-    const fetchTags = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/crm/tags/all`, { headers: authHeaders(), withCredentials: true });
-            setAvailableTags(res.data);
-        } catch (err) { console.error('Error fetching CRM tags:', err); }
-    };
-
-    const fetchSMCConfig = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/finance/settings`, { headers: authHeaders(), withCredentials: true });
-            const setting = res.data.find(s => s.key === 'smc_config');
-            if (setting && setting.value) setSmcConfig(setting.value);
-        } catch (err) { console.error('Error fetching SMC config:', err); }
-    };
-
-    useEffect(() => { fetchCustomers(); fetchTags(); fetchSMCConfig(); }, []);
 
     const handleSync = async () => {
         setIsSyncing(true);
@@ -104,7 +87,7 @@ const CRMPage = ({ user, isDark }) => {
                 background: '#002525',
                 color: '#FAFAFA'
             });
-            fetchCustomers();
+            mutateCustomers();
         } catch (err) { Swal.fire('Error', 'Failed to synchronize bookings.', 'error'); }
         finally { setIsSyncing(false); }
     };
@@ -144,7 +127,7 @@ const CRMPage = ({ user, isDark }) => {
             Swal.fire({ title: 'Profile Updated!', icon: 'success', toast: true, position: 'top-end', timer: 2500, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
             setSelectedClient(prev => ({ ...prev, ...res.data }));
             setShowEditClientModal(false);
-            fetchCustomers();
+            mutateCustomers();
         } catch (err) {
             Swal.fire('Error', err.response?.data?.error || 'Failed to update profile.', 'error');
         } finally {
@@ -167,7 +150,7 @@ const CRMPage = ({ user, isDark }) => {
             await axios.delete(`${API_BASE}/crm/${selectedClient._id}`, { headers: authHeaders(), withCredentials: true });
             Swal.fire({ title: 'Deleted!', icon: 'success', toast: true, position: 'top-end', timer: 2500, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
             setSelectedClient(null);
-            fetchCustomers();
+            mutateCustomers();
         } catch (err) {
             Swal.fire('Error', 'Failed to delete this client.', 'error');
         }
@@ -183,7 +166,7 @@ const CRMPage = ({ user, isDark }) => {
             await axios.put(`${API_BASE}/crm/${selectedClient._id}`, { tags: clientTags }, { headers: authHeaders(), withCredentials: true });
             Swal.fire({ title: 'Tags Updated!', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
             setSelectedClient(prev => ({ ...prev, tags: clientTags }));
-            fetchCustomers();
+            mutateCustomers();
         } catch (err) {
             Swal.fire('Error', 'Failed to save tags.', 'error');
         } finally {
@@ -206,7 +189,7 @@ const CRMPage = ({ user, isDark }) => {
                 color: '#FAFAFA'
             });
             setSelectedClient(prev => ({ ...prev, notes: notesText }));
-            fetchCustomers(); // refresh table
+            mutateCustomers(); // refresh table
         } catch (err) {
             Swal.fire('Error', 'Failed to save notes.', 'error');
         } finally {
@@ -241,7 +224,7 @@ const CRMPage = ({ user, isDark }) => {
             const res = await axios.post(`${API_BASE}/crm/${selectedClient._id}/smc`, {}, { headers: authHeaders(), withCredentials: true });
             Swal.fire({ title: 'Card Issued!', text: `Card ID ${res.data.customer.smcId}`, icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
             setSelectedClient(prev => ({ ...prev, ...res.data.customer }));
-            fetchCustomers();
+            mutateCustomers();
             setShowSMCPrint(true);
         } catch (err) {
             Swal.fire('Error', err.response?.data?.error || 'Failed to issue SMC.', 'error');
@@ -270,7 +253,7 @@ const CRMPage = ({ user, isDark }) => {
             await axios.post(`${API_BASE}/crm/tags`, newTagData, { headers: authHeaders(), withCredentials: true });
             Swal.fire({ title: 'Tag Created!', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
             setNewTagData({ name: '', color: '#6b7280', textColor: '#ffffff', description: '' });
-            fetchTags();
+            mutateTags();
         } catch (err) {
             Swal.fire('Error', err.response?.data?.error || 'Failed to create tag.', 'error');
         } finally { setIsCreatingTag(false); }
@@ -283,7 +266,7 @@ const CRMPage = ({ user, isDark }) => {
             await axios.put(`${API_BASE}/crm/tags/${editingTag._id}`, editingTag, { headers: authHeaders(), withCredentials: true });
             Swal.fire({ title: 'Tag Updated!', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
             setEditingTag(null);
-            fetchTags();
+            mutateTags();
         } catch (err) {
             Swal.fire('Error', err.response?.data?.error || 'Failed to update tag.', 'error');
         } finally { setIsUpdatingTag(false); }
@@ -302,7 +285,7 @@ const CRMPage = ({ user, isDark }) => {
         try {
             await axios.delete(`${API_BASE}/crm/tags/${tag._id}`, { headers: authHeaders(), withCredentials: true });
             Swal.fire({ title: 'Tag Deleted!', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
-            fetchTags();
+            mutateTags();
         } catch (err) {
             Swal.fire('Error', err.response?.data?.error || 'Could not delete tag.', 'error');
         }
@@ -325,7 +308,7 @@ const CRMPage = ({ user, isDark }) => {
             });
             setShowAddClientModal(false);
             setNewClientData({ firstName: '', lastName: '', email: '', phone: '', vehicles: '', notes: '' });
-            fetchCustomers();
+            mutateCustomers();
         } catch (err) {
             Swal.fire('Error', err.response?.data?.error || 'Failed to add client.', 'error');
         } finally {
@@ -335,7 +318,6 @@ const CRMPage = ({ user, isDark }) => {
 
     const totalClients = customers.length;
     const vipCount = customers.filter(c => c.activeTags?.includes('VIP')).length;
-    const churnRiskCount = customers.filter(c => c.activeTags?.includes('Churn Risk')).length;
     const avgLtv = totalClients > 0 ? customers.reduce((sum, c) => sum + (c.lifetimeSpend || 0), 0) / totalClients : 0;
     const smcMembersCount = customers.filter(c => c.activeTags?.includes('SMC')).length;
 

@@ -1,14 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import useSWR from 'swr';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { API_BASE, authHeaders } from '../../../api/config';
+import { swrFetcher, SWR_CONFIG } from '../../../api/swrFetcher';
 import AdminModalWrapper from '../shared/AdminModalWrapper';
 import editIcon from '../../../assets/icon/edit.png';
 import deleteIcon from '../../../assets/icon/delete.png';
 
 const PurchaseOrderManager = ({ vendors, inventoryItems, onUpdate }) => {
-    const [pos, setPos] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    // ── SWR Data Fetching ──────────────────────────────────────────────────────
+    const { data: posData, isLoading, mutate: mutatePOs } = useSWR('/purchase-orders', swrFetcher, SWR_CONFIG);
+    const pos = posData || [];
+
     const [showModal, setShowModal] = useState(false);
     const [editingPO, setEditingPO] = useState(null); // null = create mode, object = edit mode
 
@@ -19,15 +23,6 @@ const PurchaseOrderManager = ({ vendors, inventoryItems, onUpdate }) => {
         expectedDeliveryDate: '',
         notes: ''
     });
-
-    const fetchPOs = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/purchase-orders`, { headers: authHeaders(), withCredentials: true });
-            setPos(res.data);
-        } catch (err) { console.error(err); } finally { setIsLoading(false); }
-    };
-
-    useEffect(() => { fetchPOs(); }, []);
 
     const handleAddItemToPO = () => {
         setNewPO({
@@ -68,7 +63,7 @@ const PurchaseOrderManager = ({ vendors, inventoryItems, onUpdate }) => {
             setShowModal(false);
             setEditingPO(null);
             setNewPO({ vendor: '', items: [], expectedDeliveryDate: '', notes: '' });
-            fetchPOs();
+            mutatePOs();
             if (onUpdate) onUpdate();
         } catch (err) { Swal.fire('Error', err.response?.data?.error || err.message || 'Failed to save PO', 'error'); }
     };
@@ -101,7 +96,7 @@ const PurchaseOrderManager = ({ vendors, inventoryItems, onUpdate }) => {
             try {
                 await axios.delete(`${API_BASE}/purchase-orders/${po._id}`, { headers: authHeaders(), withCredentials: true });
                 Swal.fire({ title: 'PO Deleted!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#002525', color: '#fff' });
-                fetchPOs();
+                mutatePOs();
                 if (onUpdate) onUpdate();
             } catch (err) { Swal.fire('Error', err.response?.data?.error || 'Cannot delete this PO', 'error'); }
         }
@@ -120,7 +115,7 @@ const PurchaseOrderManager = ({ vendors, inventoryItems, onUpdate }) => {
             try {
                 await axios.post(`${API_BASE}/purchase-orders/${id}/receive`, {}, { headers: authHeaders(), withCredentials: true });
                 Swal.fire({ title: 'Inventory Restocked & Bill Created!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#002525', color: '#fff' });
-                fetchPOs();
+                mutatePOs();
                 if (onUpdate) onUpdate();
             } catch (err) { Swal.fire('Error', err.response?.data?.error || 'Failed to receive', 'error'); }
         }

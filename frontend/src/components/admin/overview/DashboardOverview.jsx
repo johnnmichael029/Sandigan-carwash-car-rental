@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import useSWR from 'swr';
 import { io } from 'socket.io-client';
 import { API_BASE, authHeaders } from '../../../api/config';
+import { swrFetcher, SWR_CONFIG } from '../../../api/swrFetcher';
 import { ChartSkeleton, KPICardSkeleton } from '../../SkeletonLoaders';
 import TopHeader from '../TopHeader';
 import revenueIcon from '../../../assets/icon/revenue.png';
@@ -15,38 +16,24 @@ import {
 import SandiAssistant from './SandiAssistant';
 
 const AdminOverview = ({ user, onNavigate, isDark }) => {
-    const [bookings, setBookings] = useState([]);
-    const [employees, setEmployees] = useState([]);
-    const [revenues, setRevenues] = useState([]);
-    const [totalGross, setTotalGross] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
+    // ── SWR Data Fetching ──────────────────────────────────────────────────────
+    const { data: bookingsData, isLoading: loadingBookings, mutate: mutateBookings } = useSWR('/booking', swrFetcher, SWR_CONFIG);
+    const { data: employeesData, isLoading: loadingEmployees } = useSWR('/employees', swrFetcher, SWR_CONFIG);
+    const { data: revenueData, isLoading: loadingRevenue } = useSWR('/revenue', swrFetcher, SWR_CONFIG);
+
+    const bookings = bookingsData || [];
+    const employees = employeesData || [];
+    const revenues = revenueData?.revenues || [];
+    const totalGross = revenueData?.total || 0;
+    const isLoading = loadingBookings || loadingEmployees || loadingRevenue;
+
     const [chartFilter, setChartFilter] = useState('daily');
 
+    // ── Real-time Socket Updates ───────────────────────────────────────────────
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [bookingsRes, employeesRes, revenueRes] = await Promise.all([
-                    axios.get(`${API_BASE}/booking`, { headers: authHeaders(), withCredentials: true }),
-                    axios.get(`${API_BASE}/employees`, { headers: authHeaders(), withCredentials: true }),
-                    axios.get(`${API_BASE}/revenue`, { headers: authHeaders(), withCredentials: true }),
-                ]);
-                setBookings(bookingsRes.data);
-                setEmployees(employeesRes.data);
-                
-                // revenueRes.data is { revenues, total }
-                setRevenues(revenueRes.data.revenues || []);
-                setTotalGross(revenueRes.data.total || 0);
-            } catch (err) {
-                console.error('Failed to fetch admin overview data', err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchData();
-
         const socket = io(API_BASE.replace('/api', ''));
-        socket.on('new_booking', (newBooking) => setBookings(prev => [newBooking, ...prev]));
-        socket.on('update_booking', (updated) => setBookings(prev => prev.map(b => b._id === updated._id ? updated : b)));
+        socket.on('new_booking', (newBooking) => mutateBookings(prev => [newBooking, ...(prev || [])], false));
+        socket.on('update_booking', (updated) => mutateBookings(prev => (prev || []).map(b => b._id === updated._id ? updated : b), false));
         return () => socket.disconnect();
     }, []);
 

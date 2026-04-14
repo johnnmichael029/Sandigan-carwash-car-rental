@@ -5,18 +5,22 @@ const adminOnly = require('../middleware/adminOnly');
 const { getExpenses, createExpense, deleteExpense } = require('../controllers/expenseController');
 const { getSettings, updateSetting } = require('../controllers/settingController');
 const Booking = require('../models/bookingModel');
+const cache = require('../middleware/cacheMiddleware');
+const { invalidatePrefixes } = require('../utils/cache');
 
-// All finance routes are admin-protected
-router.get('/expenses', requireAuth, adminOnly, getExpenses);
-router.post('/expenses', requireAuth, adminOnly, createExpense);
-router.delete('/expenses/:id', requireAuth, adminOnly, deleteExpense);
+const invalidateFinance = (req, res, next) => { invalidatePrefixes('finance', 'forecast', 'sandi'); next(); };
 
-// Settings routes — GET all & POST (upsert) a setting
-router.get('/settings', requireAuth, adminOnly, getSettings);
-router.post('/settings', requireAuth, adminOnly, updateSetting);
+// Expenses — cached 60s
+router.get('/expenses', requireAuth, adminOnly, cache('finance', 60), getExpenses);
+router.post('/expenses', requireAuth, adminOnly, invalidateFinance, createExpense);
+router.delete('/expenses/:id', requireAuth, adminOnly, invalidateFinance, deleteExpense);
 
-// Special route for financial summary (Profit/Loss data)
-router.get('/summary', requireAuth, adminOnly, async (req, res) => {
+// Finance settings — cached 5 min (commission rate rarely changes)
+router.get('/settings', requireAuth, adminOnly, cache('finance', 300), getSettings);
+router.post('/settings', requireAuth, adminOnly, invalidateFinance, updateSetting);
+
+// Financial summary — cached 60s (runs 4 DB queries; most-hit endpoint in Finance tab)
+router.get('/summary', requireAuth, adminOnly, cache('finance', 60), async (req, res) => {
     try {
         const { period = 'all', from, to } = req.query;
 

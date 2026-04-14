@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import useSWR from 'swr';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { API_BASE, authHeaders } from '../../../api/config';
+import { swrFetcher, SWR_CONFIG } from '../../../api/swrFetcher';
 import { TableSkeleton, InventorySkeleton } from '../../SkeletonLoaders';
 import InventoryCategoryManager from './InventoryCategorySettings';
 import ProductCatalog from './ProductCatalog';
@@ -22,11 +24,26 @@ import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 import productOrderIcon from '../../../assets/icon/product-order.png';
 
 const InventoryPage = ({ user, isDark }) => {
-    const [items, setItems] = useState([]);
-    const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState([]);
+    // ── SWR Data Fetching ──────────────────────────────────────────────────────
+    const { data: itemsData, isLoading: loadingItems, mutate: mutateInventory } = useSWR('/inventory', swrFetcher, SWR_CONFIG);
+    const { data: productsData, isLoading: loadingProducts, mutate: mutateProducts } = useSWR('/products', swrFetcher, SWR_CONFIG);
+    const { data: categoriesData, isLoading: loadingCategories, mutate: mutateCategories } = useSWR('/inventory-categories', swrFetcher, SWR_CONFIG);
+    const { data: vendorsData, isLoading: loadingVendors, mutate: mutateVendors } = useSWR('/vendors', swrFetcher, SWR_CONFIG);
+    const { data: analyticsData, isLoading: loadingAnalytics, mutate: mutateAnalytics } = useSWR('/stock-movements/summary', swrFetcher, SWR_CONFIG);
+
+    const items = itemsData || [];
+    const products = productsData || [];
+    const categories = categoriesData || [];
+    const vendors = vendorsData || [];
+    const analytics = analyticsData || [];
+    const isLoading = loadingItems || loadingProducts || loadingCategories || loadingVendors || loadingAnalytics;
+
+    // Helper to revalidate all data at once (used by sub-components)
+    const fetchData = () => { mutateInventory(); mutateProducts(); mutateCategories(); mutateVendors(); mutateAnalytics(); };
+    const fetchInventory = () => mutateInventory();
+    const fetchCategories = () => mutateCategories();
+
     const [showCategoryManager, setShowCategoryManager] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [newItem, setNewItem] = useState({ name: '', category: '', currentStock: '', unit: 'ml', reorderPoint: '', costPerUnit: '' });
     const [activeTab, setActiveTab] = useState('warehouse');
@@ -36,58 +53,6 @@ const InventoryPage = ({ user, isDark }) => {
     const [ledgerSearch, setLedgerSearch] = useState('');
     const [ledgerPage, setLedgerPage] = useState(1);
     const LEDGER_PER_PAGE = 8;
-
-    // New logic for analytics and vendors
-    const [vendors, setVendors] = useState([]);
-    const [analytics, setAnalytics] = useState([]);
-
-    const fetchVendors = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/vendors`, { headers: authHeaders(), withCredentials: true });
-            setVendors(res.data);
-        } catch (err) { console.error(err); }
-    };
-
-    const fetchAnalytics = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/stock-movements/summary`, { headers: authHeaders(), withCredentials: true });
-            setAnalytics(res.data);
-        } catch (err) { console.error(err); }
-    };
-
-    const fetchInventory = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/inventory`, { headers: authHeaders(), withCredentials: true });
-            setItems(res.data);
-        } catch (err) { console.error(err); }
-    };
-
-    const fetchProducts = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/products`, { headers: authHeaders(), withCredentials: true });
-            setProducts(res.data || []);
-        } catch (err) { console.error(err); }
-    };
-
-    const fetchCategories = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/inventory-categories`, { headers: authHeaders(), withCredentials: true });
-            setCategories(res.data || []);
-        } catch (err) { console.error(err); }
-    };
-
-    const fetchData = async () => {
-        setIsLoading(true);
-        try {
-            await Promise.all([fetchInventory(), fetchProducts(), fetchCategories(), fetchVendors(), fetchAnalytics()]);
-        } catch (err) {
-            console.error('Inventory Fetch Error:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => { fetchData(); }, []);
 
     const handleAddItem = async (e) => {
         e.preventDefault();
@@ -392,7 +357,7 @@ const InventoryPage = ({ user, isDark }) => {
                     </div>
                 </>
             ) : activeTab === 'catalog' ? (
-                <ProductCatalog onUpdate={fetchProducts} categories={categories} />
+                <ProductCatalog onUpdate={mutateProducts} categories={categories} />
             ) : activeTab === 'orders' ? (
                 <PurchaseOrderManager vendors={vendors} inventoryItems={items} onUpdate={fetchData} />
             ) : (

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { io } from 'socket.io-client';
 import { API_BASE, authHeaders } from '../../../api/config';
+import { swrFetcher, SWR_CONFIG } from '../../../api/swrFetcher';
 import { TableSkeleton } from '../../SkeletonLoaders';
 import searchIcon from '../../../assets/icon/search.png';
 import SharedSearchBar from '../shared/SharedSearchBar';
@@ -60,38 +62,22 @@ const ACTION_META = {
 };
 
 const ActivityLogPage = ({ isDark }) => {
-    const [logs, setLogs] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    // ── SWR Data Fetching ──────────────────────────────────────────────────────
+    const { data: logsData, isLoading, mutate: mutateLogs } = useSWR('/activity-logs', swrFetcher, SWR_CONFIG);
+    const logs = logsData || [];
+
     const [filterAction, setFilterAction] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
-    const [allLogs, setAllLogs] = useState([]);
-    const isAuditMounted = React.useRef(false);
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8;
 
-    const fetchLogs = async () => {
-        setIsLoading(true);
-        try {
-            const res = await axios.get(`${API_BASE}/activity-logs`, { headers: authHeaders(), withCredentials: true });
-            setLogs(res.data);
-            setAllLogs(res.data);
-            isAuditMounted.current = true;
-        } catch (err) {
-            console.error('Error fetching activity logs:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
+    // ── Real-time Socket Updates ───────────────────────────────────────────────
     useEffect(() => {
-        fetchLogs();
-
         const socket = io(API_BASE.replace('/api', ''));
         socket.on('new_activity_log', (log) => {
-            setLogs(prev => [log, ...prev]);
-            setAllLogs(prev => [log, ...prev]);
+            mutateLogs(prev => [log, ...(prev || [])], false);
         });
         return () => socket.disconnect();
     }, []);
@@ -102,7 +88,7 @@ const ActivityLogPage = ({ isDark }) => {
     const markAllRead = async () => {
         try {
             await axios.patch(`${API_BASE}/activity-logs/mark-read`, {}, { headers: authHeaders(), withCredentials: true });
-            setLogs(prev => prev.map(l => ({ ...l, isRead: true })));
+            mutateLogs(prev => (prev || []).map(l => ({ ...l, isRead: true })), false);
         } catch (err) { console.error(err); }
     };
 
@@ -119,7 +105,7 @@ const ActivityLogPage = ({ isDark }) => {
             if (result.isConfirmed) {
                 try {
                     await axios.delete(`${API_BASE}/activity-logs/delete-all`, { headers: authHeaders(), withCredentials: true });
-                    setLogs([]);
+                    mutateLogs([], false);
                 } catch (err) { console.error(err); }
             }
         });
@@ -139,8 +125,6 @@ const ActivityLogPage = ({ isDark }) => {
 
     const baseFiltered = activeModule === 'all' ? logs : logs.filter(l => l.module === activeModule);
     const todayDate = new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-    // Proper client-side search with DATE support for immediate UI feedback
     const finalLogs = filterDataBySearch(baseFiltered, searchTerm, ['message', 'actorName'], ['createdAt']);
 
     // Pagination Logic (Now correctly using finalLogs for accurate page counts)

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const requireAuth = require('../middleware/requireAuth');
 const adminOnly = require('../middleware/adminOnly');
+const cache = require('../middleware/cacheMiddleware');
+const { invalidatePrefixes } = require('../utils/cache');
 
 // Import controller functions
 const {
@@ -63,20 +65,20 @@ router.post('/backfill-ids', requireAuth, adminOnly, backfillEmployeeIds);
 
 // --- PROTECTED ROUTES (require valid JWT) ---
 
-// Get all employees — staff need this for detailer selection
-router.get('/', requireAuth, getEmployees);
+// Get all employees
+router.get('/', requireAuth, cache('employee', 90), getEmployees);
 
 // Get a single employee
-router.get('/:id', requireAuth, getEmployee);
+router.get('/:id', requireAuth, cache('employee', 60), getEmployee);
 
 // Update employee (Admin only)
-router.patch('/:id', requireAuth, adminOnly, updateEmployee);
+router.patch('/:id', requireAuth, adminOnly, (req, res, next) => { invalidatePrefixes('employee', 'payroll', 'sandi'); next(); }, updateEmployee);
 
 // Performance and Training (Admin only)
-router.post('/:id/evaluation', requireAuth, adminOnly, addEvaluation);
-router.patch('/:id/skills', requireAuth, adminOnly, updateSkills);
+router.post('/:id/evaluation', requireAuth, adminOnly, (req, res, next) => { invalidatePrefixes('employee'); next(); }, addEvaluation);
+router.patch('/:id/skills', requireAuth, adminOnly, (req, res, next) => { invalidatePrefixes('employee'); next(); }, updateSkills);
 
 // Delete employee (Admin only)
-router.delete('/:id', requireAuth, adminOnly, deleteEmployee);
+router.delete('/:id', requireAuth, adminOnly, (req, res, next) => { invalidatePrefixes('employee', 'payroll', 'sandi'); next(); }, deleteEmployee);
 
 module.exports = router;
