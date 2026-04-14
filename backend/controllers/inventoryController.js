@@ -11,7 +11,13 @@ exports.getInventory = async (req, res) => {
 
 exports.addInventoryItem = async (req, res) => {
     try {
-        const item = await Inventory.create(req.body);
+        const itemData = { ...req.body };
+        // If supplier is empty string, set to null
+        if (itemData.supplier === '') itemData.supplier = null;
+
+
+        const item = await Inventory.create(itemData);
+
         
         if (item.currentStock > 0) {
             await logMovement({
@@ -50,8 +56,18 @@ exports.updateInventoryItem = async (req, res) => {
         
         const allowed = ['name', 'category', 'currentStock', 'unit', 'reorderPoint', 'costPerUnit', 'supplier'];
         const updates = {};
-        allowed.forEach(field => { if (req.body[field] !== undefined) updates[field] = req.body[field]; });
+        allowed.forEach(field => { 
+            if (req.body[field] !== undefined) {
+                // If supplier is an empty string, set it to null to avoid CastErrors
+                if (field === 'supplier' && req.body[field] === '') {
+                    updates[field] = null;
+                } else {
+                    updates[field] = req.body[field];
+                }
+            }
+        });
         if (updates.currentStock !== undefined) updates.lastRestocked = Date.now();
+
         
         const item = await Inventory.findByIdAndUpdate(id, updates, { returnDocument: 'after', runValidators: true });
         

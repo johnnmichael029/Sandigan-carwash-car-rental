@@ -121,7 +121,7 @@ const getCustomerStats = async (req, res) => {
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         // Recalculate lifetime spend including rentals
-        const actualVisitCount = bookings.length; // visits = car wash bookings
+        const actualVisitCount = bookings.length + rentals.length; // visits = total combined records
         const washSpend = bookings.reduce((sum, b) => sum + (parseFloat(b.totalPrice) || 0), 0);
         const rentalSpend = rentals.reduce((sum, r) => sum + (parseFloat(r.estimatedTotal) || 0), 0);
         const actualSpend = washSpend + rentalSpend;
@@ -286,14 +286,26 @@ const syncBookingsToCRM = async (req, res) => {
             } else {
 
                 const allBks = await Booking.find({ emailAddress: { $regex: new RegExp('^' + email + '$', 'i') }, status: 'Completed' });
-                const totalSpend = allBks.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
-                const vehiclesSet = new Set(allBks.map(b => b.vehicleType).filter(Boolean));
-                const latestDate = allBks.sort((a, b) => b.updatedAt - a.updatedAt)[0].updatedAt;
+                const allRentals = await CarRental.find({ emailAddress: { $regex: new RegExp('^' + email + '$', 'i') } });
+                
+                const washSpend = allBks.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+                const rentalSpend = allRentals.reduce((sum, r) => sum + (r.estimatedTotal || 0), 0);
+                const totalSpend = washSpend + rentalSpend;
 
-                existing.totalVisits = allBks.length;
+                const vehiclesSet = new Set([
+                    ...allBks.map(b => b.vehicleType),
+                    ...allRentals.map(r => r.vehicleName)
+                ].filter(Boolean));
+                
+                const latestDate = [...allBks, ...allRentals]
+                    .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+                    .pop()?.updatedAt || new Date();
+
+                existing.totalVisits = allBks.length + allRentals.length;
                 existing.lifetimeSpend = totalSpend;
                 existing.lastVisitDate = latestDate;
                 existing.vehicles = Array.from(vehiclesSet);
+
 
                 if (existing.totalVisits > 1) {
                     existing.tags = existing.tags.filter(t => t !== 'New Customer');
@@ -611,13 +623,15 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
         existing.vehicles = Array.from(vehiclesSet);
 
         // SYNC: We re-calculate totalVisits based on actual Booking records to keep count 100% accurate
-        const totalVisits = await Booking.countDocuments({
+        const washCount = await Booking.countDocuments({
             $or: [
                 { customerId: existing._id },
                 { emailAddress: existing.email }
             ],
             status: 'Completed'
-        }) + 1; // +1 because the current booking is about to be marked as completed
+        });
+        const rentalCount = await CarRental.countDocuments({ emailAddress: existing.email });
+        const totalVisits = washCount + rentalCount + 1; // +1 because the current booking is about to be marked as completed
 
         existing.totalVisits = totalVisits;
 
