@@ -18,7 +18,8 @@ router.get('/', requireAuth, cache('crm', 90), crmController.getAllCustomers);
 router.post('/', requireAuth, invalidateCRM, crmController.createCustomer);
 router.post('/sync', requireAuth, invalidateCRM, crmController.syncBookingsToCRM);
 router.get('/validate-smc/:smcId', requireAuth, cache('crm', 60), crmController.validateSMC);
-router.get('/:id', requireAuth, cache('crm', 60), crmController.getCustomerStats);
+router.get('/:id', requireAuth, crmController.getCustomerStats);
+
 router.put('/:id', requireAuth, invalidateCRM, crmController.updateCustomerCRM);
 router.delete('/:id', requireAuth, invalidateCRM, crmController.deleteCustomer);
 router.get('/booking/:bookingId/smc', requireAuth, cache('crm', 60), crmController.getSMCForBooking);

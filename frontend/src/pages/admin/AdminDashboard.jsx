@@ -25,6 +25,7 @@ import HRISPage from '../../components/admin/hr/HRISModule';
 import InventoryPage from '../../components/admin/inventory/InventoryManager';
 import CRMPage from '../../components/admin/crm/CRMModule';
 import PromotionsPage from '../../components/admin/crm/PromotionManager';
+import MobileCustomersPage from '../../components/admin/crm/MobileCustomersModule';
 import OperationsPage from '../../components/admin/operations/OperationsModule';
 import ServiceSettingsPage from '../../components/admin/inventory/ServiceManager';
 import adminLogoutIcon from '../../assets/icon/employee-logout.png'
@@ -32,8 +33,9 @@ import collapseIcon from '../../assets/icon/collapse.png'
 import logoIcon from '../../assets/logo/logo.png'
 import darkTheme from '../../assets/icon/dark-theme.png'
 import lightTheme from '../../assets/icon/light-theme.png'
+import mobileIcon from '../../assets/icon/mobile.png'
 
-const ERP_ITEMS = ['finance', 'hris', 'inventory', 'crm', 'promotions', 'operations', 'accounts-payable'];
+const ERP_ITEMS = ['finance', 'hris', 'inventory', 'crm', 'promotions', 'operations', 'accounts-payable', 'mobile-customers'];
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
@@ -152,6 +154,7 @@ const AdminDashboard = () => {
             case 'promotions': return <PromotionsPage user={user} isDark={isDark} />;
             case 'operations': return <OperationsPage user={user} isDark={isDark} />;
             case 'accounts-payable': return <VendorPayables isDark={isDark} />;
+            case 'mobile-customers': return <MobileCustomersPage isDark={isDark} />;
             case 'settings': return <ServiceSettingsPage user={user} isDark={isDark} />;
             default: return <AdminOverview user={user} onNavigate={setToggleActive} isDark={isDark} />;
         }
@@ -316,6 +319,7 @@ const AdminDashboard = () => {
                                         { key: 'hris', icon: <img src={humanResourcIcon} style={{ width: '18px' }} alt="" />, label: 'HRIS' },
                                         { key: 'inventory', icon: <img src={inventoryIcon} style={{ width: '18px' }} alt="" />, label: 'Inventory' },
                                         { key: 'crm', icon: <img src={salesIcon} style={{ width: '18px' }} alt="" />, label: 'CRM' },
+                                        { key: 'mobile-customers', icon: <img src={mobileIcon} style={{ width: '18px' }} alt="" />, label: 'App Registry' },
                                         { key: 'promotions', icon: <img src={promotionIcon} style={{ width: '18px' }} alt="" />, label: 'Promotions' },
                                         { key: 'operations', icon: <img src={operationIcon} style={{ width: '18px' }} alt="" />, label: 'Operations' },
                                     ].map(item => (

@@ -121,7 +121,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.json({ limit: '10mb' })); // Increased limit to support base64 image uploads
 
 // ─────────────────────────────────────────────────────────────────────────────
-//   SANDIBOT — Exempt from CSRF for public access (Must be above CSRF/Cookie)
+//   MOBILE APP STRATEGY — Exempt from CSRF because it uses stateless JWT Bearer Tokens
 // ─────────────────────────────────────────────────────────────────────────────
 app.use('/api/chat', chatbotRoutes);
 
@@ -157,8 +157,22 @@ app.get('/api/csrf-token', (req, res) => {
     res.json({ csrfToken: token });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+//   MOBILE APP CUSTOMER AUTH — After cookieParser, but before CSRF
+//   GET requests (admin reads) work fine; POST/mobile bypasses CSRF by design.
+// ─────────────────────────────────────────────────────────────────────────────
+app.use('/api/customer-auth', require('./routes/customerAuthRoutes'));
+
+// Mobile App CSRF Bypass: We bypass CSRF for stateless mobile JWT bearer tokens.
+const csrfMiddleware = (req, res, next) => {
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        return next();
+    }
+    doubleCsrfProtection(req, res, next);
+};
+
 // Apply CSRF protection globally — safe methods (GET, HEAD) are skipped automatically
-app.use(doubleCsrfProtection);
+app.use(csrfMiddleware);
 
 const pricingRoutes = require('./routes/pricingRoutes');
 
@@ -169,7 +183,6 @@ const pricingRoutes = require('./routes/pricingRoutes');
 // Car wash bookings: POST creation limited to 20/hr; other methods (GET, PATCH) use the general 200/15min limit
 app.post('/api/booking', bookingLimiter);
 app.use('/api/booking', bookingRoutes);
-
 // Employees: login endpoint limited to 10 attempts per 15 minutes per IP
 app.post('/api/employees/login', loginLimiter);
 app.use('/api/employees', employeeRoutes);
@@ -209,7 +222,6 @@ app.post('/api/car-rentals', rentalLimiter);
 app.use('/api/car-rentals', carRentalRoutes);
 app.use('/api/vehicle-types', vehicleTypeRoutes);
 app.use('/api/sandi', require('./routes/sandiRoutes'));
-
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {
     if (err.code === 'EBADCSRFTOKEN') {

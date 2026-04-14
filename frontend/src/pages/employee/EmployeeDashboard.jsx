@@ -136,6 +136,8 @@ const EmployeeDashboard = () => {
                 icon: 'info',
                 confirmButtonColor: '#23A0CE',
                 confirmButtonText: 'OK',
+                background: 'var(--theme-card-bg)',
+                color: 'var(--theme-content-text)',
             }).then(async () => {
                 await fetch(`${API_BASE}/employees/logout`, {
                     method: 'POST',

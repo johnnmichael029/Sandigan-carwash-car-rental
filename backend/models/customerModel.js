@@ -4,6 +4,7 @@ const customerSchema = new mongoose.Schema({
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
     email: { type: String, sparse: true },
+    password: { type: String }, // For Mobile App Auth
     phone: { type: String, default: '00000000000' },
     
     // CRM Metrics

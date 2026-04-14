@@ -51,12 +51,24 @@ const createRental = async (req, res) => {
 
     try {
         // Skip captcha for internal staff (check for valid session cookie)
+        // Also skip for mobile app users authenticated via Bearer JWT token
         const jwt = require('jsonwebtoken');
         let skipCaptcha = false;
         const token = req.cookies?.token;
+        const bearerToken = req.headers.authorization?.startsWith('Bearer ') 
+            ? req.headers.authorization.split(' ')[1] 
+            : null;
+        
         if (token) {
             try {
                 jwt.verify(token, process.env.JWT_SECRET);
+                skipCaptcha = true;
+            } catch (err) { /* Invalid token — force captcha check */ }
+        }
+        // Mobile app uses stateless Bearer JWT — bypass captcha
+        if (bearerToken) {
+            try {
+                jwt.verify(bearerToken, process.env.JWT_SECRET);
                 skipCaptcha = true;
             } catch (err) { /* Invalid token — force captcha check */ }
         }
@@ -227,6 +239,7 @@ const updateStatus = async (req, res) => {
                 await RentalFleet.findByIdAndUpdate(rental.vehicleId, { isAvailable: true }, { returnDocument: 'after', runValidators: true });
                 if (io) io.emit('fleet_updated');
             }
+            if (io) io.emit('update_rental', rental);
         } catch (fleetErr) {
             console.error('[STATUS_SYNC_FLEET_ERR]', fleetErr);
         }

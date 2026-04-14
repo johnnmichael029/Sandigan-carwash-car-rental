@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Customer = require('../models/customerModel');
 const Booking = require('../models/bookingModel');
+const CarRental = require('../models/carRentalModel');
 const CrmTag = require('../models/crmTagModel');
 const Expense = require('../models/expenseModel');
 const { createLog } = require('./activityLogController');
@@ -91,24 +92,39 @@ const getCustomerStats = async (req, res) => {
 
         const currentSMC = customer.smcId && customer.smcId !== null ? customer.smcId : '---NONE---';
 
-        // Get their booking history using robust linking (customerId > smcId > email fallback)
+        // Get car wash booking history
         const bookings = await Booking.find({
             $or: [
-                { customerId: customer._id }, // Priority: Explicit link
-                { smcId: currentSMC }, // Priority: Legacy SMC match
+                { customerId: customer._id },
+                { smcId: currentSMC },
                 {
                     $and: [
-                        { emailAddress: customer.email }, // Fallback: Email match
-                        { customerId: { $in: [null, customer._id] } }, // NOT explicitly owned by someone else
-                        { smcId: { $in: [null, (customer.smcId || null)] } } // NOT linked to someone else's SMC ID
+                        { emailAddress: customer.email },
+                        { customerId: { $in: [null, customer._id] } },
+                        { smcId: { $in: [null, (customer.smcId || null)] } }
                     ]
                 }
             ]
         }).sort({ createdAt: -1 });
 
-        // HEAL: If dynamic metrics (visits/spend) differ from stored ones, update them
-        const actualVisitCount = bookings.length;
-        const actualSpend = bookings.reduce((sum, b) => sum + (parseFloat(b.totalPrice) || 0), 0);
+        // Get Active car rentals (Active = paid & confirmed)
+        const rentals = customer.email
+            ? await CarRental.find({ emailAddress: customer.email, status: 'Active' }).sort({ createdAt: -1 }).lean()
+            : [];
+
+        // Tag each entry with its type for the frontend to distinguish
+        const washHistory = bookings.map(b => ({ ...b._doc, _type: 'wash' }));
+        const rentalHistory = rentals.map(r => ({ ...r, _type: 'rental' }));
+
+        // Merge and sort by date descending
+        const history = [...washHistory, ...rentalHistory]
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        // Recalculate lifetime spend including rentals
+        const actualVisitCount = bookings.length; // visits = car wash bookings
+        const washSpend = bookings.reduce((sum, b) => sum + (parseFloat(b.totalPrice) || 0), 0);
+        const rentalSpend = rentals.reduce((sum, r) => sum + (parseFloat(r.estimatedTotal) || 0), 0);
+        const actualSpend = washSpend + rentalSpend;
 
         if (actualVisitCount !== customer.totalVisits || Math.abs(actualSpend - (customer.lifetimeSpend || 0)) > 0.01) {
             customer.totalVisits = actualVisitCount;
@@ -116,7 +132,7 @@ const getCustomerStats = async (req, res) => {
             await customer.save();
         }
 
-        res.json({ customer, history: bookings });
+        res.json({ customer, history });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

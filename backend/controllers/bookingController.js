@@ -76,7 +76,6 @@ const createBooking = async (req, res) => {
 
     try {
         // Skip captcha for internal staff (check for valid session cookie)
-        const jwt = require('jsonwebtoken');
         let skipCaptcha = false;
         const token = req.cookies?.token;
         if (token) {
@@ -84,6 +83,15 @@ const createBooking = async (req, res) => {
                 jwt.verify(token, process.env.JWT_SECRET);
                 skipCaptcha = true;
             } catch (err) { /* Invalid token — force captcha check */ }
+        }
+
+        // Skip captcha for authenticated mobile app users
+        if (req.body.source === 'Mobile App' && req.headers.authorization) {
+            const custToken = req.headers.authorization.split(' ')[1];
+            try {
+                jwt.verify(custToken, process.env.JWT_SECRET); // Assuming same secret is used
+                skipCaptcha = true;
+            } catch (err) { /* Invalid token */ }
         }
 
         if (!skipCaptcha) {

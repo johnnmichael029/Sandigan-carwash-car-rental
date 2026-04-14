@@ -571,7 +571,7 @@ const CRMPage = ({ user, isDark }) => {
                                 </div>
                                 <div className="text-end pe-2">
                                     <p className="mb-1 text-light opacity-75 small text-uppercase">Lifetime Value</p>
-                                    <h3 className="mb-0 text-success fw-bold">₱{selectedClient.lifetimeSpend.toLocaleString()}</h3>
+                                    <h3 className="mb-0 text-success fw-bold">₱{(clientStats?.customer?.lifetimeSpend ?? selectedClient.lifetimeSpend).toLocaleString()}</h3>
                                 </div>
                             </div>
                         </div>
@@ -698,18 +698,30 @@ const CRMPage = ({ user, isDark }) => {
                                                     </div>
                                                     <div className="flex-grow-1">
                                                         <div className="d-flex justify-content-between mb-1">
-                                                            <span className="fw-bold text-dark-secondary" style={{ fontSize: '0.85rem' }}>{Array.isArray(booking.serviceType) ? booking.serviceType.join(', ') : booking.serviceType}</span>
-                                                            <span className="fw-bold text-success" style={{ fontSize: '0.85rem' }}>₱{booking.totalPrice?.toLocaleString()}</span>
+                                                            <span className="fw-bold text-dark-secondary" style={{ fontSize: '0.85rem' }}>
+                                                                {booking._type === 'rental'
+                                                                    ? `Car Rental — ${booking.destination || 'Vehicle'}`
+                                                                    : (Array.isArray(booking.serviceType) ? booking.serviceType.join(', ') : booking.serviceType)}
+                                                            </span>
+                                                            <span className="fw-bold text-success" style={{ fontSize: '0.85rem' }}>₱{(booking.totalPrice || booking.estimatedTotal || 0)?.toLocaleString()}</span>
                                                         </div>
                                                         <div className="d-flex justify-content-between align-items-center">
                                                             <small className="text-muted">{new Date(booking.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</small>
                                                             <div className="d-flex gap-1 align-items-center overflow-hidden" style={{ maxWidth: '60%' }}>
-                                                                {booking.purchasedProducts?.length > 0 && booking.purchasedProducts.map((p, pIdx) => (
-                                                                    <span key={pIdx} className="badge border rounded-pill px-2" style={{ fontSize: '0.6rem', fontWeight: 500, background: 'var(--theme-card-bg)', color: 'var(--theme-content-text-secondary)' }}>
-                                                                        {p.productName} x{p.quantity}
+                                                                {booking._type === 'rental' ? (
+                                                                    <span className="badge  rounded-pill px-2" style={{ fontSize: '0.65rem', background: 'var(--theme-card-header-bg)', color: 'var(--theme-content-text)' }}>
+                                                                        {booking.vehicleName || 'Vehicle'}
                                                                     </span>
-                                                                ))}
-                                                                <span className="badge rounded-pill ms-1" style={{ fontSize: '0.65rem', background: 'var(--theme-card-header-bg)', color: 'var(--theme-content-text)' }}>{booking.vehicleType}</span>
+                                                                ) : (
+                                                                    <>
+                                                                        {booking.purchasedProducts?.length > 0 && booking.purchasedProducts.map((p, pIdx) => (
+                                                                            <span key={pIdx} className="badge border rounded-pill px-2" style={{ fontSize: '0.6rem', fontWeight: 500, background: 'var(--theme-card-bg)', color: 'var(--theme-content-text-secondary)' }}>
+                                                                                {p.productName} x{p.quantity}
+                                                                            </span>
+                                                                        ))}
+                                                                        <span className="badge rounded-pill ms-1" style={{ fontSize: '0.65rem', background: 'var(--theme-card-header-bg)', color: 'var(--theme-content-text)' }}>{booking.vehicleType}</span>
+                                                                    </>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>

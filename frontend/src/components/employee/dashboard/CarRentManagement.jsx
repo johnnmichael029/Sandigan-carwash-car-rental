@@ -209,6 +209,16 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
                                     )}
                                 </div>
 
+                                <div className="col-12 text-start">
+                                    <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Customer Address </label>
+                                    {isEditing ? (
+                                        <input type="text" className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)' }} value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
+                                    ) : (
+                                        <div className="form-control form-control-sm shadow-none" style={{ background: 'var(--theme-hover-bg)', color: 'var(--theme-content-text)' }}>{rental.address}</div>
+                                    )}
+                                </div>
+
+
                                 {/* Notes */}
                                 <div className="col-12">
                                     <label className="text-muted mb-1 d-block" style={{ fontSize: '0.75rem', fontWeight: 600 }}>Special Notes / Instructions</label>
@@ -748,6 +758,11 @@ const CreateRentalModal = ({ fleet, onClose, onSuccess, rental }) => {
                         <div className="col-12 text-start">
                             <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Destination </label>
                             <input required type="text" className="form-control" value={form.destination} onChange={e => setForm({ ...form, destination: e.target.value })} placeholder="e.g. Manila, Tagaytay" />
+                        </div>
+
+                        <div className="col-12 text-start">
+                            <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Customer Address </label>
+                            <input required type="text" className="form-control" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="e.g. 123 Rizal St., Quezon City" />
                         </div>
 
                         <div className="col-12 text-start">
