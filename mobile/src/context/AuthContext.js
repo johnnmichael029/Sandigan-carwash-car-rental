@@ -5,12 +5,13 @@ import { Alert } from 'react-native';
 
 export const AuthContext = createContext();
 
-// Switch this to true when building for the live app/Play Store
-const IS_PROD = false; 
+// Automatically switch between local and production API URLs
+// __DEV__ is true during local development and false in production builds
+export const API_BASE = __DEV__
+    ? 'http://192.168.100.254:4000/api'
+    : 'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net/api';
 
-export const API_BASE = IS_PROD
-    ? 'https://sandigan-carwash-carrental-akd8a6cde6hpg4cc.japaneast-01.azurewebsites.net/api'
-    : 'http://192.168.100.254:4000/api';
+
 
 
 export const AuthProvider = ({ children }) => {

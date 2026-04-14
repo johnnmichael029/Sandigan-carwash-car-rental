@@ -65,7 +65,11 @@ app.use(helmet({
 //   CORS — Must be before Rate Limiters so OPTIONS requests pass through safely
 // ─────────────────────────────────────────────────────────────────────────────
 app.use(cors({
-    origin: ['http://localhost:5173', 'https://sandigan-carwash-carrental-akd8a6cde6hpg4cc.japaneast-01.azurewebsites.net'],
+    origin: [
+        'http://localhost:5173', 
+        'https://sandigan-carwash-carrental-akd8a6cde6hpg4cc.japaneast-01.azurewebsites.net',
+        'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net'
+    ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true
 }));
@@ -111,7 +115,11 @@ app.use('/api/', generalLimiter);
 
 const io = new Server(server, {
     cors: {
-        origin: ['http://localhost:5173', 'https://sandigan-carwash-carrental-akd8a6cde6hpg4cc.japaneast-01.azurewebsites.net'],
+        origin: [
+            'http://localhost:5173', 
+            'https://sandigan-carwash-carrental-akd8a6cde6hpg4cc.japaneast-01.azurewebsites.net',
+            'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net'
+        ],
         methods: ['GET', 'POST', 'PATCH', 'DELETE'],
         credentials: true
     }
