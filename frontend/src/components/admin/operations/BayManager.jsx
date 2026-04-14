@@ -51,7 +51,7 @@ const BayManager = ({ bays, onRefresh }) => {
                 });
             } else {
                 await axios.post(`${API_BASE}/bays`, form, { headers: authHeaders(), withCredentials: true });
-                Swal.fire({ icon: 'success', title: 'Bay Created', timer: 1500, showConfirmButton: true });
+                Swal.fire({ icon: 'success', title: 'Bay Created', timer: 1500, showConfirmButton: true, background: 'var(--theme-card-bg)', color: 'var(--theme-content-text)' });
             }
             setShowModal(false);
             onRefresh();
@@ -59,11 +59,20 @@ const BayManager = ({ bays, onRefresh }) => {
     };
 
     const handleDelete = (bay) => {
-        Swal.fire({ title: `Delete "${bay.name}"?`, text: 'This cannot be undone.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Delete' })
+        Swal.fire({ title: `Delete "${bay.name}"?`, text: 'This cannot be undone.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Delete', background: 'var(--theme-card-bg)', color: 'var(--theme-content-text' })
             .then(async (r) => {
                 if (r.isConfirmed) {
                     await axios.delete(`${API_BASE}/bays/${bay._id}`, { headers: authHeaders(), withCredentials: true });
-                    Swal.fire({ icon: 'success', title: 'Bay Deleted', timer: 1500, showConfirmButton: true });
+                    Swal.fire({
+                        title: 'Bay Deleted Successfully!',
+                        icon: 'success',
+                        toast: true,
+                        position: 'top-end',
+                        timer: 3000,
+                        showConfirmButton: false,
+                        background: '#002525',
+                        color: '#FAFAFA'
+                    });
                     onRefresh();
                 }
             });

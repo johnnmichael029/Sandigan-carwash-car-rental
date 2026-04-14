@@ -19,7 +19,21 @@ import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 import getPaginationRange from '../getPaginationRange';
 import sandiganLogo from '../../../assets/logo/sandigan-logo.png';
 
+const getStatusColor = (status) => {
+    switch ((status || '').toLowerCase()) {
+        case 'completed':   return { bg: '#22c55e20', text: '#22c55e', border: '#22c55e50' };
+        case 'pending':     return { bg: '#f59e0b20', text: '#f59e0b', border: '#f59e0b50' };
+        case 'confirmed':   return { bg: '#3b82f620', text: '#3b82f6', border: '#3b82f650' };
+        case 'active':      return { bg: '#22c55e20', text: '#22c55e', border: '#22c55e50' };
+        case 'returned':    return { bg: '#9ca3af20', text: '#9ca3af', border: '#9ca3af50' };
+        case 'cancelled':   return { bg: '#ef444420', text: '#ef4444', border: '#ef444450' };
+        case 'in progress': return { bg: '#23A0CE20', text: '#23A0CE', border: '#23A0CE50' };
+        default:            return { bg: 'var(--theme-badge-muted-bg)', text: 'var(--theme-content-text-secondary)', border: 'transparent' };
+    }
+};
+
 const CRMPage = ({ user, isDark }) => {
+
     // ── SWR Data Fetching ──────────────────────────────────────────────────────
     const { data: customersData, isLoading, mutate: mutateCustomers } = useSWR('/crm', swrFetcher, SWR_CONFIG);
     const { data: tagsData, mutate: mutateTags } = useSWR('/crm/tags/all', swrFetcher, SWR_CONFIG);
@@ -52,6 +66,10 @@ const CRMPage = ({ user, isDark }) => {
     // Tag Manager State (saved on change)
     const [clientTags, setClientTags] = useState([]);
     const [isSavingTags, setIsSavingTags] = useState(false);
+    
+    // Timeline Pagination State
+    const [visibleTimelineCount, setVisibleTimelineCount] = useState(15);
+
     // Tag Library CRUD
     const [showTagManager, setShowTagManager] = useState(false);
     const [newTagData, setNewTagData] = useState({ name: '', color: '#6b7280', textColor: '#ffffff', description: '' });
@@ -71,6 +89,15 @@ const CRMPage = ({ user, isDark }) => {
     });
     const [isSavingSMC, setIsSavingSMC] = useState(false);
     const [showSMCPrint, setShowSMCPrint] = useState(false);
+
+    const handleTimelineScroll = (e) => {
+        const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
+        if (scrollHeight - scrollTop <= clientHeight + 50) {
+            if (clientStats && visibleTimelineCount < clientStats.history.length) {
+                setVisibleTimelineCount(prev => Math.min(prev + 10, clientStats.history.length));
+            }
+        }
+    };
 
     const handleSync = async () => {
         setIsSyncing(true);
@@ -97,6 +124,7 @@ const CRMPage = ({ user, isDark }) => {
         setNotesText(client.notes || '');
         setClientTags(client.tags || []);  // seed base tags from DB
         setClientStats(null);
+        setVisibleTimelineCount(15);
         try {
             const res = await axios.get(`${API_BASE}/crm/${client._id}`, { headers: authHeaders(), withCredentials: true });
             setClientStats(res.data);
@@ -690,8 +718,12 @@ const CRMPage = ({ user, isDark }) => {
                                     ) : clientStats.history?.length === 0 ? (
                                         <p className="text-muted small">No past transactions found.</p>
                                     ) : (
-                                        <div style={{ maxHeight: '680px', overflowY: 'auto' }} className="pe-2 custom-scrollbar">
-                                            {clientStats.history.map((booking, idx) => (
+                                        <div 
+                                            style={{ maxHeight: '680px', overflowY: 'auto' }} 
+                                            className="pe-2 custom-scrollbar"
+                                            onScroll={handleTimelineScroll}
+                                        >
+                                            {clientStats.history.slice(0, visibleTimelineCount).map((booking, idx) => (
                                                 <div key={booking._id} className="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom" style={{ borderColor: 'var(--theme-content-border)' }}>
                                                     <div className="rounded-circle d-flex align-items-center justify-content-center text-muted" style={{ width: 32, height: 32, flexShrink: 0, fontSize: '0.8rem', background: 'var(--theme-card-header-bg)' }}>
                                                         {clientStats.history.length - idx}
@@ -706,8 +738,20 @@ const CRMPage = ({ user, isDark }) => {
                                                             <span className="fw-bold text-success" style={{ fontSize: '0.85rem' }}>₱{(booking.totalPrice || booking.estimatedTotal || 0)?.toLocaleString()}</span>
                                                         </div>
                                                         <div className="d-flex justify-content-between align-items-center">
-                                                            <small className="text-muted">{new Date(booking.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</small>
+                                                            <div className="d-flex align-items-center gap-2">
+                                                                <small className="text-muted">{new Date(booking.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</small>
+                                                                {(() => {
+                                                                    const sc = getStatusColor(booking.status);
+                                                                    return (
+                                                                        <span className="badge rounded-pill px-2"
+                                                                            style={{ fontSize: '0.65rem', fontWeight: 600, background: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}>
+                                                                            {booking.status || 'Success'}
+                                                                        </span>
+                                                                    );
+                                                                })()}
+                                                            </div>
                                                             <div className="d-flex gap-1 align-items-center overflow-hidden" style={{ maxWidth: '60%' }}>
+
                                                                 {booking._type === 'rental' ? (
                                                                     <span className="badge  rounded-pill px-2" style={{ fontSize: '0.65rem', background: 'var(--theme-card-header-bg)', color: 'var(--theme-content-text)' }}>
                                                                         {booking.vehicleName || 'Vehicle'}

@@ -18,16 +18,16 @@ const PER_PAGE = 10;
 // Same palette as mobile app getStatusColor
 const getStatusColor = (status) => {
     switch ((status || '').toLowerCase()) {
-        case 'completed':   return { bg: '#22c55e20', text: '#22c55e', border: '#22c55e50' };
-        case 'pending':     return { bg: '#f59e0b20', text: '#f59e0b', border: '#f59e0b50' };
-        case 'confirmed':   return { bg: '#3b82f620', text: '#3b82f6', border: '#3b82f650' };
-        case 'queued':      return { bg: '#c023ce20', text: '#c023ce', border: '#c023ce50' };
-        case 'cancelled':   return { bg: '#ef444420', text: '#ef4444', border: '#ef444450' };
+        case 'completed': return { bg: '#22c55e20', text: '#22c55e', border: '#22c55e50' };
+        case 'pending': return { bg: '#f59e0b20', text: '#f59e0b', border: '#f59e0b50' };
+        case 'confirmed': return { bg: '#3b82f620', text: '#3b82f6', border: '#3b82f650' };
+        case 'queued': return { bg: '#c023ce20', text: '#c023ce', border: '#c023ce50' };
+        case 'cancelled': return { bg: '#ef444420', text: '#ef4444', border: '#ef444450' };
         case 'in progress': return { bg: '#23A0CE20', text: '#23A0CE', border: '#23A0CE50' };
         case 'in-progress': return { bg: '#ce672320', text: '#ce6723', border: '#ce672350' };
-        case 'active':      return { bg: '#22c55e20', text: '#22c55e', border: '#22c55e50' };
-        case 'returned':    return { bg: '#9ca3af20', text: '#9ca3af', border: '#9ca3af50' };
-        default:            return { bg: 'var(--theme-badge-muted-bg)', text: 'var(--theme-content-text-secondary)', border: 'transparent' };
+        case 'active': return { bg: '#22c55e20', text: '#22c55e', border: '#22c55e50' };
+        case 'returned': return { bg: '#9ca3af20', text: '#9ca3af', border: '#9ca3af50' };
+        default: return { bg: 'var(--theme-badge-muted-bg)', text: 'var(--theme-content-text-secondary)', border: 'transparent' };
     }
 };
 
@@ -121,13 +121,13 @@ const MobileCustomersModule = ({ isDark }) => {
             }
         };
 
-        socket.on('new_booking',   handleBookingEvent);
-        socket.on('update_booking',handleBookingEvent);
-        socket.on('new_rental',    handleBookingEvent);
+        socket.on('new_booking', handleBookingEvent);
+        socket.on('update_booking', handleBookingEvent);
+        socket.on('new_rental', handleBookingEvent);
         socket.on('update_rental', handleBookingEvent);
 
         return () => socket.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedCustomer?._id]);
 
     const kpiCards = [
@@ -380,7 +380,7 @@ const MobileCustomersModule = ({ isDark }) => {
                         {/* Modal Body – Booking History */}
                         <div className="modal-body p-4">
                             <h6 className="fw-bold mb-3" style={{ color: 'var(--theme-content-text)' }}>
-                                📋 Booking History
+                                Booking History
                                 {customerHistory && (
                                     <span className="badge rounded-pill ms-2 px-3" style={{ background: '#23A0CE20', color: '#23A0CE', fontSize: '0.75rem' }}>
                                         {customerHistory.bookings.length} record{customerHistory.bookings.length !== 1 ? 's' : ''}
@@ -421,12 +421,14 @@ const MobileCustomersModule = ({ isDark }) => {
                                                     <small className="text-muted">
                                                         {new Date(booking.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                                                     </small>
-                                                    {(() => { const sc = getStatusColor(booking.status); return (
-                                                    <span className="badge rounded-pill px-2"
-                                                        style={{ fontSize: '0.65rem', fontWeight: 600, background: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}>
-                                                        {booking.status || 'Completed'}
-                                                    </span>
-                                                    ); })()}
+                                                    {(() => {
+                                                        const sc = getStatusColor(booking.status); return (
+                                                            <span className="badge rounded-pill px-2"
+                                                                style={{ fontSize: '0.65rem', fontWeight: 600, background: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}>
+                                                                {booking.status || 'Completed'}
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                         </div>

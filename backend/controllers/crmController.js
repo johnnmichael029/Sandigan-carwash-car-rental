@@ -107,9 +107,9 @@ const getCustomerStats = async (req, res) => {
             ]
         }).sort({ createdAt: -1 });
 
-        // Get Active car rentals (Active = paid & confirmed)
+        // Get all car rentals for this customer
         const rentals = customer.email
-            ? await CarRental.find({ emailAddress: customer.email, status: 'Active' }).sort({ createdAt: -1 }).lean()
+            ? await CarRental.find({ emailAddress: customer.email }).sort({ createdAt: -1 }).lean()
             : [];
 
         // Tag each entry with its type for the frontend to distinguish
@@ -120,10 +120,14 @@ const getCustomerStats = async (req, res) => {
         const history = [...washHistory, ...rentalHistory]
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        // Recalculate lifetime spend including rentals
-        const actualVisitCount = bookings.length + rentals.length; // visits = total combined records
-        const washSpend = bookings.reduce((sum, b) => sum + (parseFloat(b.totalPrice) || 0), 0);
-        const rentalSpend = rentals.reduce((sum, r) => sum + (parseFloat(r.estimatedTotal) || 0), 0);
+        // Recalculate lifetime spend and successful visit count
+        // (Excludes 'Cancelled' records from totals)
+        const successfulBookings = bookings.filter(b => b.status === 'Completed');
+        const successfulRentals = rentals.filter(r => r.status === 'Active' || r.status === 'Returned' || r.status === 'Confirmed');
+
+        const actualVisitCount = successfulBookings.length + successfulRentals.length;
+        const washSpend = successfulBookings.reduce((sum, b) => sum + (parseFloat(b.totalPrice) || 0), 0);
+        const rentalSpend = successfulRentals.reduce((sum, r) => sum + (parseFloat(r.estimatedTotal) || 0), 0);
         const actualSpend = washSpend + rentalSpend;
 
         if (actualVisitCount !== customer.totalVisits || Math.abs(actualSpend - (customer.lifetimeSpend || 0)) > 0.01) {
@@ -286,11 +290,15 @@ const syncBookingsToCRM = async (req, res) => {
             } else {
 
                 const allBks = await Booking.find({ emailAddress: { $regex: new RegExp('^' + email + '$', 'i') }, status: 'Completed' });
-                const allRentals = await CarRental.find({ emailAddress: { $regex: new RegExp('^' + email + '$', 'i') } });
+                const allRentals = await CarRental.find({ 
+                    emailAddress: { $regex: new RegExp('^' + email + '$', 'i') },
+                    status: { $in: ['Active', 'Returned', 'Confirmed'] }
+                });
                 
                 const washSpend = allBks.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
                 const rentalSpend = allRentals.reduce((sum, r) => sum + (r.estimatedTotal || 0), 0);
                 const totalSpend = washSpend + rentalSpend;
+
 
                 const vehiclesSet = new Set([
                     ...allBks.map(b => b.vehicleType),
@@ -630,7 +638,10 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
             ],
             status: 'Completed'
         });
-        const rentalCount = await CarRental.countDocuments({ emailAddress: existing.email });
+        const rentalCount = await CarRental.countDocuments({ 
+            emailAddress: existing.email,
+            status: { $in: ['Active', 'Returned', 'Confirmed'] }
+        });
         const totalVisits = washCount + rentalCount + 1; // +1 because the current booking is about to be marked as completed
 
         existing.totalVisits = totalVisits;

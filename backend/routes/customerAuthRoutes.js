@@ -213,8 +213,7 @@ router.get('/all', async (req, res) => {
                 $or: [{ emailAddress: c.email }, { customerId: c._id }]
             });
             const rentalCount = await CarRental.countDocuments({
-                emailAddress: c.email,
-                status: 'Active'
+                emailAddress: c.email
             });
             return { ...c, bookingCount: washCount + rentalCount };
         }));

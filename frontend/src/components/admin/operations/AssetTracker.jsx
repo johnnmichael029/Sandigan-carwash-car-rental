@@ -60,7 +60,7 @@ const AssetTracker = ({ assets, bays, onRefresh, isDark }) => {
                 });
             } else {
                 await axios.post(`${API_BASE}/assets`, payload, { headers: authHeaders(), withCredentials: true });
-                Swal.fire({ icon: 'success', title: 'Asset Registered', timer: 1500, showConfirmButton: true });
+                Swal.fire({ icon: 'success', title: 'Asset Registered', timer: 1500, showConfirmButton: true, background: 'var(--theme-card-bg)', color: 'var(--theme-content-text)' });
             }
             setShowModal(false); onRefresh();
         } catch (err) { Swal.fire('Error', err.response?.data?.message || 'Failed to save', 'error'); }
