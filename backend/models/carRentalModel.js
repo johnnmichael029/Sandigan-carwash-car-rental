@@ -98,6 +98,14 @@ const carRentalSchema = new mongoose.Schema({
     cancellationReason: {
         type: String,
         default: null
+    },
+    promoCode: {
+        type: String,
+        default: null
+    },
+    promoDiscount: {
+        type: Number,
+        default: 0
     }
 }, { timestamps: true });
 

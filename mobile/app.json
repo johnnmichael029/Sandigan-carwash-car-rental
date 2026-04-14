@@ -1,7 +1,6 @@
 {
   "expo": {
     "name": "Sandigan",
-
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,26 +8,40 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0f172a"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0f172a"
       },
       "edgeToEdgeEnabled": true,
-      "package": "sandigan.mobile"
+      "package": "sandigan.mobile",
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#23A0CE",
+          "sounds": [],
+          "androidMode": "default",
+          "androidCollapsedTitle": "Sandigan Updates"
+        }
+      ]
     ],
     "extra": {
       "eas": {

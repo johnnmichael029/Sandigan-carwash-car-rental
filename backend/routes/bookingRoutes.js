@@ -8,6 +8,7 @@ const {
     createBooking,
     deleteBooking,
     updateBooking,
+    cancelBooking,
     getAvailableTimeSlots,
     getEmployeeHistory
 } = require('../controllers/bookingController');
@@ -16,6 +17,7 @@ const router = express.Router();
 // --- PUBLIC ROUTES ---
 router.get('/availability', cache('booking', 30), getAvailableTimeSlots);
 router.post('/', (req, res, next) => { invalidatePrefixes('booking', 'forecast', 'finance', 'revenue', 'sandi'); next(); }, createBooking);
+router.patch('/:id/cancel', (req, res, next) => { invalidatePrefixes('booking', 'forecast', 'finance', 'revenue', 'sandi'); next(); }, cancelBooking);
 
 // --- PROTECTED ROUTES ---
 router.get('/employee-history/:id', requireAuth, cache('booking', 60), getEmployeeHistory);

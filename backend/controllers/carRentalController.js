@@ -1,7 +1,12 @@
 const CarRental = require('../models/carRentalModel');
 const RentalFleet = require('../models/rentalFleetModel');
 const Notification = require('../models/notificationModel');
+const Customer = require('../models/customerModel');
+const { sendPushNotification } = require('../utils/pushNotification');
 const axios = require('axios');
+const jwt = require('jsonwebtoken');
+const Promotion = require('../models/promotionModel');
+
 
 const secretKey = process.env.RECAPTCHA_SECRET_KEY || "6LeOuJAsAAAAAJ1-8WXXOa0wA-a7UjO5qTzP8C5o";
 
@@ -36,7 +41,8 @@ const createRental = async (req, res) => {
     const {
         fullName, contactNumber, emailAddress, address,
         vehicleId, rentalStartDate, returnDate, destination, notes,
-        requirementsAcknowledged, captchaToken
+        requirementsAcknowledged, captchaToken,
+        promoCode, promoDiscount, estimatedPrice // From mobile
     } = req.body;
 
     // --- Validation ---
@@ -52,7 +58,6 @@ const createRental = async (req, res) => {
     try {
         // Skip captcha for internal staff (check for valid session cookie)
         // Also skip for mobile app users authenticated via Bearer JWT token
-        const jwt = require('jsonwebtoken');
         let skipCaptcha = false;
         const token = req.cookies?.token;
         const bearerToken = req.headers.authorization?.startsWith('Bearer ') 
@@ -96,7 +101,9 @@ const createRental = async (req, res) => {
         const end = new Date(returnDate);
         const diffMs = end - start;
         const rentalDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-        const estimatedTotal = rentalDays * vehicle.pricePerDay;
+        
+        // Use estimatedPrice if provided (mobile), else calculate
+        const estimatedTotal = estimatedPrice !== undefined ? estimatedPrice : (rentalDays * vehicle.pricePerDay);
 
         const rentalId = await generateRentalId();
 
@@ -117,8 +124,40 @@ const createRental = async (req, res) => {
             notes: notes?.trim() || '',
             requirementsAcknowledged: true,
             status: 'Pending',
-            statusLogs: [{ status: 'Pending' }]
+            statusLogs: [{ status: 'Pending' }],
+            promoCode: promoCode || null,
+            promoDiscount: promoDiscount || 0
         });
+
+        // Consuming Promotion Usage (One-time per customer)
+        if (promoCode) {
+            try {
+                const authHeader = req.headers.authorization;
+                let customerId = null;
+                if (authHeader && authHeader.startsWith('Bearer ')) {
+                    const token = authHeader.split(' ')[1];
+                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                    customerId = decoded._id;
+                }
+
+                if (customerId) {
+                    await Promotion.findOneAndUpdate(
+                        { code: promoCode.trim().toUpperCase() },
+                        { 
+                            $addToSet: { usedBy: customerId },
+                            $inc: { usageCount: 1 }
+                        }
+                    );
+                } else {
+                    await Promotion.findOneAndUpdate(
+                        { code: promoCode.trim().toUpperCase() },
+                        { $inc: { usageCount: 1 } }
+                    );
+                }
+            } catch (err) {
+                console.error("Promotion usage update failed:", err.message);
+            }
+        }
 
         // Auto-create employee notification
         await Notification.create({
@@ -150,6 +189,7 @@ const getRentals = async (req, res) => {
         const filter = {};
 
         if (status && status !== 'All') filter.status = status;
+        if (req.query.promoOnly === 'true') filter.promoCode = { $ne: null };
 
         if (search) {
             const regex = new RegExp(search, 'i');
@@ -240,6 +280,22 @@ const updateStatus = async (req, res) => {
                 if (io) io.emit('fleet_updated');
             }
             if (io) io.emit('update_rental', rental);
+
+            // ── Push Notification to Customer ──
+            try {
+                const customer = await Customer.findOne({ email: rental.emailAddress });
+                if (customer?.pushToken) {
+                    const msgMap = {
+                        'Confirmed': { title: '📋 Rental Confirmed!', body: `Your rental for ${rental.vehicleName} has been confirmed.` },
+                        'Active':    { title: '🔑 Rental is now Active!', body: `Enjoy your ${rental.vehicleName}. Drive safe!` },
+                        'Returned':  { title: '✅ Rental Completed!', body: `Thank you for returning ${rental.vehicleName}. See you again!` },
+                        'Cancelled': { title: '❌ Rental Cancelled', body: `Your rental for ${rental.vehicleName} was cancelled.` },
+                    };
+                    const msg = msgMap[status];
+                    if (msg) await sendPushNotification(customer.pushToken, msg.title, msg.body, { rentalId: rental._id });
+                }
+            } catch (pushErr) { console.warn('[Push] rental update:', pushErr.message); }
+
         } catch (fleetErr) {
             console.error('[STATUS_SYNC_FLEET_ERR]', fleetErr);
         }
@@ -249,6 +305,7 @@ const updateStatus = async (req, res) => {
         res.status(500).json({ error: 'Failed to update status.' });
     }
 };
+
 
 const updateRental = async (req, res) => {
     const { id } = req.params;
@@ -287,4 +344,59 @@ const updateRental = async (req, res) => {
     }
 };
 
-module.exports = { createRental, getRentals, getRental, updateStatus, updateRental };
+const cancelRental = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const rental = await CarRental.findById(id);
+
+        if (!rental) return res.status(404).json({ error: 'Rental not found.' });
+
+        // Security
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            const customer = await Customer.findById(decoded._id);
+            if (customer && customer.email !== rental.emailAddress) {
+                return res.status(403).json({ error: 'Unauthorized to cancel this rental.' });
+            }
+        }
+
+        if (rental.status !== 'Pending') {
+            return res.status(400).json({ error: `Cannot cancel rental with status: ${rental.status}` });
+        }
+
+        // 1. Update status
+        rental.status = 'Cancelled';
+        rental.statusLogs.push({ status: 'Cancelled', note: 'Cancelled by customer', timestamp: new Date() });
+        await rental.save();
+
+        // 2. Return Voucher
+        if (rental.promoCode) {
+            const customer = await Customer.findOne({ email: rental.emailAddress });
+            if (customer) {
+                await Promotion.findOneAndUpdate(
+                    { code: rental.promoCode.trim().toUpperCase() },
+                    { 
+                        $pull: { usedBy: customer._id },
+                        $inc: { usageCount: -1 }
+                    }
+                );
+            } else {
+                await Promotion.findOneAndUpdate(
+                    { code: rental.promoCode.trim().toUpperCase() },
+                    { $inc: { usageCount: -1 } }
+                );
+            }
+        }
+
+        const io = req.app.get('io');
+        if (io) io.emit('update_rental', rental);
+
+        res.json({ success: true, message: 'Rental cancelled successfully.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
+
+module.exports = { createRental, getRentals, getRental, updateStatus, updateRental, cancelRental };

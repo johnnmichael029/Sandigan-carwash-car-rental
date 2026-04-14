@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const requireAuth = require('../middleware/requireAuth');
-const { createRental, getRentals, getRental, updateStatus, updateRental } = require('../controllers/carRentalController');
+const { createRental, getRentals, getRental, updateStatus, updateRental, cancelRental } = require('../controllers/carRentalController');
 const cache = require('../middleware/cacheMiddleware');
 const { invalidatePrefixes } = require('../utils/cache');
 
@@ -9,6 +9,7 @@ const invalidateRental = (req, res, next) => { invalidatePrefixes('rental', 'rev
 
 // PUBLIC — guest rental submission (invalidates rental list)
 router.post('/', invalidateRental, createRental);
+router.patch('/:id/cancel', invalidateRental, cancelRental);
 
 // EMPLOYEE/ADMIN — manage rentals
 router.get('/', requireAuth, cache('rental', 60), getRentals);

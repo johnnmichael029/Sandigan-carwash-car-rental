@@ -2,6 +2,8 @@ const Booking = require('../models/bookingModel');
 const Notification = require('../models/notificationModel');
 const { calculateTotalFromDb } = require('./pricingController');
 const { createLog } = require('./activityLogController');
+const { sendPushNotification } = require('../utils/pushNotification');
+
 
 const secretKey = process.env.RECAPTCHA_SECRET_KEY; // Use variable, not the raw key!
 const axios = require('axios');
@@ -108,7 +110,17 @@ const createBooking = async (req, res) => {
             }
         }
 
-        const formattedPhoneNumber = `0${phoneNumber}`; // Prepend 0 if phone number exists, else set to null
+        // Handle phone number formatting: Ensure single leading '0'
+        let formattedPhoneNumber = phoneNumber ? phoneNumber.toString() : '';
+        if (formattedPhoneNumber && !formattedPhoneNumber.startsWith('0')) {
+            formattedPhoneNumber = `0${formattedPhoneNumber}`;
+        }
+        // If it already starts with 0, or is 11 digits starting with 0, keep as is.
+        // Slice to 11 if it's too long
+        if (formattedPhoneNumber.length > 11) {
+            formattedPhoneNumber = formattedPhoneNumber.slice(-11);
+        }
+
         // Generate the Batch ID before saving
         const generatedBatchID = await generateBatchID(bookingTime);
         const basePrice = await calculateTotalFromDb(vehicleType, serviceType);
@@ -121,9 +133,16 @@ const createBooking = async (req, res) => {
 
         let totalPrice = 0;
         if (isRental) {
-            totalPrice = Math.max(0, (rentalTotal || 0) + retailTotal - discountAmount - promoDiscountVal);
+            // Respect client-passed price if from Mobile App, else calculate
+            const baseRental = (req.body.source === 'Mobile App' && req.body.totalPrice)
+                ? (req.body.totalPrice - retailTotal + promoDiscountVal)
+                : (rentalTotal || 0);
+            totalPrice = Math.max(0, baseRental + retailTotal - discountAmount - promoDiscountVal);
         } else {
-            totalPrice = Math.max(0, basePrice + retailTotal - discountAmount - promoDiscountVal);
+            const baseWash = (req.body.source === 'Mobile App' && req.body.totalPrice)
+                ? (req.body.totalPrice - retailTotal + promoDiscountVal)
+                : basePrice;
+            totalPrice = Math.max(0, baseWash + retailTotal - discountAmount - promoDiscountVal);
         }
 
         const booking = await Booking.create({
@@ -186,6 +205,42 @@ const createBooking = async (req, res) => {
             bookingId: booking._id,
             meta: { customer: `${firstName} ${lastName}`, services: serviceName }
         });
+
+        // Consuming Promotion Usage (One-time per customer)
+        if (promoCode) {
+            try {
+                // If it's from Mobile App, we likely have a token
+                const authHeader = req.headers.authorization;
+                let customerId = null;
+                if (authHeader && authHeader.startsWith('Bearer ')) {
+                    const token = authHeader.split(' ')[1];
+                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                    customerId = decoded._id;
+                }
+
+                if (customerId) {
+                    const updateObj = { $inc: { usageCount: 1 } };
+                    // Only track unique users for non-infinite promos
+                    const promo = await Promotion.findOne({ code: promoCode.trim().toUpperCase() });
+                    if (promo && promo.useType !== 'Infinite') {
+                        updateObj.$addToSet = { usedBy: customerId };
+                    }
+                    
+                    await Promotion.findOneAndUpdate(
+                        { code: promoCode.trim().toUpperCase() },
+                        updateObj
+                    );
+                } else {
+                    // Fallback to usageCount if no customer is logged in
+                    await Promotion.findOneAndUpdate(
+                        { code: promoCode.trim().toUpperCase() },
+                        { $inc: { usageCount: 1 } }
+                    );
+                }
+            } catch (err) {
+                console.error("Promotion usage update failed:", err.message);
+            }
+        }
 
         // Emit socket events
         const io = req.app.get('io');
@@ -362,17 +417,8 @@ const updateBooking = async (req, res) => {
 
             // ERP Phase 3+: On first completion — deduct inventory, record expenses, revenue, update CRM
             if (statusJustCompleted) {
-                // Record Promo Usage in DB if code was used
-                const usedPromo = req.body.promoCode || currentBooking.promoCode;
-                if (usedPromo) {
-                    const cust = await Customer.findOne({ email: currentBooking.emailAddress });
-                    if (cust) {
-                        await Promotion.findOneAndUpdate(
-                            { code: usedPromo.toUpperCase().trim() },
-                            { $inc: { usageCount: 1 }, $addToSet: { usedBy: cust._id } }
-                        );
-                    }
-                }
+                // No need to record promo usage here, it's already done in createBooking 
+                // to support immediate voucher disablement for customers.
 
                 // Hoist serviceTypes so it's available in all sub-blocks below
                 const serviceTypes = Array.isArray(currentBooking.serviceType)
@@ -543,6 +589,20 @@ const updateBooking = async (req, res) => {
                 io.emit('update_booking', booking);
                 if (log) io.emit('new_activity_log', log);
             }
+            // ── Push Notification to Customer ──
+            try {
+                const customer = await Customer.findOne({ email: booking.emailAddress });
+                if (customer?.pushToken) {
+                    const msgMap = {
+                        'In-progress': { title: '🚗 Your car is being washed!', body: 'Our team has started working on your vehicle.' },
+                        'Completed': { title: '✅ Your car wash is done!', body: 'Your vehicle is ready for pickup. Thank you!' },
+                        'Cancelled': { title: '❌ Booking Cancelled', body: 'Your booking has been cancelled. Contact us for help.' },
+                        'Confirmed': { title: '📋 Booking Confirmed!', body: 'Your car wash booking has been confirmed.' },
+                    };
+                    const msg = msgMap[req.body.status];
+                    if (msg) await sendPushNotification(customer.pushToken, msg.title, msg.body, { bookingId: booking._id });
+                }
+            } catch (pushErr) { console.warn('[Push] booking update:', pushErr.message); }
         } else {
             const log = await createLog({
                 actorId, actorName, actorRole,
@@ -566,6 +626,7 @@ const updateBooking = async (req, res) => {
         res.status(500).json({ error: "Error updating booking." });
     }
 }
+
 
 // Helper function to generate the ID (keep this at the top or in a separate utils file)
 const generateBatchID = async (requestedHour) => {
@@ -686,12 +747,84 @@ const getEmployeeHistory = async (req, res) => {
     }
 };
 
+// Customer can cancel their own booking (If Pending)
+const cancelBooking = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const booking = await Booking.findById(id);
+
+        if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+
+        // Security: Ensure user owns this booking (if logged in)
+        // Check email from token vs booking email
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            const customer = await Customer.findById(decoded._id);
+            if (customer && customer.email !== booking.emailAddress) {
+                return res.status(403).json({ error: 'Unauthorized to cancel this booking.' });
+            }
+        }
+
+        if (booking.status !== 'Pending') {
+            return res.status(400).json({ error: `Cannot cancel booking with status: ${booking.status}` });
+        }
+
+        // 1. Update status to Cancelled
+        booking.status = 'Cancelled';
+        await booking.save();
+
+        // 2. Return Voucher (If used)
+        if (booking.promoCode) {
+            const customer = await Customer.findOne({ email: booking.emailAddress });
+            if (customer) {
+                await Promotion.findOneAndUpdate(
+                    { code: booking.promoCode.trim().toUpperCase() },
+                    {
+                        $pull: { usedBy: customer._id },
+                        $inc: { usageCount: -1 }
+                    }
+                );
+            } else {
+                // Fallback for guest if no customer record attached
+                await Promotion.findOneAndUpdate(
+                    { code: booking.promoCode.trim().toUpperCase() },
+                    { $inc: { usageCount: -1 } }
+                );
+            }
+        }
+
+        // 3. Log Activity
+        await createLog({
+            actorId: null,
+            actorName: 'System (Customer Cancelled)',
+            actorRole: 'system',
+            module: 'BOOKING',
+            action: 'booking_status_changed',
+            message: `Customer cancelled booking #${booking.batchId || id}`,
+            bookingId: booking._id,
+            meta: { fromStatus: 'Pending', toStatus: 'Cancelled', customer: `${booking.firstName} ${booking.lastName}` }
+        });
+
+        const io = req.app.get('io');
+        if (io) io.emit('update_booking', booking);
+
+        res.json({ success: true, message: 'Booking cancelled successfully.' });
+    } catch (err) {
+        console.error('[CANCEL_BOOKING_ERR]', err);
+        res.status(500).json({ error: err.message });
+    }
+
+}
+
 module.exports = {
     getBookings,
     getBooking,
     createBooking,
     deleteBooking,
     updateBooking,
+    cancelBooking,
     getAvailableTimeSlots,
     getEmployeeHistory
 };

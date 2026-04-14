@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -6,8 +6,12 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, AuthContext } from './src/context/AuthContext';
 import { ThemeProvider, ThemeContext } from './src/context/ThemeContext';
-import { ActivityIndicator, View, Text, Image } from 'react-native';
+import { ActivityIndicator, View, Text, Image, Platform } from 'react-native';
 import Toast from 'react-native-toast-message';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import axios from 'axios';
+import { API_BASE } from './src/api/config';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -15,6 +19,7 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import BookingScreen from './src/screens/BookingScreen';
 import BookingsScreen from './src/screens/BookingsScreen';
+import RentalsScreen from './src/screens/RentalsScreen';
 import RentalScreen from './src/screens/RentalScreen';
 import MeScreen from './src/screens/MeScreen';
 
@@ -30,12 +35,58 @@ import bookingsActiveIcon from './assets/icon/bookings-active.png';
 import meDarkIcon from './assets/icon/me-dark.png';
 import meLightIcon from './assets/icon/me-light.png';
 import meActiveIcon from './assets/icon/me-active.png';
+import carRentDarkIcon from './assets/icon/car-rent-dark.png';
+import carRentLightIcon from './assets/icon/car-rent-light.png';
+import carRentActiveIcon from './assets/icon/car-rent-active.png';
 
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Tab icon component — simple emoji labels or custom image icons
+// ── Push Notification Setup ───────────────────────────────────────────────────
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
+async function registerForPushNotificationsAsync(userToken) {
+  if (!Device.isDevice) return; // skip on emulators
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+  if (finalStatus !== 'granted') return;
+
+  try {
+    const { data: pushToken } = await Notifications.getExpoPushTokenAsync({
+      projectId: '6bdfc5da-1563-4af7-874b-54ca117a8810',
+    });
+    // Save the push token on the backend so the server can send notifications
+    await axios.post(
+      `${API_BASE}/customer-auth/push-token`,
+      { pushToken },
+      { headers: { Authorization: `Bearer ${userToken}` } }
+    );
+  } catch (err) {
+    console.log('Push token registration failed:', err.message);
+  }
+
+  if (Platform.OS === 'android') {
+    Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#23A0CE',
+    });
+  }
+}
+
+// ── Tab Icon Component ────────────────────────────────────────────────────────
 const TabIcon = ({ emoji, icon, focused, color }) => (
   <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 2 }}>
     {icon ? (
@@ -50,7 +101,7 @@ const TabIcon = ({ emoji, icon, focused, color }) => (
   </View>
 );
 
-// ── Authenticated Tab Navigator ──────────────────────────────────────────────
+// ── Authenticated Tab Navigator ──
 const MainTabs = () => {
   const { COLORS, isDarkMode } = useContext(ThemeContext);
 
@@ -114,6 +165,17 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen
+        name="MyRentals"
+        component={RentalsScreen}
+        options={{
+          tabBarLabel: 'My Rentals',
+          tabBarIcon: ({ focused, color }) => {
+            const iconSource = focused ? carRentActiveIcon : (isDarkMode ? carRentDarkIcon : carRentLightIcon);
+            return <TabIcon icon={iconSource} focused={focused} color={color} />;
+          },
+        }}
+      />
+      <Tab.Screen
         name="Me"
         component={MeScreen}
         options={{
@@ -128,10 +190,36 @@ const MainTabs = () => {
   );
 };
 
-// ── Root Navigator: decides auth vs main app ─────────────────────────────────
+// ── Root Navigator ────────────────────────────────────────────────────────────
 const AppNav = () => {
   const { isSplashLoading, userToken } = useContext(AuthContext);
   const { COLORS, isDarkMode } = useContext(ThemeContext);
+  const notificationListener = useRef();
+  const responseListener = useRef();
+
+  // Register for push notifications once logged in
+  useEffect(() => {
+    if (!userToken) return;
+    registerForPushNotificationsAsync(userToken);
+
+    // Listener: notification received while app is open (foreground)
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      // Toast is already shown by the system — no extra action needed
+      console.log('Notification received:', notification.request.content.title);
+    });
+
+    // Listener: user tapped on a notification
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+      // Future: navigate to booking detail if data.bookingId exists
+      console.log('Notification tapped, data:', data);
+    });
+
+    return () => {
+      if (notificationListener.current) notificationListener.current.remove();
+      if (responseListener.current) responseListener.current.remove();
+    };
+  }, [userToken]);
 
   if (isSplashLoading) {
     return (

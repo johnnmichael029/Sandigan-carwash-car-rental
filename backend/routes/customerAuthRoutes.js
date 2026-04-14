@@ -120,6 +120,20 @@ router.post('/login', async (req, res) => {
     }
 });
 
+// @route   POST /api/customer-auth/push-token
+// @desc    Save or update Push Notification token for this customer
+// @access  Private (Customer Token Required)
+router.post('/push-token', requireCustomerAuth, async (req, res) => {
+    try {
+        const { pushToken } = req.body;
+        if (!pushToken) return res.status(400).json({ error: 'pushToken is required.' });
+        await Customer.findByIdAndUpdate(req.customer._id, { pushToken });
+        res.status(200).json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // @route   GET /api/customer-auth/me
 // @desc    Get current logged in customer profile
 // @access  Private (Customer Token Required)
@@ -128,6 +142,29 @@ router.get('/me', requireCustomerAuth, async (req, res) => {
         res.status(200).json(req.customer);
     } catch (err) {
         res.status(500).json({ error: 'Server error fetching user details.' });
+    }
+});
+
+// @route   PUT /api/customer-auth/profile
+// @desc    Update customer profile details
+// @access  Private (Customer Token Required)
+router.put('/profile', requireCustomerAuth, async (req, res) => {
+    try {
+        const { firstName, lastName, phone } = req.body;
+        
+        if (!firstName || !lastName || !phone) {
+            return res.status(400).json({ error: 'All fields are required.' });
+        }
+
+        const updatedCustomer = await Customer.findByIdAndUpdate(
+            req.customer._id,
+            { firstName, lastName, phone },
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        res.status(200).json(updatedCustomer);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error updating profile details.' });
     }
 });
 

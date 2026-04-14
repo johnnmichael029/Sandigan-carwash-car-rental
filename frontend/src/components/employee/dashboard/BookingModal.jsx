@@ -324,6 +324,12 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
         }
     }, [booking.smcId]);
 
+    useEffect(() => {
+        if (booking.promoCode && !promoInfo.discount && !promoInfo.error) {
+            handlePromoVerification(true);
+        }
+    }, [booking.promoCode]);
+
     // Original stored price for reference
     const storedTotalPrice = booking.totalPrice || 0;
 

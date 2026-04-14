@@ -1,13 +1,17 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ScrollView,
-    Image, RefreshControl, ActivityIndicator
+    Image, RefreshControl, ActivityIndicator, Alert
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import axios from 'axios';
 import { API_BASE } from '../api/config';
 import { io } from 'socket.io-client';
+import carwashActiveIcon from '../../assets/icon/carwash-active.png';
+import carRentActiveIcon from '../../assets/icon/car-rent-active.png';
+
 
 const darkThemeIcon = require('../../assets/icon/dark-theme.png');
 const lightThemeIcon = require('../../assets/icon/light-theme.png');
@@ -18,20 +22,34 @@ const HomeScreen = ({ navigation }) => {
     const styles = getStyles(COLORS);
 
     const [recentBookings, setRecentBookings] = useState([]);
+    const [promotions, setPromotions] = useState([]);
+    const [myVouchers, setMyVouchers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     const fetchRecentBookings = useCallback(async () => {
         if (!userInfo?.email) return;
         try {
-            const [washRes, rentRes] = await Promise.all([
+            const [washRes, rentRes, promoRes, mineRes] = await Promise.all([
                 axios.get(`${API_BASE}/customer-auth/my-bookings`, { headers: { Authorization: `Bearer ${userToken}` } }),
-                axios.get(`${API_BASE}/customer-auth/my-rentals`, { headers: { Authorization: `Bearer ${userToken}` } }).catch(() => ({ data: [] }))
+                axios.get(`${API_BASE}/customer-auth/my-rentals`, { headers: { Authorization: `Bearer ${userToken}` } }).catch(() => ({ data: [] })),
+                axios.get(`${API_BASE}/promotions/all`).catch(() => ({ data: [] })),
+                axios.get(`${API_BASE}/promotions/mine`, { headers: { Authorization: `Bearer ${userToken}` } }).catch(() => ({ data: [] }))
             ]);
+
             const washes = (Array.isArray(washRes.data) ? washRes.data : (washRes.data.bookings || [])).map(b => ({ ...b, _type: 'wash' }));
             const rentals = (Array.isArray(rentRes.data) ? rentRes.data : []).map(r => ({ ...r, _type: 'rental' }));
             const combined = [...washes, ...rentals].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             setRecentBookings(combined.slice(0, 3));
+
+            const now = new Date();
+            const activePromos = (promoRes.data || []).filter(p =>
+                p.isActive &&
+                new Date(p.validFrom) <= now &&
+                new Date(p.validUntil) >= now
+            );
+            setPromotions(activePromos);
+            setMyVouchers(mineRes.data || []);
         } catch (err) {
             setRecentBookings([]);
         } finally {
@@ -39,6 +57,18 @@ const HomeScreen = ({ navigation }) => {
             setRefreshing(false);
         }
     }, [userInfo?.email, userToken]);
+
+    const handleClaimPromo = async (promoId) => {
+        try {
+            await axios.post(`${API_BASE}/promotions/claim`, { promoId }, {
+                headers: { Authorization: `Bearer ${userToken}` }
+            });
+            Toast.show({ type: 'success', text1: 'Voucher Claimed! 🎟️', text2: 'You can now use this on your next booking.' });
+            fetchRecentBookings(); // Refresh to update claimed status
+        } catch (err) {
+            Toast.show({ type: 'error', text1: 'Oops!', text2: err.response?.data?.error || 'Could not claim voucher.' });
+        }
+    };
 
     useEffect(() => { fetchRecentBookings(); }, [fetchRecentBookings]);
 
@@ -69,16 +99,16 @@ const HomeScreen = ({ navigation }) => {
 
     const getStatusColor = (status) => {
         switch ((status || '').toLowerCase()) {
-            case 'completed':   return '#22c55e';
-            case 'active':      return '#22c55e';
-            case 'pending':     return '#f59e0b';
-            case 'confirmed':   return '#3b82f6';
-            case 'queued':      return '#c023ce';
-            case 'cancelled':   return '#ef4444';
+            case 'completed': return '#22c55e';
+            case 'active': return '#22c55e';
+            case 'pending': return '#f59e0b';
+            case 'confirmed': return '#3b82f6';
+            case 'queued': return '#c023ce';
+            case 'cancelled': return '#ef4444';
             case 'in progress': return '#23A0CE';
             case 'in-progress': return '#ce6723'; // Specific color for backend legacy
-            case 'returned':    return '#9ca3af';
-            default:            return COLORS.textMuted;
+            case 'returned': return '#9ca3af';
+            default: return COLORS.textMuted;
         }
     };
 
@@ -117,6 +147,44 @@ const HomeScreen = ({ navigation }) => {
                 </TouchableOpacity>
             </View>
 
+            {/* ── Active Promotions ── */}
+            {promotions.length > 0 && (
+                <View style={styles.promoSection}>
+                    <Text style={styles.sectionTitle}>Exclusive Offers</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20 }}>
+                        {promotions.map((promo) => (
+                            <View key={promo._id} style={styles.promoCard}>
+                                <View style={styles.promoHeader}>
+                                    <View style={styles.promoBadge}>
+                                        <Text style={styles.promoBadgeText}>{promo.discountType === 'Percentage' ? `${promo.discountValue}% OFF` : `₱${promo.discountValue} OFF`}</Text>
+                                    </View>
+                                    <Text style={styles.promoCode}>CODE: {promo.code}</Text>
+                                </View>
+                                <Text style={styles.promoName}>{promo.name}</Text>
+
+                                <View style={styles.promoFooter}>
+                                    {promo.minSpend > 0 ? (
+                                        <View>
+                                            <Text style={styles.promoMinSpend}>Min Spend: ₱{promo.minSpend}</Text>
+                                            <Text style={styles.promoValidity}>Valid until: {new Date(promo.validUntil).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+                                        </View>
+                                    ) : <View />}
+                                    <TouchableOpacity
+                                        style={[styles.claimBtn, myVouchers.some(v => v._id === promo._id) && styles.claimBtnDisabled]}
+                                        onPress={() => handleClaimPromo(promo._id)}
+                                        disabled={myVouchers.some(v => v._id === promo._id)}
+                                    >
+                                        <Text style={styles.claimBtnText}>
+                                            {myVouchers.some(v => v._id === promo._id) ? 'Claimed' : 'Claim'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
+
             {/* ── Quick Actions ── */}
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.actionGrid}>
@@ -124,7 +192,7 @@ const HomeScreen = ({ navigation }) => {
                     style={styles.actionCard}
                     onPress={() => navigation.navigate('Book')}
                 >
-                    <Text style={styles.actionIcon}>🚗</Text>
+                    <Image source={carwashActiveIcon} style={styles.actionIcon} />
                     <Text style={styles.actionTitle}>Book a Wash</Text>
                     <Text style={styles.actionSubtitle}>View services & prices</Text>
                 </TouchableOpacity>
@@ -132,7 +200,7 @@ const HomeScreen = ({ navigation }) => {
                     style={[styles.actionCard]}
                     onPress={() => navigation.navigate('Rental')}
                 >
-                    <Text style={styles.actionIcon}>🔑</Text>
+                    <Image source={carRentActiveIcon} style={styles.actionIcon} />
                     <Text style={styles.actionTitle}>Car Rental</Text>
                     <Text style={styles.actionSubtitle}>Rent a vehicle</Text>
                 </TouchableOpacity>
@@ -239,6 +307,27 @@ const getStyles = (COLORS) => StyleSheet.create({
     bookingAmount: { fontSize: 15, fontWeight: '800', color: COLORS.primary },
     statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
     statusText: { fontSize: 10, fontWeight: '700', textTransform: 'capitalize' },
+    // Promo Styles
+    promoSection: { marginBottom: 20 },
+    promoCard: {
+        backgroundColor: '#23A0CE15',
+        borderWidth: 1, borderColor: 'rgba(35, 160, 206, 0.3)',
+        borderRadius: 16, padding: 16, marginRight: 12, width: 250,
+    },
+    promoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+    promoBadge: { backgroundColor: '#23A0CE', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    promoBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+    promoCode: {
+        color: COLORS.text, fontSize: 11, fontWeight: '700', letterSpacing: 1,
+        backgroundColor: COLORS.cardBackground, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, overflow: 'hidden'
+    },
+    promoName: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 2 },
+    promoValidity: { fontSize: 10, color: COLORS.textMuted },
+    promoMinSpend: { fontSize: 11, color: COLORS.textMuted },
+    promoFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 'auto' },
+    claimBtn: { backgroundColor: '#23A0CE', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 6 },
+    claimBtnDisabled: { backgroundColor: COLORS.cardBackground },
+    claimBtnText: { color: COLORS.text, fontSize: 11, fontWeight: '800' },
 });
 
 export default HomeScreen;

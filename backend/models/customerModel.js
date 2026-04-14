@@ -23,7 +23,13 @@ const customerSchema = new mongoose.Schema({
     hasSMC: { type: Boolean, default: false },
     smcId: { type: String, unique: true, sparse: true },
     smcIssuedDate: { type: Date, default: null },
-    smcExpiryDate: { type: Date, default: null }
+    smcExpiryDate: { type: Date, default: null },
+
+    // Mobile Push Notifications
+    pushToken: { type: String, default: null },
+
+    // Rewards & Vouchers
+    claimedVouchers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Promotion' }],
     
 }, { timestamps: true });
 

@@ -15,6 +15,26 @@ import searchIcon from '../../../assets/icon/search.png';
 import AdminModalWrapper from '../shared/AdminModalWrapper';
 import SharedSearchBar from '../shared/SharedSearchBar';
 
+const getStatusColor = (status) => {
+    switch ((status || '').toLowerCase()) {
+        case 'completed':
+        case 'active':
+        case 'returned':
+            return '#22c55e';
+        case 'pending':
+            return '#f59e0b';
+        case 'queued':
+            return '#c023ce';
+        case 'in progress':
+        case 'confirmed':
+            return '#3b82f6';
+        case 'cancelled':
+            return '#ef4444';
+        default:
+            return '#94a3b8';
+    }
+};
+
 const PromotionsPage = ({ isDark }) => {
     const [activeTab, setActiveTab] = useState('manage'); // 'manage' | 'smc-history' | 'promo-history'
     const [promos, setPromos] = useState([]);
@@ -43,14 +63,29 @@ const PromotionsPage = ({ isDark }) => {
     const fetchData = async (search = '') => {
         setIsLoading(true);
         try {
-            const [promoRes, smcRes, logRes] = await Promise.all([
+            const [promoRes, smcRes, logRes, rentalRes] = await Promise.all([
                 axios.get(`${API_BASE}/promotions/all`, { headers: authHeaders(), withCredentials: true }),
                 axios.get(`${API_BASE}/booking?smcOnly=true&search=${search}`, { headers: authHeaders(), withCredentials: true }),
-                axios.get(`${API_BASE}/booking?promoOnly=true&search=${search}`, { headers: authHeaders(), withCredentials: true })
+                axios.get(`${API_BASE}/booking?promoOnly=true&search=${search}`, { headers: authHeaders(), withCredentials: true }),
+                axios.get(`${API_BASE}/car-rentals?promoOnly=true&search=${search}`, { headers: authHeaders(), withCredentials: true })
             ]);
+
             setPromos(promoRes.data);
             setSmcLogs(smcRes.data);
-            setPromoLogs(logRes.data);
+            
+            // Merge booking promos and rental promos
+            const mergedLogs = [
+                ...(logRes.data || []).map(l => ({ ...l, type: 'wash' })),
+                ...(rentalRes.data || []).map(r => ({ 
+                    ...r, 
+                    type: 'rental',
+                    serviceType: r.vehicleName ? [r.vehicleName] : ['Car Rental'],
+                    firstName: r.fullName?.split(' ')[0] || '',
+                    lastName: r.fullName?.split(' ').slice(1).join(' ') || ''
+                }))
+            ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            setPromoLogs(mergedLogs);
             isPromosMounted.current = true;
         } catch (err) { console.error(err); }
         finally { setIsLoading(false); }
@@ -234,6 +269,7 @@ const PromotionsPage = ({ isDark }) => {
                                     <th>Date</th>
                                     {activeTab === 'promo-history' ? <th>Promo Code</th> : <th>SMC ID</th>}
                                     <th>Service Type</th>
+                                    <th>Status</th>
                                     <th className="pe-4 text-end">Discount Applied</th>
                                 </tr>
                             </thead>
@@ -253,6 +289,16 @@ const PromotionsPage = ({ isDark }) => {
                                             </td>
                                             <td className="small text-muted">
                                                 {Array.isArray(log.serviceType) ? log.serviceType.join(', ') : log.serviceType}
+                                            </td>
+                                            <td>
+                                                <span className={`badge rounded-pill px-2 py-1`} style={{ 
+                                                    fontSize: '0.7rem',
+                                                    backgroundColor: getStatusColor(log.status) + '20',
+                                                    color: getStatusColor(log.status),
+                                                    border: `1px solid ${getStatusColor(log.status)}40`
+                                                }}>
+                                                    {log.status || 'Pending'}
+                                                </span>
                                             </td>
                                             <td className="pe-4 text-end fw-bold text-danger">
                                                 -₱{(activeTab === 'promo-history' ? log.promoDiscount : log.discountAmount)?.toLocaleString()}

@@ -6,8 +6,14 @@ const { invalidatePrefixes } = require('../utils/cache');
 
 const invalidatePromos = (req, res, next) => { invalidatePrefixes('promo'); next(); };
 
+const requireCustomerAuth = require('../middleware/requireCustomerAuth');
+
 // All promos — cached 3 min
 router.get('/all', cache('promo', 180), promotionController.getAllPromotions);
+
+// Protected Customer Routes
+router.get('/mine', requireCustomerAuth, promotionController.getMyVouchers);
+router.post('/claim', requireCustomerAuth, promotionController.claimPromotion);
 
 // Validate promo code — cached 60s (same code checked repeatedly during bookings)
 router.post('/validate', cache('promo', 60), promotionController.validatePromoCode);

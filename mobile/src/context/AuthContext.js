@@ -100,8 +100,19 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const fetchCurrentUser = async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/customer-auth/me`);
+            const updatedInfo = { ...userInfo, ...res.data };
+            setUserInfo(updatedInfo);
+            await AsyncStorage.setItem('userInfo', JSON.stringify(updatedInfo));
+        } catch (error) {
+            console.log('Failed to fetch current user info:', error);
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ login, logout, register, isLoading, isSplashLoading, userToken, userInfo }}>
+        <AuthContext.Provider value={{ login, logout, register, fetchCurrentUser, isLoading, isSplashLoading, userToken, userInfo }}>
             {children}
         </AuthContext.Provider>
     );
