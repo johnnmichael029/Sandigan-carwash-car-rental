@@ -822,6 +822,9 @@ const payFixedSalary = async (req, res) => {
             allowances: employee.nonTaxableAllowance || 0,
             grossPay: earningsGross,
 
+            restDayHours: (pStats.totalRestDayMinutes / 60),
+            restDayPay: restDayPay,
+
             sssEE: sss.employee,
             philhealthEE: ph.employee,
             hdmfEE: hdmf.employee,
@@ -881,9 +884,9 @@ const bulkPayFixedSalary = async (req, res) => {
             if (logs.length === 0 && !employee.hiredDate) continue; // Skip if no work and new employee
 
             const pStats = processPayrollCalculations(employee, logs);
-            const { accruedBase, totalOTMinutes, otPay, totalNDMinutes, nightDiffPay, holidayPay, totalLateMinutes, lateDeduction, absentCount, sss, ph, hdmf, grossTaxable, totalMandatoryEE, withholdingTax } = pStats;
+            const { accruedBase, totalRestDayMinutes, restDayPay, totalOTMinutes, otPay, totalNDMinutes, nightDiffPay, holidayPay, totalLateMinutes, lateDeduction, absentCount, sss, ph, hdmf, grossTaxable, totalMandatoryEE, withholdingTax } = pStats;
 
-            const earningsGross = accruedBase + holidayPay + otPay + nightDiffPay + (employee.nonTaxableAllowance || 0);
+            const earningsGross = accruedBase + holidayPay + restDayPay + otPay + nightDiffPay + (employee.nonTaxableAllowance || 0);
             const totalDeductions = totalMandatoryEE + withholdingTax + lateDeduction;
             const netAmount = earningsGross - totalDeductions;
 
@@ -904,6 +907,8 @@ const bulkPayFixedSalary = async (req, res) => {
                 nightDiffHours: (totalNDMinutes / 60),
                 nightDiffPay,
                 holidayPay,
+                restDayHours: (totalRestDayMinutes / 60),
+                restDayPay: restDayPay,
                 bonuses: 0,
                 allowances: employee.nonTaxableAllowance || 0,
                 grossPay: earningsGross,

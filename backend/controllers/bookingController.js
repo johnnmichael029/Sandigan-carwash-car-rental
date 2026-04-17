@@ -18,6 +18,10 @@ const getBookings = async (req, res) => {
         let filter = {};
         if (req.query.smcOnly === 'true') filter.smcId = { $ne: null };
         if (req.query.promoOnly === 'true') filter.promoCode = { $ne: null };
+        if (req.query.assignedTo) filter.assignedTo = req.query.assignedTo;
+        if (req.query.status) {
+            filter.status = { $in: req.query.status.split(',') };
+        }
 
         const search = req.query.search || '';
         if (search && search.trim()) {
@@ -46,7 +50,25 @@ const getBookings = async (req, res) => {
             };
         }
 
-        const bookings = await Booking.find(filter).sort({ createdAt: -1 }).limit(200).populate('bayId', 'name');
+        let query = Booking.find(filter).sort({ createdAt: -1 }).populate('bayId', 'name');
+        
+        // Conditional Pagination
+        if (req.query.page && req.query.limit) {
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 15;
+            const skip = (page - 1) * limit;
+            
+            const total = await Booking.countDocuments(filter);
+            const bookings = await query.skip(skip).limit(limit);
+            
+            return res.status(200).json({
+                bookings,
+                hasMore: (skip + bookings.length) < total
+            });
+        }
+
+        // Backward compatibility: flat array for admin dashboard
+        const bookings = await query.limit(200);
         res.status(200).json(bookings);
     }
     catch (err) {
@@ -122,7 +144,8 @@ const createBooking = async (req, res) => {
         }
 
         // Generate the Batch ID before saving
-        const generatedBatchID = await generateBatchID(bookingTime);
+        const locType = req.body.serviceLocationType || 'In-Store';
+        const generatedBatchID = await generateBatchID(bookingTime, locType);
         const basePrice = await calculateTotalFromDb(vehicleType, serviceType);
         const discountAmount = req.body.discountAmount || 0;
         const promoDiscountVal = promoDiscount || 0;
@@ -166,7 +189,9 @@ const createBooking = async (req, res) => {
             isRental: isRental || false,
             rentalStartDate: rentalStartDate || null,
             rentalDurationDays: rentalDurationDays || null,
-            destination: destination || null
+            destination: destination || null,
+            serviceLocationType: req.body.serviceLocationType || 'In-Store',
+            homeServiceDetails: req.body.homeServiceDetails || {}
         });
         await booking.populate('bayId', 'name');
 
@@ -320,6 +345,11 @@ const updateBooking = async (req, res) => {
         // If status changed, push to logs
         if (req.body.status && req.body.status !== currentBooking.status) {
             updateQuery.$push = { statusLogs: { status: req.body.status, timestamp: new Date() } };
+
+            // If it is being cancelled, free up the sequence ID
+            if (req.body.status === 'Cancelled' && currentBooking.batchId && !currentBooking.batchId.includes('-CANCELLED')) {
+                updateQuery.$set.batchId = `${currentBooking.batchId}-CANCELLED`;
+            }
         }
 
         const Bay = require('../models/bayModel');
@@ -363,7 +393,7 @@ const updateBooking = async (req, res) => {
         // If bookingTime changed, regenerate a fresh batchId to prevent duplicate sequences
         if (req.body.bookingTime && req.body.bookingTime !== currentBooking.bookingTime) {
             try {
-                const newBatchId = await generateBatchID(req.body.bookingTime);
+                const newBatchId = await generateBatchID(req.body.bookingTime, existingBooking.serviceLocationType);
                 updateQuery.$set.batchId = newBatchId;
             } catch (slotError) {
                 // The new time slot is full – reject the edit
@@ -562,14 +592,18 @@ const updateBooking = async (req, res) => {
         let actorId = null;
         let actorRole = 'employee';
         const jwt = require('jsonwebtoken');
-        const token = req.cookies?.token;
+        let token = req.cookies?.token;
+        if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+            token = req.headers.authorization.split(' ')[1];
+        }
+
         if (token) {
             try {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                actorId = decoded.id;
-                actorRole = decoded.role;
+                actorId = decoded.id || decoded._id;
+                actorRole = decoded.role || 'employee';
                 const Employee = require('../models/employeeModel');
-                const emp = await Employee.findById(decoded.id).lean();
+                const emp = await Employee.findById(actorId).lean();
                 if (emp) actorName = emp.fullName;
             } catch (_) { }
         }
@@ -629,35 +663,64 @@ const updateBooking = async (req, res) => {
 
 
 // Helper function to generate the ID (keep this at the top or in a separate utils file)
-const generateBatchID = async (requestedHour) => {
-    // 1. Get today's date (start and end of day) to count only today's batches
-    const MAX_CAPACITY_PER_HOUR = 3; // Set your limit here
+const generateBatchID = async (requestedHour, serviceLocationType = 'In-Store') => {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    // 2. Count how many non-cancelled bookings exist for this specific hour today
-    const existingCount = await Booking.countDocuments({
-        bookingTime: requestedHour,
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
-        status: { $ne: 'Cancelled' } // Don't count Cancelled slots against capacity
-    });
-
-    if (existingCount >= MAX_CAPACITY_PER_HOUR) {
-        throw new Error(`The ${requestedHour}:00 slot is full. Please pick another time.`);
-    }
-
-    // 3. Current Date formatting for the ID (MMDDYY)
     const todayStr = new Date();
     const month = (todayStr.getMonth() + 1).toString();
     const day = todayStr.getDate().toString();
     const year = todayStr.getFullYear().toString().slice(-2);
     const dateFormatted = `${month}${day}${year}`;
 
-    // 4. Format: DatePrefix-Hour-Sequence (e.g., 33026-10-01)
-    const sequence = (existingCount + 1).toString().padStart(2, '0');
-    return `${dateFormatted}-${requestedHour}${sequence}`;
+    const isHome = serviceLocationType === 'Home Service';
+    const MAX_CAPACITY_PER_HOUR = isHome ? 99 : 3; // large capacity for home services
+
+    // Fetch active bookings based on location logic to find gaps
+    const activeBookings = await Booking.find({
+        bookingTime: requestedHour,
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        status: { $ne: 'Cancelled' }, // Don't count Cancelled slots against capacity
+        serviceLocationType: isHome ? 'Home Service' : { $ne: 'Home Service' }
+    }).select('batchId');
+
+    if (!isHome && activeBookings.length >= MAX_CAPACITY_PER_HOUR) {
+        throw new Error(`The ${requestedHour}:00 slot is full. Please pick another time.`);
+    }
+
+    // Find the missing sequence gap
+    const usedSequences = activeBookings.map(b => {
+        if (!b.batchId) return -1;
+        const parts = b.batchId.split('-');
+        const seqPart = parts[parts.length - 1]; // e.g. '1002' extracted from '41526-1002' OR 'HS-41526-1002'
+        if (seqPart && seqPart.length >= 2) {
+            const seqStr = seqPart.slice(-2); // Extract '02' sequence
+            return parseInt(seqStr, 10);
+        }
+        return -1;
+    });
+
+    let assignedSequence = null;
+    const limit = isHome ? Math.max(99, activeBookings.length + 5) : MAX_CAPACITY_PER_HOUR;
+    for (let i = 1; i <= limit; i++) {
+        if (!usedSequences.includes(i)) {
+            assignedSequence = i;
+            break; 
+        }
+    }
+    
+    if (!assignedSequence) assignedSequence = activeBookings.length + 1;
+
+    const sequenceStr = assignedSequence.toString().padStart(2, '0');
+    const finalSuffix = `${requestedHour}${sequenceStr}`;
+    
+    if (isHome) {
+        return `HS-${dateFormatted}-${finalSuffix}`;
+    } else {
+        return `${dateFormatted}-${finalSuffix}`;
+    }
 };
 
 const getAvailableTimeSlots = async (req, res) => {
@@ -667,9 +730,9 @@ const getAvailableTimeSlots = async (req, res) => {
         const endOfDay = new Date();
         endOfDay.setHours(23, 59, 59, 999);
 
-        // Group non-cancelled bookings by their 'bookingTime' for today
+        // Group non-cancelled in-store bookings by their 'bookingTime' for today
         const bookings = await Booking.aggregate([
-            { $match: { createdAt: { $gte: startOfDay, $lte: endOfDay }, status: { $ne: 'Cancelled' } } },
+            { $match: { createdAt: { $gte: startOfDay, $lte: endOfDay }, status: { $ne: 'Cancelled' }, serviceLocationType: { $ne: 'Home Service' } } },
             { $group: { _id: "$bookingTime", count: { $sum: 1 } } }
         ]);
 
@@ -771,8 +834,11 @@ const cancelBooking = async (req, res) => {
             return res.status(400).json({ error: `Cannot cancel booking with status: ${booking.status}` });
         }
 
-        // 1. Update status to Cancelled
+        // 1. Update status to Cancelled and free up the sequence ID
         booking.status = 'Cancelled';
+        if (booking.batchId && !booking.batchId.includes('-CANCELLED')) {
+            booking.batchId = `${booking.batchId}-CANCELLED`;
+        }
         await booking.save();
 
         // 2. Return Voucher (If used)
@@ -818,6 +884,58 @@ const cancelBooking = async (req, res) => {
 
 }
 
+// ── PATCH /booking/:id/location — Live GPS update from detailer's phone ──
+const updateDetailerLocation = async (req, res) => {
+    const { id } = req.params;
+    const { latitude, longitude } = req.body;
+
+    // Verify Bearer JWT from mobile
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    try {
+        jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
+    } catch {
+        return res.status(401).json({ error: 'Invalid token.' });
+    }
+
+    if (!latitude || !longitude) {
+        return res.status(400).json({ error: 'latitude and longitude are required.' });
+    }
+
+    try {
+        const booking = await Booking.findByIdAndUpdate(
+            id,
+            { 
+                'detailerLocation.latitude': latitude,
+                'detailerLocation.longitude': longitude,
+                'detailerLocation.updatedAt': new Date(),
+                isOnTheWay: true
+            },
+            { new: true }
+        );
+
+        if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+
+        // Emit to a room dedicated to that booking so ONLY the customer with this booking sees it
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`booking:${id}`).emit('detailer_location_update', {
+                bookingId: id,
+                latitude,
+                longitude,
+                updatedAt: new Date()
+            });
+        }
+
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('[GPS_UPDATE_ERR]', err);
+        res.status(500).json({ error: 'Failed to update location.' });
+    }
+}
+
 module.exports = {
     getBookings,
     getBooking,
@@ -826,5 +944,6 @@ module.exports = {
     updateBooking,
     cancelBooking,
     getAvailableTimeSlots,
-    getEmployeeHistory
+    getEmployeeHistory,
+    updateDetailerLocation
 };

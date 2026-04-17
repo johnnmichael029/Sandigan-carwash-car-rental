@@ -11,6 +11,9 @@ import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { API_BASE } from '../api/config';
 import Toast from 'react-native-toast-message';
+import Skeleton from '../components/Skeleton';
+import BookingDetailModal from '../components/BookingDetailModal';
+import CustomAlertModal from '../components/CustomAlertModal';
 
 const RENTAL_URL = `${API_BASE}/rental-fleet`;
 const CAR_RENTAL_URL = `${API_BASE}/car-rentals`;
@@ -21,7 +24,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const RentalScreen = ({ navigation }) => {
     const { userInfo, userToken } = useContext(AuthContext);
-    const { COLORS } = useContext(ThemeContext);
+    const { COLORS, isDarkMode } = useContext(ThemeContext);
     const styles = getStyles(COLORS);
 
     // ── SWR cached fetch — instant on re-navigation ──
@@ -47,6 +50,8 @@ const RentalScreen = ({ navigation }) => {
     const [myVouchers, setMyVouchers] = useState([]);
     const [isVoucherModalVisible, setIsVoucherModalVisible] = useState(false);
     const [isModalFull, setIsModalFull] = useState(false);
+    const [successModalData, setSuccessModalData] = useState(null);
+    const [alertData, setAlertData] = useState({ visible: false, title: '', message: '', type: 'info', onConfirm: null });
 
     // ── Reset Form & Refresh Data on Focus ──
     useFocusEffect(
@@ -140,13 +145,22 @@ const RentalScreen = ({ navigation }) => {
         setSelectedRentalVehicle(vt);
     };
 
-    // ── Submit booking to /api/car-rentals ──
-    const handleSubmit = async () => {
+    const handleSubmit = () => {
         if (!selectedRentalVehicle || !rentalStartDate || !rentalDurationDays || !destination || !address) {
             Toast.show({ type: 'error', text1: 'Incomplete', text2: 'Please fill in all fields including your address.' });
             return;
         }
 
+        setAlertData({
+            visible: true,
+            title: 'Confirm Rental?',
+            message: `Do you want to request a ${selectedRentalVehicle.vehicleName} for ${rentalDurationDays} day${rentalDurationDays > 1 ? 's' : ''} starting ${rentalStartDate}?`,
+            type: 'confirm',
+            onConfirm: handleConfirmedSubmit
+        });
+    };
+
+    const handleConfirmedSubmit = async () => {
         // Compute returnDate = startDate + duration days
         const start = new Date(rentalStartDate);
         const returnDateObj = new Date(start);
@@ -155,7 +169,7 @@ const RentalScreen = ({ navigation }) => {
 
         setIsSubmitting(true);
         try {
-            await axios.post(CAR_RENTAL_URL, {
+            const res = await axios.post(CAR_RENTAL_URL, {
                 fullName: `${userInfo.firstName} ${userInfo.lastName}`,
                 contactNumber: userInfo.phone || '00000000000',
                 emailAddress: userInfo.email,
@@ -173,15 +187,23 @@ const RentalScreen = ({ navigation }) => {
                 headers: { Authorization: `Bearer ${userToken}` }
             });
 
+            const newRental = res.data?.rental;
+            if (newRental) {
+                newRental.type = 'rental';
+            }
+
             Toast.show({ type: 'success', text1: '🎉 Rental Submitted!', text2: 'We\'ll confirm your reservation shortly.' });
-            // Reset and redirect to My Bookings tab (nested inside MainTabs)
+
+            // Set data to open modal in place
+            setSuccessModalData(newRental);
+
+            // Reset and stay on the screen underneath
             setStep(1);
             setSelectedRentalVehicle(null);
             setRentalStartDate('');
             setRentalDurationDays('1');
             setDestination('');
             setAppliedPromo(null);
-            navigation.navigate('MainTabs', { screen: 'Bookings' });
         } catch (err) {
             Toast.show({ type: 'error', text1: 'Booking Failed', text2: err.response?.data?.error || 'Please try again.' });
         } finally {
@@ -228,9 +250,31 @@ const RentalScreen = ({ navigation }) => {
 
     if (isLoadingData) {
         return (
-            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={[styles.mutedText, { marginTop: 12 }]}>Loading fleet...</Text>
+            <View style={[styles.container, { paddingTop: 46 }]}>
+                {/* Back Link */}
+                <Skeleton width={50} height={14} isDarkMode={isDarkMode} style={{ marginBottom: 16 }} />
+
+                {/* Title */}
+                <Skeleton width={180} height={28} isDarkMode={isDarkMode} style={{ marginBottom: 6 }} />
+                <Skeleton width={240} height={14} isDarkMode={isDarkMode} style={{ marginBottom: 30 }} />
+
+                {/* Steps Skeleton - Rental has 3 steps */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30, paddingHorizontal: 4 }}>
+                    {[1, 2, 3].map(k => (
+                        <View key={k} style={{ alignItems: 'center', flex: 1 }}>
+                            <Skeleton width={32} height={32} borderRadius={16} isDarkMode={isDarkMode} style={{ marginBottom: 4 }} />
+                            <Skeleton width={60} height={10} isDarkMode={isDarkMode} />
+                        </View>
+                    ))}
+                </View>
+
+                {/* Vertical Cards Skeleton */}
+                <Text style={[styles.stepTitle, { marginBottom: 16 }]}>Select Your Vehicle</Text>
+                <View style={{ flexDirection: 'column', gap: 10 }}>
+                    <Skeleton width="100%" height={90} borderRadius={14} isDarkMode={isDarkMode} />
+                    <Skeleton width="100%" height={90} borderRadius={14} isDarkMode={isDarkMode} />
+                    <Skeleton width="100%" height={90} borderRadius={14} isDarkMode={isDarkMode} />
+                </View>
             </View>
         );
     }
@@ -546,6 +590,27 @@ const RentalScreen = ({ navigation }) => {
                     </Animated.View>
                 </Pressable>
             </Modal>
+
+            {/* ── SUCCESS MODAL ── */}
+            <BookingDetailModal
+                visible={!!successModalData}
+                item={successModalData}
+                isSuccessAnimation={true}
+                onClose={() => {
+                    setSuccessModalData(null);
+                    navigation.navigate('MainTabs', { screen: 'Bookings' });
+                }}
+                COLORS={COLORS}
+            />
+
+            <CustomAlertModal 
+                visible={alertData.visible}
+                title={alertData.title}
+                message={alertData.message}
+                type={alertData.type}
+                onConfirm={alertData.onConfirm}
+                onClose={() => setAlertData({ ...alertData, visible: false })}
+            />
         </View>
     );
 };
@@ -574,7 +639,7 @@ const getStyles = (COLORS) => StyleSheet.create({
     stepCircleActive: { borderColor: COLORS.primary },
     stepCircleDone: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
     stepNum: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
-    stepNumActive: { color: '#fff' },
+    stepNumActive: { color: COLORS.text },
     stepLabel: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600', textAlign: 'center' },
     stepLabelActive: { color: COLORS.primary },
 

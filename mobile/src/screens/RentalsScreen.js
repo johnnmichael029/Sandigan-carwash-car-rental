@@ -1,9 +1,12 @@
 import React, { useContext, useState, useCallback, useEffect, useRef } from 'react';
 import {
-    View, Text, StyleSheet, FlatList, ScrollView, TouchableOpacity,
-    ActivityIndicator, RefreshControl, Animated, Alert
+    View, Text, StyleSheet, ScrollView, TouchableOpacity,
+    ActivityIndicator, RefreshControl, Animated, Alert, DeviceEventEmitter
 } from 'react-native';
+import { FlashList } from "@shopify/flash-list";
 import BookingDetailModal from '../components/BookingDetailModal';
+import CustomAlertModal from '../components/CustomAlertModal';
+import BookingCardSkeleton from '../components/BookingCardSkeleton';
 import axios from 'axios';
 import { useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
@@ -77,6 +80,7 @@ const RentalsScreen = ({ navigation }) => {
     const [selectedRental, setSelectedRental] = useState(null);
     const [detailsModalVisible, setDetailsModalVisible] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [alertData, setAlertData] = useState({ visible: false, title: '', message: '', type: 'info', onConfirm: null });
 
     const rentalPage = useRef(1);
     const hasMore = useRef(true);
@@ -178,42 +182,52 @@ const RentalsScreen = ({ navigation }) => {
     };
 
     const handleCancel = async (item) => {
-        Alert.alert(
-            "Cancel Rental Request?",
-            "Are you sure you want to cancel this car rental? Any applied vouchers will be returned to you.",
-            [
-                { text: "No, Keep it", style: "cancel" },
-                {
-                    text: "Yes, Cancel",
-                    style: "destructive",
-                    onPress: async () => {
-                        setIsCancelling(true);
-                        try {
-                            const response = await fetch(`${API_BASE}/car-rentals/${item._id}/cancel`, {
-                                method: 'PATCH',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${userToken}`
-                                }
-                            });
-
-                            const data = await response.json();
-                            if (response.ok) {
-                                setDetailsModalVisible(false);
-                                Alert.alert("Cancelled", "Your rental request has been successfully cancelled.");
-                                onRefresh(); // Refresh the list
-                            } else {
-                                Alert.alert("Error", data.error || "Failed to cancel.");
-                            }
-                        } catch (err) {
-                            Alert.alert("Error", "Check your internet connection.");
-                        } finally {
-                            setIsCancelling(false);
+        setAlertData({
+            visible: true,
+            title: "Cancel Rental Request?",
+            message: "Are you sure you want to cancel this car rental? Any applied vouchers will be returned to you.",
+            type: 'confirm',
+            onConfirm: async () => {
+                setIsCancelling(true);
+                try {
+                    const response = await fetch(`${API_BASE}/car-rentals/${item._id}/cancel`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${userToken}`
                         }
+                    });
+
+                    const data = await response.json();
+                    if (response.ok) {
+                        setDetailsModalVisible(false);
+                        setAlertData({
+                            visible: true,
+                            title: "Success",
+                            message: "Your rental request has been successfully cancelled.",
+                            type: 'success'
+                        });
+                        onRefresh(); // Refresh the list
+                    } else {
+                        setAlertData({
+                            visible: true,
+                            title: "Error",
+                            message: data.error || "Failed to cancel.",
+                            type: 'error'
+                        });
                     }
+                } catch (err) {
+                    setAlertData({
+                        visible: true,
+                        title: "Error",
+                        message: "Check your internet connection.",
+                        type: 'error'
+                    });
+                } finally {
+                    setIsCancelling(false);
                 }
-            ]
-        );
+            }
+        });
     };
 
     const filtered = activeFilter === 'All'
@@ -224,9 +238,9 @@ const RentalsScreen = ({ navigation }) => {
     const renderRental = ({ item, index }) => {
         const color = getStatusColor(item.status);
         return (
-            <TouchableOpacity 
+            <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => { setSelectedRental({...item, type: 'rental'}); setDetailsModalVisible(true); }}
+                onPress={() => { setSelectedRental({ ...item, type: 'rental' }); setDetailsModalVisible(true); }}
                 style={[styles.card, index === 0 && { marginTop: 4 }]}
             >
                 <View style={[styles.stripe, { backgroundColor: color }]} />
@@ -338,17 +352,26 @@ const RentalsScreen = ({ navigation }) => {
             </Text>
 
             {isLoading ? (
-                <ActivityIndicator color={COLORS.primary} style={{ marginTop: 60 }} size="large" />
+                <View style={{ marginTop: 10 }}>
+                    {[1, 2, 3, 4].map((key) => (
+                        <BookingCardSkeleton key={key} />
+                    ))}
+                </View>
             ) : (
-                <FlatList
+                <FlashList
                     data={filtered}
                     renderItem={renderRental}
                     keyExtractor={(item, idx) => item._id || String(idx)}
+                    estimatedItemSize={160}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
                     onEndReached={activeFilter === 'All' ? onEndReached : null}
                     onEndReachedThreshold={0.4}
                     ListFooterComponent={renderFooter}
                     ListEmptyComponent={renderEmpty}
+                    onScrollBeginDrag={() => DeviceEventEmitter.emit('toggleTabBar', true)}
+                    onScrollEndDrag={() => DeviceEventEmitter.emit('toggleTabBar', false)}
+                    onMomentumScrollBegin={() => DeviceEventEmitter.emit('toggleTabBar', true)}
+                    onMomentumScrollEnd={() => DeviceEventEmitter.emit('toggleTabBar', false)}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ paddingBottom: 32, flexGrow: 1 }}
                 />
@@ -362,6 +385,15 @@ const RentalsScreen = ({ navigation }) => {
                 isCancelling={isCancelling}
                 COLORS={COLORS}
                 getStatusColor={getStatusColor}
+            />
+
+            <CustomAlertModal 
+                visible={alertData.visible}
+                title={alertData.title}
+                message={alertData.message}
+                type={alertData.type}
+                onConfirm={alertData.onConfirm}
+                onClose={() => setAlertData({ ...alertData, visible: false })}
             />
         </View>
     );

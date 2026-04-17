@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView,
     TouchableOpacity, Alert, Image, Modal, TextInput, ActivityIndicator,
-    KeyboardAvoidingView, Platform, Pressable
+    KeyboardAvoidingView, Platform, Pressable, DeviceEventEmitter
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,6 +13,10 @@ import { ThemeContext } from '../context/ThemeContext';
 import { API_BASE } from '../api/config';
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
+import LogoutModal from '../components/LogoutModal';
+
+const logOutIcon = require('../../assets/icon/log-out.png');
+const editProfileIcon = require('../../assets/icon/edit-profile.png');
 
 const MeScreen = () => {
     const { userInfo, logout, fetchCurrentUser } = useContext(AuthContext);
@@ -21,6 +25,7 @@ const MeScreen = () => {
 
     // Edit Profile State
     const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+    const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [editFirstName, setEditFirstName] = useState(userInfo?.firstName || '');
     const [editLastName, setEditLastName] = useState(userInfo?.lastName || '');
@@ -56,14 +61,7 @@ const MeScreen = () => {
     };
 
     const handleSignOut = () => {
-        Alert.alert(
-            'Sign Out',
-            'Are you sure you want to sign out?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Sign Out', style: 'destructive', onPress: () => logout() },
-            ]
-        );
+        setIsLogoutModalVisible(true);
     };
 
     const initials = `${userInfo?.firstName?.[0] || ''}${userInfo?.lastName?.[0] || ''}`.toUpperCase();
@@ -71,7 +69,14 @@ const MeScreen = () => {
 
     return (
         <SafeAreaView style={styles.safe}>
-            <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={styles.container}
+                showsVerticalScrollIndicator={false}
+                onScrollBeginDrag={() => DeviceEventEmitter.emit('toggleTabBar', true)}
+                onScrollEndDrag={() => DeviceEventEmitter.emit('toggleTabBar', false)}
+                onMomentumScrollBegin={() => DeviceEventEmitter.emit('toggleTabBar', true)}
+                onMomentumScrollEnd={() => DeviceEventEmitter.emit('toggleTabBar', false)}
+            >
 
                 {/* ── Header ── */}
                 <View style={styles.header}>
@@ -139,7 +144,7 @@ const MeScreen = () => {
                     <View style={styles.cardHeader}>
                         <Text style={styles.cardTitle}>Account Details</Text>
                         <TouchableOpacity onPress={handleOpenEdit}>
-                            <Text style={styles.editBtnText}>Edit</Text>
+                            <Image source={editProfileIcon} style={styles.editProfileIcon} />
                         </TouchableOpacity>
                     </View>
 
@@ -152,6 +157,7 @@ const MeScreen = () => {
                 {/* ── Sign Out ── */}
                 <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.85}>
                     <Text style={styles.signOutText}>Sign Out</Text>
+                    <Image source={logOutIcon} style={styles.signOutIcon} />
                 </TouchableOpacity>
 
                 <Text style={styles.version}>Sandigan Carwash & Rental · v1.0</Text>
@@ -228,6 +234,14 @@ const MeScreen = () => {
                     </KeyboardAvoidingView>
                 </Pressable>
             </Modal>
+
+            <LogoutModal
+                visible={isLogoutModalVisible}
+                onClose={() => setIsLogoutModalVisible(false)}
+                onConfirm={logout}
+                cancelText="No, I'll stay"
+                confirmText="Yes, Sign me out"
+            />
         </SafeAreaView>
     );
 };
@@ -325,6 +339,11 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 8,
         elevation: 4,
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
     },
     signOutText: {
         color: '#fff',
@@ -541,6 +560,18 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
         fontWeight: '700',
         color: '#fff',
     },
+    signOutIcon: {
+        width: 16,
+        height: 16,
+        resizeMode: 'contain',
+        tintColor: COLORS.buttonText,
+    },
+    editProfileIcon: {
+        width: 16,
+        height: 16,
+        resizeMode: 'contain',
+        tintColor: COLORS.text,
+    }
 });
 
 export default MeScreen;

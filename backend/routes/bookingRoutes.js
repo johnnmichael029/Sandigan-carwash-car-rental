@@ -10,7 +10,8 @@ const {
     updateBooking,
     cancelBooking,
     getAvailableTimeSlots,
-    getEmployeeHistory
+    getEmployeeHistory,
+    updateDetailerLocation
 } = require('../controllers/bookingController');
 const router = express.Router();
 
@@ -24,6 +25,7 @@ router.get('/employee-history/:id', requireAuth, cache('booking', 60), getEmploy
 router.get('/', requireAuth, cache('booking', 60), getBookings);
 router.get('/:id', requireAuth, cache('booking', 30), getBooking);
 router.patch('/:id', requireAuth, (req, res, next) => { invalidatePrefixes('booking', 'forecast', 'finance', 'revenue', 'sandi'); next(); }, updateBooking);
+router.patch('/:id/location', updateDetailerLocation); // Mobile detailer GPS stream - JWT verified inside controller
 router.delete('/:id', requireAuth, (req, res, next) => { invalidatePrefixes('booking', 'forecast', 'finance', 'revenue', 'sandi'); next(); }, deleteBooking);
 
 module.exports = router;

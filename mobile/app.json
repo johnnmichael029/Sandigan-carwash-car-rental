@@ -5,8 +5,8 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
@@ -22,7 +22,10 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "sandigan.mobile",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE"
       ]

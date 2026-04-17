@@ -18,6 +18,8 @@ const payoutSchema = new mongoose.Schema({
     nightDiffHours: { type: Number, default: 0 },
     nightDiffPay: { type: Number, default: 0 },
     holidayPay: { type: Number, default: 0 },
+    restDayHours: { type: Number, default: 0 },
+    restDayPay: { type: Number, default: 0 },
     bonuses: { type: Number, default: 0 },
     allowances: { type: Number, default: 0 }, // Non-taxable
     grossPay: { type: Number, default: 0 },

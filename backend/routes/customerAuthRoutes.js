@@ -293,5 +293,61 @@ router.get('/:id/bookings', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+// @route   POST /api/customer-auth/booking/:id/review
+// @desc    Submit a performance review for the assigned detailer
+// @access  Private (Customer Token Required)
+router.post('/booking/:id/review', requireCustomerAuth, async (req, res) => {
+    try {
+        const { rating, comment } = req.body;
+        const bookingId = req.params.id;
+
+        if (!rating || rating < 1 || rating > 5) {
+            return res.status(400).json({ error: 'Please provide a valid rating between 1 and 5.' });
+        }
+
+        const Booking = require('../models/bookingModel');
+        const Employee = require('../models/employeeModel');
+
+        const booking = await Booking.findOne({ 
+            _id: bookingId, 
+            emailAddress: req.customer.email 
+        });
+
+        if (!booking) {
+            return res.status(404).json({ error: 'Booking not found.' });
+        }
+        if (booking.status !== 'Completed') {
+            return res.status(400).json({ error: 'You can only review completed bookings.' });
+        }
+        if (booking.isReviewed) {
+            return res.status(400).json({ error: 'You have already reviewed this booking.' });
+        }
+        if (!booking.assignedTo) {
+            return res.status(400).json({ error: 'No detailer was assigned to this booking to review.' });
+        }
+
+        // Add evaluation to the assigned employee
+        const reviewerName = `${req.customer.firstName} ${req.customer.lastName} (Customer)`;
+        await Employee.findByIdAndUpdate(booking.assignedTo, {
+            $push: {
+                evaluations: {
+                    rating,
+                    comment: comment || '',
+                    reviewerName,
+                    date: new Date()
+                }
+            }
+        });
+
+        // Mark booking as reviewed
+        booking.isReviewed = true;
+        await booking.save();
+
+        res.status(200).json({ message: 'Review submitted successfully.' });
+    } catch (err) {
+        console.error('Review Error:', err);
+        res.status(500).json({ error: 'Server error while submitting review.' });
+    }
+});
 
 module.exports = router;

@@ -60,6 +60,32 @@ const bookingSchema = new Schema({
         ref: 'employee',
         default: null
     },
+    isReviewed: {
+        type: Boolean,
+        default: false
+    },
+    // ---- Home Service Fields ----
+    serviceLocationType: {
+        type: String,
+        enum: ['In-Store', 'Home Service'],
+        default: 'In-Store'
+    },
+    homeServiceDetails: {
+        address: { type: String, default: null },
+        latitude: { type: Number, default: null },
+        longitude: { type: Number, default: null },
+        etaMinutes: { type: Number, default: null },
+    },
+    // ---- Live Detailer GPS Tracking (Home Service) ----
+    detailerLocation: {
+        latitude: { type: Number, default: null },
+        longitude: { type: Number, default: null },
+        updatedAt: { type: Date, default: null }
+    },
+    isOnTheWay: {
+        type: Boolean,
+        default: false
+    },
     // ---- Car Rental Support Fields ----
     isRental: {
         type: Boolean,

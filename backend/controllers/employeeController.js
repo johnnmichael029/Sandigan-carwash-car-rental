@@ -1,7 +1,9 @@
 const Employee = require('../models/employeeModel');
+const Booking = require('../models/bookingModel');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { createLog } = require('./activityLogController');
+const { getSettingValue } = require('./settingController');
 
 // Get employee by ID
 const getEmployee = async (req, res) => {
@@ -64,9 +66,10 @@ const createEmployee = async (req, res) => {
     if (typeof hasAccount === 'string') hasAccount = hasAccount === 'true';
 
     // Fallback unique identity for directory-only staff (Satisfies DB uniqueness without requiring a real email)
-    if (!hasAccount || role === 'detailer') {
+    // Fallback unique identity for directory-only staff
+    if (!hasAccount) {
         if (!email || email.trim() === '') {
-            email = `${role}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}@sandigan.local`;
+            email = `noaccount_${Date.now()}_${Math.random().toString(36).slice(2, 6)}@sandigan.local`;
         }
         if (!password || password.trim() === '') {
             password = `noaccount_${Date.now()}!`;
@@ -170,9 +173,9 @@ const updateEmployee = async (req, res) => {
         if (email !== undefined) {
             if (email && email.trim() !== '') {
                 updateFields.email = email;
-            } else if (!hasAccount || role === 'detailer') {
+            } else if (!hasAccount) {
                 // If it was cleared and we don't need a real account, generate fallback
-                updateFields.email = `${role || 'staff'}_${Date.now()}@sandigan.local`;
+                updateFields.email = `noaccount_${Date.now()}@sandigan.local`;
             } else {
                 updateFields.email = null;
             }
@@ -271,14 +274,19 @@ const deleteEmployee = async (req, res) => {
 
 // Login employee
 const loginEmployee = async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, source } = req.body;
 
     try {
         const employee = await Employee.findOne({ email });
         if (!employee) return res.status(404).json({ error: "User not found" });
 
-        // Check if the employee is allowed to log into the system
-        if (!employee.hasAccount) {
+        // Enforce that detailers CANNOT login to the the Admin Dashboard
+        if (employee.role === 'detailer' && source !== 'mobile') {
+            return res.status(403).json({ error: "Access Denied. Detailers can only log in through the Sandigan Mobile App." });
+        }
+
+        // Enforce that employees with no account CANNOT login to the the Admin Dashboard
+        if (!employee.hasAccount && source === 'mobile') {
             return res.status(403).json({ error: "This account does not have login access. Please contact your administrator." });
         }
 
@@ -303,10 +311,12 @@ const loginEmployee = async (req, res) => {
 
         res.status(200).json({
             message: "Login successful",
+            token,
             employee: {
                 id: employee._id,
                 fullName: employee.fullName,
-                role: employee.role
+                role: employee.role,
+                isEmployee: true
             }
         });
 
@@ -462,6 +472,79 @@ const backfillEmployeeIds = async (req, res) => {
     }
 };
 
+// Get detailer earnings (Mobile)
+const getMyEarnings = async (req, res) => {
+    try {
+        const detailerId = req.user ? req.user.id : req.employeeId;
+        if (!detailerId) return res.status(401).json({ error: "Unauthorized" });
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 15;
+
+        const bookings = await Booking.find({
+            status: 'Completed',
+            assignedTo: detailerId
+        }).sort({ updatedAt: -1 }).lean();
+
+        const commissionRate = await getSettingValue('commission_rate', 0.30);
+
+        let totalEarned = 0;
+        let unpaidPool = 0;
+
+        const calculateComm = (b) => {
+            const retailTotal = (b.purchasedProducts || []).reduce((s, p) => s + (Number(p.price || 0) * Number(p.quantity || 0)), 0);
+            const commissionablePrice = Math.max(0, (b.totalPrice || 0) - retailTotal);
+            return commissionablePrice * commissionRate;
+        };
+
+        const processedBookings = bookings.map(b => {
+            const comm = calculateComm(b);
+            totalEarned += comm;
+            if (b.commissionStatus !== 'Paid') unpaidPool += comm;
+
+            return {
+                _id: b._id,
+                batchId: b.batchId,
+                totalPrice: b.totalPrice,
+                commissionEarned: comm,
+                commissionStatus: b.commissionStatus,
+                serviceType: b.serviceType,
+                vehicleType: b.vehicleType,
+                bookingTime: b.bookingTime,
+                createdAt: b.createdAt,
+                updatedAt: b.updatedAt,
+                status: b.status,
+                serviceLocationType: b.serviceLocationType,
+                homeServiceDetails: b.homeServiceDetails,
+                firstName: b.firstName,
+                lastName: b.lastName,
+                addons: b.addons,
+                purchasedProducts: b.purchasedProducts,
+                paymentMethod: b.paymentMethod,
+                isReviewed: b.isReviewed,
+                detailer: b.detailer,
+            };
+        });
+
+        const startIndex = (page - 1) * limit;
+        const endIndex = page * limit;
+        const paginatedBookings = processedBookings.slice(startIndex, endIndex);
+        const hasMore = endIndex < processedBookings.length;
+
+        res.json({
+            detailerId,
+            commissionRate,
+            totalEarned,
+            unpaidPool,
+            bookingCount: bookings.length,
+            bookings: paginatedBookings,
+            hasMore
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     getEmployee,
     getEmployees,
@@ -472,5 +555,6 @@ module.exports = {
     logoutEmployee,
     addEvaluation,
     updateSkills,
-    backfillEmployeeIds
+    backfillEmployeeIds,
+    getMyEarnings
 }

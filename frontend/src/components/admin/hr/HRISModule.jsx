@@ -251,6 +251,23 @@ const HRISPage = ({ user, isDark }) => {
     const filteredLedger = useMemo(() => {
         return filterDataBySearch(mappedPayoutHistory, ledgerSearch, ['recipient.fullName', 'detailer.fullName', 'derivedType', 'period', 'paidBy.fullName'], ['createdAt', 'date']);
     }, [mappedPayoutHistory, ledgerSearch]);
+
+    const duePayouts = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return pendingFixed.filter(p => {
+            const start = p.lastPaidDate ? new Date(p.lastPaidDate) : (p.hiredDate ? new Date(p.hiredDate) : null);
+            if (!start) return false;
+            const diffDays = Math.floor((today - new Date(start)) / (1000 * 60 * 60 * 24));
+            const freq = p.salaryFrequency || p.frequency;
+            let cycle = 15; // Bi-Weekly
+            if (freq === 'Weekly') cycle = 7;
+            else if (freq === 'Daily') cycle = 1;
+            else if (freq === 'Monthly') cycle = 30;
+            return diffDays >= cycle;
+        });
+    }, [pendingFixed]);
+
     const filteredAttendance = filterDataBySearch(attendanceLogs, attendanceSearch, ['employee.fullName', 'holidayType', 'holidayName', 'status'], ['date', 'clockInTime', 'clockOutTime']);
 
     const [attendanceCurrentPage, setAttendanceCurrentPage] = useState(1);
@@ -723,10 +740,9 @@ const HRISPage = ({ user, isDark }) => {
             const payload = { ...empForm };
 
             // Logic for system accounts vs directory only
-            if (!payload.hasAccount || payload.role === 'detailer') {
-                // If it's a detailer or no account, password is NOT used
+            if (!payload.hasAccount) {
+                // If it's no account, password is NOT used
                 delete payload.password;
-                if (payload.role === 'detailer') payload.hasAccount = false;
 
                 // Email is optional for directory only. If empty, the backend will generate a unique fallback.
                 if (!payload.email) payload.email = '';
@@ -879,7 +895,9 @@ const HRISPage = ({ user, isDark }) => {
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Yes, Finalize All',
-            confirmButtonColor: '#23A0CE'
+            confirmButtonColor: '#23A0CE',
+            background: 'var(--theme-card-bg)',
+            color: 'var(--theme-content-text)'
         });
 
         if (!result.isConfirmed) return;
@@ -980,15 +998,18 @@ const HRISPage = ({ user, isDark }) => {
             doc.text("Holiday Pay", 20, 123);
             doc.text(`PHP ${(hist.holidayPay || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 123, { align: 'right' });
 
-            doc.text("Bonuses / Adjustments", 20, 129);
-            doc.text(`PHP ${(hist.bonuses || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 129, { align: 'right' });
+            doc.text(`Rest Day Pay (${(hist.restDayHours || 0).toFixed(1)} hrs)`, 20, 129);
+            doc.text(`PHP ${(hist.restDayPay || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 129, { align: 'right' });
 
-            doc.text("Non-Taxable Allowance", 20, 135);
-            doc.text(`PHP ${(hist.allowances || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 135, { align: 'right' });
+            doc.text("Bonuses / Adjustments", 20, 135);
+            doc.text(`PHP ${(hist.bonuses || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 135, { align: 'right' });
+
+            doc.text("Non-Taxable Allowance", 20, 141);
+            doc.text(`PHP ${(hist.allowances || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 141, { align: 'right' });
 
             doc.setFont("helvetica", "bold");
-            doc.text("TOTAL GROSS EARNINGS", 20, 145);
-            doc.text(`PHP ${(hist.grossPay || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 145, { align: 'right' });
+            doc.text("TOTAL GROSS EARNINGS", 20, 153);
+            doc.text(`PHP ${(hist.grossPay || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 95, 153, { align: 'right' });
 
             // Deductions Column (Right)
             doc.setFont("helvetica", "bold");
@@ -1013,23 +1034,23 @@ const HRISPage = ({ user, isDark }) => {
 
             doc.setFontSize(8);
             doc.setTextColor(150, 150, 150);
-            doc.text("Taxable Income Base for Gov Deductions", 115, 138);
-            doc.text(`PHP ${((hist.grossPay || 0) - (hist.allowances || 0) - (hist.bonuses || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 190, 138, { align: 'right' });
+            doc.text("Taxable Income Base for Gov Deductions", 115, 142);
+            doc.text(`PHP ${((hist.grossPay || 0) - (hist.allowances || 0) - (hist.bonuses || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 190, 142, { align: 'right' });
             doc.setFontSize(9);
             doc.setTextColor(40, 40, 40);
 
             doc.setFont("helvetica", "bold");
-            doc.text("TOTAL DEDUCTIONS", 115, 145);
-            doc.text(`PHP ${(hist.totalDeductions || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 190, 145, { align: 'right' });
+            doc.text("TOTAL DEDUCTIONS", 115, 153);
+            doc.text(`PHP ${(hist.totalDeductions || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 190, 153, { align: 'right' });
 
             // Take Home Pay Box
             doc.setFillColor(241, 245, 249);
-            doc.rect(15, 155, 180, 20, 'F');
+            doc.rect(15, 163, 180, 20, 'F');
             doc.setFontSize(14);
             doc.setTextColor(40, 40, 40);
-            doc.text("NET TAKE-HOME PAY:", 25, 168);
+            doc.text("NET TAKE-HOME PAY:", 25, 176);
             doc.setTextColor(34, 197, 94); // Success Green
-            doc.text(`PHP ${(hist.netAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 180, 168, { align: 'right' });
+            doc.text(`PHP ${(hist.netAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 180, 176, { align: 'right' });
 
             // Employer's Share Section
             doc.setTextColor(120, 120, 120);
@@ -1088,13 +1109,13 @@ const HRISPage = ({ user, isDark }) => {
                     {/* Pending bills badge on Settings button */}
                     <div className="btn-group p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
                         <button onClick={() => setHrTab('directory')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'directory' ? 'shadow-sm fw-bold' : 'text-muted'}`} style={{ background: hrTab === 'directory' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'directory' ? 'var(--theme-content-text)' : 'inherit' }}>
-                            <img src={directoryIcon} alt="Directory Icon" style={{ width: '16px' }} />Directory</button>
+                            <img src={directoryIcon} alt="Directory Icon" style={{ width: '16px', filter: isDark ? 'brightness(0) invert(1)' : 'none' }} />Directory</button>
                         <button onClick={() => setHrTab('payroll')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'payroll' ? 'shadow-sm fw-bold' : 'text-muted'}`} style={{ background: hrTab === 'payroll' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'payroll' ? 'var(--theme-content-text)' : 'inherit' }}>
-                            <img src={payrollIcon} alt="Payroll Icon" style={{ width: '16px' }} />Payroll</button>
+                            <img src={payrollIcon} alt="Payroll Icon" style={{ width: '16px', filter: isDark ? 'brightness(0) invert(1)' : 'none' }} />Payroll</button>
                         <button onClick={() => setHrTab('analytics')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'analytics' ? 'shadow-sm fw-bold' : 'text-muted'}`} style={{ background: hrTab === 'analytics' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'analytics' ? 'var(--theme-content-text)' : 'inherit' }}>
-                            <img src={analyticsIcon} alt="Analytics Icon" style={{ width: '16px' }} />Analytics</button>
+                            <img src={analyticsIcon} alt="Analytics Icon" style={{ width: '16px', filter: isDark ? 'brightness(0) invert(1)' : 'none' }} />Analytics</button>
                         <button onClick={() => setHrTab('attendance')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'attendance' ? 'shadow-sm fw-bold' : 'text-muted'}`} style={{ background: hrTab === 'attendance' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'attendance' ? 'var(--theme-content-text)' : 'inherit' }}>
-                            <img src={attendanceIcon} alt="Attendance Icon" style={{ width: '16px' }} />Attendance History</button>
+                            <img src={attendanceIcon} alt="Attendance Icon" style={{ width: '16px', filter: isDark ? 'brightness(0) invert(1)' : 'none' }} />Attendance History</button>
                         <button onClick={() => setHrTab('leaves')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 position-relative ${hrTab === 'leaves' ? 'shadow-sm fw-bold' : 'text-muted'}`} style={{ background: hrTab === 'leaves' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'leaves' ? 'var(--theme-content-text)' : 'inherit' }}>
                             {leaveLogs.filter(l => l.status === 'Pending').length > 0 && (
                                 <span className="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.5rem', padding: '2px 5px', marginTop: '4px' }}>{leaveLogs.filter(l => l.status === 'Pending').length}</span>
@@ -1755,6 +1776,37 @@ const HRISPage = ({ user, isDark }) => {
                                         )}
                                     </div>
 
+                                    {/* PAYROLL REMINDER BANNER */}
+                                    {duePayouts.length > 0 && (
+                                        <div className="alert border-0 rounded-4 p-3 mb-4 animate-fade-in shadow-sm" style={{ background: 'linear-gradient(135deg, #FFF9EB, #FFF3D6)', borderLeft: '5px solid #F59E0B !important' }}>
+                                            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                <div className="d-flex align-items-center gap-3">
+                                                    <div className="rounded-circle d-flex align-items-center justify-content-center shadow-sm" style={{ width: 45, height: 45, background: '#F59E0B', color: '#fff' }}>
+                                                        <i className="bi bi-clock-history fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h6 className="mb-0 fw-bold text-dark" style={{ color: '#92400E' }}>Payout Reminder Needed</h6>
+                                                        <p className="mb-0 small" style={{ color: '#B45309' }}>
+                                                            <span className="fw-bold">{duePayouts.length} Staff Member{duePayouts.length > 1 ? 's' : ''}</span> {duePayouts.length > 1 ? 'have' : 'has'} completed their work cycle and {duePayouts.length > 1 ? 'are' : 'is'} due for payout.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="d-flex gap-2">
+                                                    <button onClick={() => setStaffSearch(duePayouts[0].fullName)} className="btn btn-sm btn-white rounded-pill px-3 fw-bold border" style={{ fontSize: '0.75rem' }}>View Due Staff</button>
+                                                    {duePayouts.length > 1 && (
+                                                        <button
+                                                            onClick={handleBulkPaySalaries}
+                                                            className="btn btn-sm btn-record-expenses shadow-sm rounded-pill px-3 fw-bold"
+                                                            style={{ fontSize: '0.75rem', background: '#F59E0B', border: 'none' }}
+                                                        >
+                                                            Finalize All Due
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* STAFF DYNAMIC PAYROLL SECTION */}
                                     <div className="mb-4">
                                         <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
@@ -1846,23 +1898,37 @@ const HRISPage = ({ user, isDark }) => {
                                                             <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden position-relative">
                                                                 <div className="p-4 pb-3" style={{ background: 'linear-gradient(135deg, rgba(35,160,206,0.08), rgba(35,130,206,0.05))' }}>
                                                                     <div className="d-flex justify-content-between align-items-start mb-3">
-                                                                        <div className="d-flex align-items-center gap-3">
+                                                                        <div className="d-flex align-items-center gap-3 overflow-hidden">
                                                                             <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style={{ width: 44, height: 44, background: 'rgba(35,160,206,0.1)', color: '#23A0CE', fontSize: '1.2rem', flexShrink: 0 }}>
                                                                                 {p.fullName.charAt(0).toUpperCase()}
                                                                             </div>
-                                                                            <div>
-                                                                                <div className="fw-bold text-dark-secondary" style={{ fontSize: '0.95rem' }}>{p.fullName}</div>
-                                                                                <div className="d-flex gap-1 align-items-center">
+                                                                            <div className="overflow-hidden">
+                                                                                <div className="fw-bold text-dark-secondary text-truncate" style={{ fontSize: '1.05rem' }}>{p.fullName}</div>
+                                                                                <div className="d-flex flex-wrap gap-1 align-items-center mt-1">
                                                                                     <span className="badge rounded-pill" style={{ background: 'rgba(35,160,206,0.12)', color: '#23A0CE', fontSize: '0.62rem' }}>{p.employeeId}</span>
-                                                                                    <span className="badge rounded-pill" style={{ background: 'rgba(35,160,206,0.12)', color: '#23A0CE', fontSize: '0.62rem' }}>{p.role}</span>
+                                                                                    <span className="badge rounded-pill bg-light text-muted border" style={{ fontSize: '0.62rem' }}>{p.role}</span>
                                                                                     <span className="badge rounded-pill bg-light text-muted border" style={{ fontSize: '0.62rem' }}>{p.frequency}</span>
-                                                                                    {p.nonTaxableAllowance > 0 && <span className="badge rounded-pill border" style={{ background: 'rgba(147,51,234,0.08)', color: '#9333ea', borderColor: 'rgba(147,51,234,0.2)', fontSize: '0.62rem' }}>+₱{p.nonTaxableAllowance.toLocaleString()} Allowance</span>}
                                                                                 </div>
                                                                             </div>
                                                                         </div>
-                                                                        <div className="text-end">
-                                                                            <div className="text-muted" style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Net Pay</div>
-                                                                            <div className="fw-bold text-dark-secondary" style={{ fontSize: '1.2rem' }}>₱{p.netAmount.toFixed(2)}</div>
+                                                                        <div className="text-end" style={{ flexShrink: 0 }}>
+                                                                            {(() => {
+                                                                                const today = new Date();
+                                                                                today.setHours(0, 0, 0, 0);
+                                                                                const start = p.lastPaidDate ? new Date(p.lastPaidDate) : (p.hiredDate ? new Date(p.hiredDate) : null);
+                                                                                if (!start) return null;
+                                                                                const diffDays = Math.floor((today - new Date(start)) / (1000 * 60 * 60 * 24));
+                                                                                const freq = p.salaryFrequency || p.frequency;
+                                                                                let cycle = 15;
+                                                                                if (freq === 'Weekly') cycle = 7;
+                                                                                else if (freq === 'Daily') cycle = 1;
+                                                                                else if (freq === 'Monthly') cycle = 30;
+
+                                                                                if (diffDays >= cycle) return <span className="badge rounded-pill bg-danger animate-pulse shadow-sm mb-2 d-block" style={{ fontSize: '0.65rem' }}><i className="bi bi-exclamation-circle me-1"></i>PAYOUT DUE</span>;
+                                                                                return <span className="badge rounded-pill bg-light text-success border-success mb-2 d-block" style={{ fontSize: '0.65rem', border: '1px solid rgba(34,197,94,0.3)' }}><i className="bi bi-clock me-1"></i>Day {diffDays + 1}/{cycle}</span>;
+                                                                            })()}
+                                                                            <div className="text-muted" style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Net Take Home</div>
+                                                                            <div className="fw-bold text-dark-secondary" style={{ fontSize: '1.1rem' }}>₱{p.netAmount.toLocaleString()}</div>
                                                                         </div>
                                                                     </div>
 
@@ -3075,9 +3141,9 @@ const HRISPage = ({ user, isDark }) => {
                                             <div className="text-muted small fw-bold text-uppercase mb-2">OT, RD, ND & Holiday</div>
                                             <h3 className="fw-bold brand-primary mb-0">
                                                 ₱{Math.round(
-                                                    (selectedPayoutStaff.stats.otPay || 0) + 
-                                                    (selectedPayoutStaff.stats.holidayPay || 0) + 
-                                                    (selectedPayoutStaff.stats.restDayPay || 0) + 
+                                                    (selectedPayoutStaff.stats.otPay || 0) +
+                                                    (selectedPayoutStaff.stats.holidayPay || 0) +
+                                                    (selectedPayoutStaff.stats.restDayPay || 0) +
                                                     (selectedPayoutStaff.stats.ndPay || 0)
                                                 ).toLocaleString()}
                                             </h3>
@@ -3115,8 +3181,46 @@ const HRISPage = ({ user, isDark }) => {
                                 {/* ATTENDANCE HISTORY LOGS */}
                                 <div className="card border rounded-4 overflow-hidden mb-4 shadow-sm">
                                     <div className="bg-light p-3 border-bottom d-flex justify-content-between align-items-center">
-                                        <h6 className="fw-bold text-dark-secondary mb-0">Cycle Timesheet Summary</h6>
-                                        {selectedPayoutStaff.stats.absentCount > 0 && <span className="badge bg-danger rounded-pill px-3">{selectedPayoutStaff.stats.absentCount} missed days detected</span>}
+                                        <h6 className="fw-bold text-dark-secondary mb-0"><i className="bi bi-calendar-check text-primary me-2"></i>Cycle Timesheet Summary</h6>
+                                        {(() => {
+                                            const missedDates = [];
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            const cycleStart = selectedPayoutStaff.lastPaidDate ? new Date(selectedPayoutStaff.lastPaidDate) : (selectedPayoutStaff.hiredDate ? new Date(selectedPayoutStaff.hiredDate) : null);
+
+                                            if (cycleStart) {
+                                                const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                                const restDayIdx = dayNames.indexOf(selectedPayoutStaff.restDay || 'Sunday');
+                                                let d = new Date(cycleStart);
+                                                d.setDate(d.getDate() + 1);
+                                                d.setHours(0, 0, 0, 0);
+                                                while (d < today) {
+                                                    if (d.getDay() !== restDayIdx) {
+                                                        const year = d.getFullYear();
+                                                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                                                        const day = String(d.getDate()).padStart(2, '0');
+                                                        const dStr = `${year}-${month}-${day}`;
+
+                                                        if (!selectedPayoutStaff.logs?.some(l => l.dateStr === dStr)) {
+                                                            missedDates.push(new Date(d));
+                                                        }
+                                                    }
+                                                    d.setDate(d.getDate() + 1);
+                                                }
+                                            }
+
+                                            if (missedDates.length === 0) return null;
+                                            return (
+                                                <div className="d-flex flex-column align-items-end">
+                                                    <span className="badge bg-danger rounded-pill px-3 shadow-sm mb-1" style={{ fontSize: '0.7rem' }}>
+                                                        {missedDates.length} Missed Days Detected
+                                                    </span>
+                                                    <div className="text-danger fw-bold text-uppercase" style={{ fontSize: '0.6rem', letterSpacing: '0.5px' }}>
+                                                        {missedDates.map(d => d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })).join(' \u00B7 ')}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                     <div className="table-responsive" style={{ maxHeight: '280px' }}>
                                         <table className="table table-hover align-middle mb-0">

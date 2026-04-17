@@ -125,6 +125,29 @@ const io = new Server(server, {
     }
 });
 app.set('io', io);
+
+// ── Socket.io Room Management ──
+// Each booking gets a private room scoped by its ID.
+// Customers/Detailers join a room to receive updates only for their booking.
+io.on('connection', (socket) => {
+    // Client joins a booking room (e.g. from customer tracking screen or detailer app)
+    socket.on('join_booking_room', (bookingId) => {
+        if (bookingId) {
+            socket.join(`booking:${bookingId}`);
+            console.log(`[SOCKET] Client ${socket.id} joined room booking:${bookingId}`);
+        }
+    });
+
+    socket.on('leave_booking_room', (bookingId) => {
+        if (bookingId) {
+            socket.leave(`booking:${bookingId}`);
+        }
+    });
+
+    socket.on('disconnect', () => {
+        console.log(`[SOCKET] Client disconnected: ${socket.id}`);
+    });
+});
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.json({ limit: '10mb' })); // Increased limit to support base64 image uploads
 
@@ -173,7 +196,12 @@ app.use('/api/customer-auth', require('./routes/customerAuthRoutes'));
 
 // Mobile App CSRF Bypass: We bypass CSRF for stateless mobile JWT bearer tokens.
 const csrfMiddleware = (req, res, next) => {
+    // 1. Mobile app authenticated requests
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        return next();
+    }
+    // 2. Mobile app Employee login
+    if (req.path === '/api/employees/login' && req.body?.source === 'mobile') {
         return next();
     }
     doubleCsrfProtection(req, res, next);

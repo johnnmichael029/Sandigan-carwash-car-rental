@@ -16,7 +16,8 @@ const {
     logoutEmployee,
     addEvaluation,
     updateSkills,
-    backfillEmployeeIds
+    backfillEmployeeIds,
+    getMyEarnings
 } = require('../controllers/employeeController');
 
 // --- PUBLIC ROUTES (no auth needed) ---
@@ -64,6 +65,9 @@ router.post('/signup', requireAuth, adminOnly, createEmployee);
 router.post('/backfill-ids', requireAuth, adminOnly, backfillEmployeeIds);
 
 // --- PROTECTED ROUTES (require valid JWT) ---
+
+// Get detailer earnings
+router.get('/my-earnings', requireAuth, getMyEarnings);
 
 // Get all employees
 router.get('/', requireAuth, cache('employee', 90), getEmployees);

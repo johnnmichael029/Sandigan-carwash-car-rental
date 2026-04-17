@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
@@ -12,10 +12,13 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import axios from 'axios';
 import { API_BASE } from './src/api/config';
+import { registerForPushNotificationsAsync } from './src/utils/pushNotifications';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
+import DetailerDashboard from './src/screens/DetailerDashboard';
+import EarningsScreen from './src/screens/EarningsScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import BookingScreen from './src/screens/BookingScreen';
 import BookingsScreen from './src/screens/BookingsScreen';
@@ -52,39 +55,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-async function registerForPushNotificationsAsync(userToken) {
-  if (!Device.isDevice) return; // skip on emulators
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-  if (finalStatus !== 'granted') return;
-
-  try {
-    const { data: pushToken } = await Notifications.getExpoPushTokenAsync({
-      projectId: '6bdfc5da-1563-4af7-874b-54ca117a8810',
-    });
-    // Save the push token on the backend so the server can send notifications
-    await axios.post(
-      `${API_BASE}/customer-auth/push-token`,
-      { pushToken },
-      { headers: { Authorization: `Bearer ${userToken}` } }
-    );
-  } catch (err) {
-    console.log('Push token registration failed:', err.message);
-  }
-
-  if (Platform.OS === 'android') {
-    Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#23A0CE',
-    });
-  }
-}
+// Removed local registerForPushNotificationsAsync, using centralized util
 
 // ── Tab Icon Component ────────────────────────────────────────────────────────
 const TabIcon = ({ emoji, icon, focused, color }) => (
@@ -101,26 +72,65 @@ const TabIcon = ({ emoji, icon, focused, color }) => (
   </View>
 );
 
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
+import { DeviceEventEmitter, Animated } from 'react-native';
+
+const AnimatedTabBar = (props) => {
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('toggleTabBar', (hide) => {
+      Animated.timing(translateY, {
+        toValue: hide ? 150 : 0, // 150 pushes it completely off the screen
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    });
+    return () => sub.remove();
+  }, [translateY]);
+
+  return (
+    <Animated.View style={{
+      transform: [{ translateY }],
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      elevation: 0, // remove elevation here to prevent shadow conflicts
+      zIndex: 100 // ensure it stays on top
+    }}>
+      <BottomTabBar {...props} />
+    </Animated.View>
+  );
+};
+
 // ── Authenticated Tab Navigator ──
 const MainTabs = () => {
   const { COLORS, isDarkMode } = useContext(ThemeContext);
 
   return (
     <Tab.Navigator
+      tabBar={props => <AnimatedTabBar {...props} />}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
+          position: 'absolute',
+          bottom: 15,
+          left: 15,
+          right: 15,
+          borderRadius: 25,
           backgroundColor: COLORS.cardBackground,
-          borderTopColor: COLORS.border,
-          borderTopWidth: 1,
-          height: 70,
-          paddingBottom: 10,
+          borderTopWidth: 0,
+          height: 65,
+          marginRight: 10,
+          marginLeft: 10,
+          paddingBottom: 8,
           paddingTop: 8,
           elevation: 12,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.08,
-          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.15,
+          shadowRadius: 15,
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
@@ -138,17 +148,6 @@ const MainTabs = () => {
           tabBarLabel: 'Home',
           tabBarIcon: ({ focused, color }) => {
             const iconSource = focused ? homeActiveIcon : (isDarkMode ? homeDarkIcon : homeLightIcon);
-            return <TabIcon icon={iconSource} focused={focused} color={color} />;
-          },
-        }}
-      />
-      <Tab.Screen
-        name="Book"
-        component={BookingScreen}
-        options={{
-          tabBarLabel: 'Book a Wash',
-          tabBarIcon: ({ focused, color }) => {
-            const iconSource = focused ? carwashActiveIcon : (isDarkMode ? carwashDarkIcon : carwashLightIcon);
             return <TabIcon icon={iconSource} focused={focused} color={color} />;
           },
         }}
@@ -192,7 +191,7 @@ const MainTabs = () => {
 
 // ── Root Navigator ────────────────────────────────────────────────────────────
 const AppNav = () => {
-  const { isSplashLoading, userToken } = useContext(AuthContext);
+  const { isSplashLoading, userToken, userInfo } = useContext(AuthContext);
   const { COLORS, isDarkMode } = useContext(ThemeContext);
   const notificationListener = useRef();
   const responseListener = useRef();
@@ -200,7 +199,24 @@ const AppNav = () => {
   // Register for push notifications once logged in
   useEffect(() => {
     if (!userToken) return;
-    registerForPushNotificationsAsync(userToken);
+
+    // Automatically get the token and upload to the server
+    const initPushData = async () => {
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        try {
+          await axios.post(
+            `${API_BASE}/customer-auth/push-token`,
+            { pushToken: token },
+            { headers: { Authorization: `Bearer ${userToken}` } }
+          );
+          console.log("Uploaded Push Token successfully");
+        } catch (err) {
+          console.log('Push token upload failed:', err.message);
+        }
+      }
+    };
+    initPushData();
 
     // Listener: notification received while app is open (foreground)
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
@@ -229,23 +245,44 @@ const AppNav = () => {
     );
   }
 
+  const navTheme = {
+    ...(isDarkMode ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDarkMode ? DarkTheme.colors : DefaultTheme.colors),
+      background: COLORS.background,
+      card: COLORS.background,
+    },
+  };
+
   return (
     <SafeAreaProvider>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: COLORS.background } }}>
-          {userToken !== null ? (
-            <>
-              <Stack.Screen name="MainTabs" component={MainTabs} />
-              <Stack.Screen name="Rental" component={RentalScreen} />
-            </>
-          ) : (
-            <>
-              <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen name="Register" component={RegisterScreen} />
-            </>
-          )}
-        </Stack.Navigator>
+      <NavigationContainer theme={navTheme}>
+        <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+          <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: COLORS.background }, animation: 'slide_from_right' }}>
+            {userToken !== null ? (
+              userInfo?.isEmployee ? (
+                // DETAILER / EMPLOYEE STACK
+                <>
+                  <Stack.Screen name="DetailerDashboard" component={DetailerDashboard} />
+                  <Stack.Screen name="EarningsScreen" component={EarningsScreen} />
+                </>
+              ) : (
+                // CUSTOMER STACK
+                <>
+                  <Stack.Screen name="MainTabs" component={MainTabs} />
+                  <Stack.Screen name="Book" component={BookingScreen} />
+                  <Stack.Screen name="Rental" component={RentalScreen} />
+                </>
+              )
+            ) : (
+              <>
+                <Stack.Screen name="Login" component={LoginScreen} />
+                <Stack.Screen name="Register" component={RegisterScreen} />
+              </>
+            )}
+          </Stack.Navigator>
+        </View>
       </NavigationContainer>
       <Toast />
     </SafeAreaProvider>

@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect, useMemo, useRef } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    ActivityIndicator, Modal, Pressable, Animated, PanResponder, Dimensions
+    ActivityIndicator, Modal, Pressable, Animated, PanResponder, Dimensions, DeviceEventEmitter, Image
 } from 'react-native';
 import axios from 'axios';
 import useSWR from 'swr';
@@ -10,6 +10,15 @@ import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { API_BASE } from '../api/config';
 import Toast from 'react-native-toast-message';
+import Skeleton from '../components/Skeleton';
+import * as Location from 'expo-location';
+import { TextInput } from 'react-native';
+import BookingDetailModal from '../components/BookingDetailModal';
+import CustomAlertModal from '../components/CustomAlertModal';
+
+const inStoreIcon = require('../../assets/icon/store.png');
+const homeServiceIcon = require('../../assets/icon/house.png');
+const mapPinIcon = require('../../assets/icon/map-pin.png');
 
 const PRICING_URL = `${API_BASE}/pricing`;
 const BOOKING_URL = `${API_BASE}/booking`;
@@ -29,7 +38,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const BookingScreen = ({ navigation }) => {
     const { userInfo, userToken } = useContext(AuthContext);
-    const { COLORS } = useContext(ThemeContext);
+    const { COLORS, isDarkMode } = useContext(ThemeContext);
     const styles = getStyles(COLORS);
 
     // ── SWR: Pricing (vehicle types & services) ── cached 60s
@@ -51,8 +60,14 @@ const BookingScreen = ({ navigation }) => {
     const [selectedAddons, setSelectedAddons] = useState([]);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [selectedTime, setSelectedTime] = useState('');
-    const [step, setStep] = useState(1); // 1=Vehicle, 2=Service, 3=Time, 4=Confirm
+    const [serviceLocationType, setServiceLocationType] = useState('In-Store');
+    const [homeAddress, setHomeAddress] = useState('');
+    const [homeCoords, setHomeCoords] = useState(null);
+    const [isLocating, setIsLocating] = useState(false);
+    const [step, setStep] = useState(1); // 1=Loc, 2=Vehicle, 3=Service, 4=Time, 5=Confirm
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [successModalData, setSuccessModalData] = useState(null);
+    const [alertData, setAlertData] = useState({ visible: false, title: '', message: '', type: 'info', onConfirm: null });
 
     // ── Voucher State ──
     const [appliedPromo, setAppliedPromo] = useState(null); // { code, discountValue, discountType }
@@ -69,6 +84,9 @@ const BookingScreen = ({ navigation }) => {
 
             // Reset form state for a fresh start
             setStep(1);
+            setServiceLocationType('In-Store');
+            setHomeAddress('');
+            setHomeCoords(null);
             setSelectedServices([]);
             setSelectedAddons([]);
             setSelectedVehicle(null);
@@ -156,9 +174,12 @@ const BookingScreen = ({ navigation }) => {
     const availableFutureHours = useMemo(() => {
         const currentHour = new Date().getHours();
         const MAX_CAPACITY = 3;
+        const isHome = serviceLocationType === 'Home Service';
 
-        return allHours.filter(hour => {
+        let slots = allHours.filter(hour => {
             const hourInt = parseInt(hour);
+            if (isHome) return hourInt > currentHour;
+
             const hourKey = hour.toString().padStart(2, '0');
             const count = availability[hourKey] || 0;
             // ONLY keep the hour if it's in the future (or current hour) AND not full
@@ -167,14 +188,20 @@ const BookingScreen = ({ navigation }) => {
             const hourKey = hour.toString().padStart(2, '0');
             const bookedCount = availability[hourKey] || 0;
             const slotsLeft = MAX_CAPACITY - bookedCount;
-            const slotText = slotsLeft <= 3 ? ` (${slotsLeft} slot${slotsLeft === 1 ? '' : 's'} left)` : '';
+            const slotText = (!isHome && slotsLeft <= 3) ? ` (${slotsLeft} slot${slotsLeft === 1 ? '' : 's'} left)` : '';
 
             return {
                 raw: hour, // Sent to backend
                 label: `${formatTo12Hour(hour)}${slotText}` // Shown in UI
             };
         });
-    }, [availability]);
+
+        if (isHome) {
+            slots.unshift({ raw: 'ASAP', label: 'Now / ASAP' });
+        }
+
+        return slots;
+    }, [availability, serviceLocationType]);
 
 
     // ── Derived: Price for selected combo ──
@@ -236,7 +263,7 @@ const BookingScreen = ({ navigation }) => {
     };
 
     useEffect(() => {
-        if (step === 4) fetchMyVouchers();
+        if (step === 5) fetchMyVouchers();
     }, [step]);
 
     const handleApplyPromo = async (promoData) => {
@@ -264,15 +291,25 @@ const BookingScreen = ({ navigation }) => {
 
     const discountedPrice = Math.max(0, finalPrice - discountAmount);
 
-    // ── Submit booking ──
-    const handleSubmit = async () => {
+    const handleSubmit = () => {
         if (selectedServices.length === 0 || !selectedVehicle || !selectedTime) {
             Toast.show({ type: 'error', text1: 'Incomplete booking', text2: 'Please fill in all fields.' });
             return;
         }
+
+        setAlertData({
+            visible: true,
+            title: 'Confirm Booking?',
+            message: `Are you sure you want to book this ${selectedVehicle.name} wash for ${selectedTime === 'ASAP' ? 'ASAP' : formatTo12Hour(selectedTime)}?`,
+            type: 'confirm',
+            onConfirm: handleConfirmedSubmit
+        });
+    };
+
+    const handleConfirmedSubmit = async () => {
         setIsSubmitting(true);
         try {
-            await axios.post(BOOKING_URL, {
+            const res = await axios.post(BOOKING_URL, {
                 firstName: userInfo.firstName,
                 lastName: userInfo.lastName,
                 emailAddress: userInfo.email,
@@ -285,20 +322,38 @@ const BookingScreen = ({ navigation }) => {
                 promoDiscount: discountAmount || 0,
                 status: 'Pending',
                 source: 'Mobile App',
-                isRental: false
+                isRental: false,
+                serviceLocationType,
+                homeServiceDetails: serviceLocationType === 'Home Service' ? {
+                    address: homeAddress,
+                    latitude: homeCoords?.latitude || null,
+                    longitude: homeCoords?.longitude || null
+                } : {}
             }, {
                 headers: { Authorization: `Bearer ${userToken}` }
             });
 
+            const newBooking = res.data;
+
+            if (newBooking) {
+                newBooking.type = 'wash';
+            }
+
             Toast.show({ type: 'success', text1: '🎉 Booking Submitted!', text2: 'We\'ll confirm your slot shortly.' });
-            // Reset form
+
+            // Set data to open modal in place
+            setSuccessModalData(newBooking);
+
+            // Reset form behind the modal
             setStep(1);
+            setServiceLocationType('In-Store');
+            setHomeAddress('');
+            setHomeCoords(null);
             setSelectedServices([]);
             setSelectedAddons([]);
             setSelectedVehicle(null);
             setSelectedTime('');
             setAppliedPromo(null);
-            navigation.navigate('MainTabs', { screen: 'Bookings' });
         } catch (err) {
             Toast.show({ type: 'error', text1: 'Booking Failed', text2: err.response?.data?.error || 'Please try again.' });
         } finally {
@@ -308,9 +363,27 @@ const BookingScreen = ({ navigation }) => {
 
     if (isLoadingData) {
         return (
-            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={[styles.mutedText, { marginTop: 12 }]}>Loading configuration...</Text>
+            <View style={[styles.container, { paddingTop: 56 }]}>
+                <Skeleton width={180} height={28} isDarkMode={isDarkMode} style={{ marginBottom: 6 }} />
+                <Skeleton width={240} height={14} isDarkMode={isDarkMode} style={{ marginBottom: 30 }} />
+
+                {/* Steps Skeleton */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 }}>
+                    {[1, 2, 3, 4, 5].map(k => (
+                        <View key={k} style={{ alignItems: 'center' }}>
+                            <Skeleton width={32} height={32} borderRadius={16} isDarkMode={isDarkMode} style={{ marginBottom: 4 }} />
+                            <Skeleton width={50} height={10} isDarkMode={isDarkMode} />
+                        </View>
+                    ))}
+                </View>
+
+                {/* Cards Skeleton */}
+                <Text style={[styles.stepTitle, { marginBottom: 16 }]}>Select Your Vehicle</Text>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <Skeleton width="31%" height={90} borderRadius={10} isDarkMode={isDarkMode} />
+                    <Skeleton width="31%" height={90} borderRadius={10} isDarkMode={isDarkMode} />
+                    <Skeleton width="31%" height={90} borderRadius={10} isDarkMode={isDarkMode} />
+                </View>
             </View>
         );
     }
@@ -335,6 +408,10 @@ const BookingScreen = ({ navigation }) => {
         <View style={{ flex: 1 }}>
             <ScrollView
                 style={styles.container}
+                onScrollBeginDrag={() => DeviceEventEmitter.emit('toggleTabBar', true)}
+                onScrollEndDrag={() => DeviceEventEmitter.emit('toggleTabBar', false)}
+                onMomentumScrollBegin={() => DeviceEventEmitter.emit('toggleTabBar', true)}
+                onMomentumScrollEnd={() => DeviceEventEmitter.emit('toggleTabBar', false)}
             >
                 {/* ── Header ── */}
                 <View style={styles.pageHeader}>
@@ -344,7 +421,7 @@ const BookingScreen = ({ navigation }) => {
 
                 {/* ── Step Indicator ── */}
                 <View style={styles.stepBar}>
-                    {['Vehicle', 'Services', 'Schedule', 'Confirm'].map((label, idx) => {
+                    {['Location', 'Vehicle', 'Services', 'Schedule', 'Confirm'].map((label, idx) => {
                         const sNum = idx + 1;
                         const isActive = step === sNum;
                         const isDone = step > sNum;
@@ -361,8 +438,98 @@ const BookingScreen = ({ navigation }) => {
                     })}
                 </View>
 
-                {/* ── STEP 1: Vehicle Type ── */}
+                {/* ── STEP 1: Service Location ── */}
                 {step === 1 && (
+                    <View style={styles.stepContent}>
+                        <Text style={styles.stepTitle}>Where do you want the service?</Text>
+
+                        <TouchableOpacity
+                            style={[styles.vehicleCard, { width: '100%', marginBottom: 16, flexDirection: 'row', alignItems: 'center' }, serviceLocationType === 'In-Store' && styles.vehicleCardSelected]}
+                            onPress={() => setServiceLocationType('In-Store')}
+                        >
+                            <Image source={inStoreIcon} style={styles.actionIcon} />
+                            <View>
+                                <Text style={[styles.vehicleName, { textAlign: 'left', fontSize: 16 }, serviceLocationType === 'In-Store' && { color: COLORS.primary }]}>In-Store (Sandigan Carwash)</Text>
+                                <Text style={styles.mutedText}>Visit our physical shop for your service.</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.vehicleCard, { width: '100%', marginBottom: 16, flexDirection: 'row', alignItems: 'center' }, serviceLocationType === 'Home Service' && styles.vehicleCardSelected]}
+                            onPress={() => setServiceLocationType('Home Service')}
+                        >
+                            <Image source={homeServiceIcon} style={styles.actionIcon} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.vehicleName, { textAlign: 'left', fontSize: 16 }, serviceLocationType === 'Home Service' && { color: COLORS.primary }]}>Home Service</Text>
+                                <Text style={styles.mutedText}>We come directly to your location!</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        {serviceLocationType === 'Home Service' && (
+                            <View style={{ marginBottom: 20 }}>
+                                <Text style={[styles.inputLabel, { color: COLORS.text, marginBottom: 8, marginTop: 10 }]}>Your Detailed Address</Text>
+                                <View style={{ flexDirection: 'row', gap: 10 }}>
+                                    <TextInput
+                                        style={[styles.modalInput, { flex: 1, backgroundColor: COLORS.cardBackground, color: COLORS.text }]}
+                                        placeholder="e.g. 123 Main St, Manila"
+                                        placeholderTextColor={COLORS.textMuted}
+                                        value={homeAddress}
+                                        onChangeText={setHomeAddress}
+                                    />
+                                    <TouchableOpacity
+                                        style={{ justifyContent: 'center', alignItems: 'center' }}
+                                        onPress={async () => {
+                                            setIsLocating(true);
+                                            try {
+                                                const { status } = await Location.requestForegroundPermissionsAsync();
+                                                if (status !== 'granted') {
+                                                    Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Location permission is required.' });
+                                                    setIsLocating(false);
+                                                    return;
+                                                }
+                                                const location = await Location.getCurrentPositionAsync({});
+                                                setHomeCoords({ latitude: location.coords.latitude, longitude: location.coords.longitude });
+
+                                                const geocode = await Location.reverseGeocodeAsync({
+                                                    latitude: location.coords.latitude,
+                                                    longitude: location.coords.longitude
+                                                });
+                                                if (geocode.length > 0) {
+                                                    const place = geocode[0];
+                                                    const addressString = `${place.streetNumber || ''} ${place.street || ''}, ${place.city || ''}, ${place.region || ''}`.trim();
+                                                    setHomeAddress(addressString);
+                                                }
+                                                Toast.show({ type: 'success', text1: 'Location Found!' });
+                                            } catch (err) {
+                                                Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to fetch location.' });
+                                            } finally {
+                                                setIsLocating(false);
+                                            }
+                                        }}
+                                        disabled={isLocating}
+                                    >
+                                        {isLocating ? <ActivityIndicator color={COLORS.text} size="small" /> : <Image source={mapPinIcon} style={styles.mapPinAction} />}
+                                    </TouchableOpacity>
+
+                                </View>
+                                <Text style={{ color: COLORS.textMuted, marginTop: 5, fontSize: 12 }}>Tip: Use the map pin button to automatically fill in your current address.</Text>
+                            </View>
+                        )}
+
+                        <TouchableOpacity
+                            style={[styles.nextButton, (serviceLocationType === 'Home Service' && !homeAddress.trim()) && styles.nextButtonDisabled]}
+                            onPress={() => {
+                                if (serviceLocationType === 'Home Service' && !homeAddress.trim()) return;
+                                setStep(2);
+                            }}
+                        >
+                            <Text style={styles.nextButtonText}>Continue →</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* ── STEP 2: Vehicle Type ── */}
+                {step === 2 && (
                     <View style={styles.stepContent}>
                         <Text style={styles.stepTitle}>Select Your Vehicle</Text>
                         {vehicleTypes.length === 0 ? (
@@ -384,15 +551,18 @@ const BookingScreen = ({ navigation }) => {
                         )}
                         <TouchableOpacity
                             style={[styles.nextButton, !selectedVehicle && styles.nextButtonDisabled]}
-                            onPress={() => selectedVehicle && setStep(2)}
+                            onPress={() => selectedVehicle && setStep(3)}
                         >
                             <Text style={styles.nextButtonText}>Continue →</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.backButton, { marginTop: 10 }]} onPress={() => setStep(1)}>
+                            <Text style={styles.backButtonText}>← Back</Text>
                         </TouchableOpacity>
                     </View>
                 )}
 
-                {/* ── STEP 2: Service Selection ── */}
-                {step === 2 && (
+                {/* ── STEP 3: Service Selection ── */}
+                {step === 3 && (
                     <View style={styles.stepContent}>
                         <Text style={styles.stepTitle}>Select a Service</Text>
                         {mainServices.length === 0 ? (
@@ -456,12 +626,12 @@ const BookingScreen = ({ navigation }) => {
                         )}
 
                         <View style={styles.buttonRow}>
-                            <TouchableOpacity style={styles.backButton} onPress={() => setStep(1)}>
+                            <TouchableOpacity style={styles.backButton} onPress={() => setStep(2)}>
                                 <Text style={styles.backButtonText}>← Back</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.nextButton, { flex: 1 }, selectedServices.length === 0 && styles.nextButtonDisabled]}
-                                onPress={() => selectedServices.length > 0 && setStep(3)}
+                                onPress={() => selectedServices.length > 0 && setStep(4)}
                             >
                                 <Text style={styles.nextButtonText}>Continue →</Text>
                             </TouchableOpacity>
@@ -469,8 +639,8 @@ const BookingScreen = ({ navigation }) => {
                     </View>
                 )}
 
-                {/* ── STEP 3: Time Selection ── */}
-                {step === 3 && (
+                {/* ── STEP 4: Time Selection ── */}
+                {step === 4 && (
                     <View style={styles.stepContent}>
                         <Text style={styles.stepTitle}>Pick a Time Slot</Text>
                         {availableFutureHours.length === 0 ? (
@@ -490,12 +660,12 @@ const BookingScreen = ({ navigation }) => {
                         )}
 
                         <View style={styles.buttonRow}>
-                            <TouchableOpacity style={styles.backButton} onPress={() => setStep(2)}>
+                            <TouchableOpacity style={styles.backButton} onPress={() => setStep(3)}>
                                 <Text style={styles.backButtonText}>← Back</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.nextButton, { flex: 1 }, (!selectedTime) && styles.nextButtonDisabled]}
-                                onPress={() => selectedTime && setStep(4)}
+                                onPress={() => selectedTime && setStep(5)}
                             >
                                 <Text style={styles.nextButtonText}>Review →</Text>
                             </TouchableOpacity>
@@ -503,15 +673,15 @@ const BookingScreen = ({ navigation }) => {
                     </View>
                 )}
 
-                {/* ── STEP 4: Review & Confirm ── */}
-                {step === 4 && (
+                {/* ── STEP 5: Review & Confirm ── */}
+                {step === 5 && (
                     <View style={styles.stepContent}>
                         <Text style={styles.stepTitle}>Review Your Booking</Text>
                         <View style={styles.summaryCard}>
                             <SummaryRow label="Vehicle:" value={selectedVehicle?.name} />
                             <SummaryRow label="Services:" value={[...selectedServices, ...selectedAddons].join(', ')} />
                             <SummaryRow label="Date:" value={new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} />
-                            <SummaryRow label="Time:" value={selectedTime ? formatTo12Hour(selectedTime) : ''} />
+                            <SummaryRow label="Time:" value={selectedTime ? (selectedTime === 'ASAP' ? 'As soon as possible' : formatTo12Hour(selectedTime)) : ''} />
                             <SummaryRow label="Name:" value={`${userInfo?.firstName} ${userInfo?.lastName}`} />
                             <SummaryRow label="Email:" value={userInfo?.email} />
 
@@ -553,7 +723,7 @@ const BookingScreen = ({ navigation }) => {
                         </View>
 
                         <View style={styles.buttonRow}>
-                            <TouchableOpacity style={styles.backButton} onPress={() => setStep(3)}>
+                            <TouchableOpacity style={styles.backButton} onPress={() => setStep(4)}>
                                 <Text style={styles.backButtonText}>← Back</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -637,6 +807,27 @@ const BookingScreen = ({ navigation }) => {
                     </Animated.View>
                 </Pressable>
             </Modal>
+
+            {/* ── SUCCESS MODAL ── */}
+            <BookingDetailModal
+                visible={!!successModalData}
+                item={successModalData}
+                isSuccessAnimation={true}
+                onClose={() => {
+                    setSuccessModalData(null);
+                    navigation.navigate('MainTabs', { screen: 'Bookings' });
+                }}
+                COLORS={COLORS}
+            />
+
+            <CustomAlertModal 
+                visible={alertData.visible}
+                title={alertData.title}
+                message={alertData.message}
+                type={alertData.type}
+                onConfirm={alertData.onConfirm}
+                onClose={() => setAlertData({ ...alertData, visible: false })}
+            />
         </View>
     );
 };
@@ -665,7 +856,7 @@ const getStyles = (COLORS) => StyleSheet.create({
     stepCircleActive: { borderColor: COLORS.primary },
     stepCircleDone: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
     stepNum: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
-    stepNumActive: { color: '#fff' },
+    stepNumActive: { color: COLORS.text },
     stepLabel: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600', textAlign: 'center' },
     stepLabelActive: { color: COLORS.primary },
 
@@ -799,6 +990,21 @@ const getStyles = (COLORS) => StyleSheet.create({
     backButtonText: { color: COLORS.text, fontWeight: '600', fontSize: 14 },
     confirmButton: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
     confirmButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    modalInput: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 15, fontSize: 15 },
+    inputLabel: { fontSize: 12, fontWeight: '700' },
+    actionIcon: {
+        width: 16,
+        height: 16,
+        resizeMode: 'contain',
+        marginRight: 12,
+        tintColor: COLORS.text,
+    },
+    mapPinAction: {
+        width: 24,
+        height: 24,
+        resizeMode: 'contain',
+        tintColor: COLORS.text,
+    }
 });
 
 export default BookingScreen;

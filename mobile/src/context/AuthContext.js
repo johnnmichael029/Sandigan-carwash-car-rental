@@ -48,6 +48,32 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const employeeLogin = async (email, password) => {
+        setIsLoading(true);
+        try {
+            const res = await axios.post(`${API_BASE}/employees/login`, { email, password, source: 'mobile' });
+
+            // Extract token and employee nested object
+            const token = res.data.token;
+            const userInfo = { ...res.data.employee, token }; // Flatten structure for consistency
+            
+            setUserInfo(userInfo);
+            setUserToken(token);
+
+            await AsyncStorage.setItem('userInfo', JSON.stringify(userInfo));
+            await AsyncStorage.setItem('userToken', token);
+
+            // Set default headers for API authenticated calls
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            return { success: true };
+        } catch (err) {
+            const message = err.response?.data?.error || err.message;
+            return { success: false, message };
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const register = async (firstName, lastName, email, phone, password) => {
         setIsLoading(true);
         try {
@@ -112,7 +138,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ login, logout, register, fetchCurrentUser, isLoading, isSplashLoading, userToken, userInfo }}>
+        <AuthContext.Provider value={{ login, employeeLogin, logout, register, fetchCurrentUser, isLoading, isSplashLoading, userToken, userInfo }}>
             {children}
         </AuthContext.Provider>
     );

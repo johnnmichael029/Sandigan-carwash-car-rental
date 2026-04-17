@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "808802347848",
+    "project_id": "sandigan-db8da",
+    "storage_bucket": "sandigan-db8da.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:808802347848:android:4b7696d0276bd92daaa17d",
+        "android_client_info": {
+          "package_name": "sandigan.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-nb8rRG3BljckWVgU_Ws7OTyBuZxjkUM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

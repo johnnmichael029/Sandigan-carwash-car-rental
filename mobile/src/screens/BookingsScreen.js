@@ -1,61 +1,71 @@
 import React, { useContext, useState, useCallback, useEffect, useRef } from 'react';
 import {
-    View, Text, StyleSheet, FlatList, ScrollView, TouchableOpacity,
-    ActivityIndicator, RefreshControl, Alert
+    View, Text, StyleSheet, ScrollView, TouchableOpacity,
+    ActivityIndicator, RefreshControl, Alert, DeviceEventEmitter
 } from 'react-native';
+import { FlashList } from "@shopify/flash-list";
 import BookingDetailModal from '../components/BookingDetailModal';
+import CustomAlertModal from '../components/CustomAlertModal';
+import BookingCardSkeleton from '../components/BookingCardSkeleton';
 import axios from 'axios';
 import { useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { API_BASE } from '../api/config';
 import { io } from 'socket.io-client';
+import { Ionicons } from '@expo/vector-icons';
 
 const FILTER_TABS = ['All', 'Pending', 'Confirmed', 'Queued', 'In-Progress', 'Completed', 'Cancelled'];
 const PAGE_LIMIT = 15; // items per page per source
 
 // ── Status Stepper ────────────────────────────────────────────────────────────
+// ── Status Stepper ────────────────────────────────────────────────────────────
 const WASH_STEPS = ['Pending', 'Confirmed', 'Queued', 'In-Progress', 'Completed'];
+const HOME_STEPS = ['Pending', 'Confirmed', 'Queued', 'On the Way', 'In-Progress', 'Completed'];
+const RENTAL_STEPS = ['Pending', 'Confirmed', 'Active', 'Returned'];
 
-const StatusStepper = ({ status, COLORS }) => {
+const StatusStepper = ({ status, isHomeService, isRental, COLORS }) => {
     const statusLower = (status || '').toLowerCase();
+
     if (statusLower === 'cancelled') {
         return (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                <View style={{ backgroundColor: '#ef444420', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10, borderWidth: 1, borderColor: '#ef444450' }}>
-                    <Text style={{ color: '#ef4444', fontSize: 10, fontWeight: '700' }}>✕  Cancelled</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                <View style={{ backgroundColor: '#fee2e2', borderRadius: 10, paddingVertical: 5, paddingHorizontal: 12, borderWidth: 1, borderColor: '#fecaca', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="close-circle" size={12} color="#ef4444" />
+                    <Text style={{ color: '#ef4444', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>CANCELLED</Text>
                 </View>
             </View>
         );
     }
 
-    const steps = WASH_STEPS;
+    const steps = isRental ? RENTAL_STEPS : (isHomeService ? HOME_STEPS : WASH_STEPS);
     const currentStep = steps.findIndex(s => s.toLowerCase() === statusLower);
 
     return (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 15, paddingVertical: 10, borderTopWidth: 1, borderTopColor: COLORS.border + '50' }}>
             {steps.map((step, idx) => {
                 const isDone = idx < currentStep;
                 const isActive = idx === currentStep;
                 const stepColor = isDone || isActive ? COLORS.primary : COLORS.border;
+
                 return (
                     <React.Fragment key={step}>
-                        <View style={{ alignItems: 'center' }}>
+                        <View style={{ alignItems: 'center', minWidth: 40 }}>
                             <View style={{
-                                width: 20, height: 20, borderRadius: 10,
-                                backgroundColor: isDone ? COLORS.primary : isActive ? COLORS.primary + '20' : COLORS.cardBackground,
-                                borderWidth: 2, borderColor: stepColor,
+                                width: 18, height: 18, borderRadius: 9,
+                                backgroundColor: isDone ? COLORS.primary : (isActive ? COLORS.primary + '20' : COLORS.cardBackground),
+                                borderWidth: 1.5, borderColor: stepColor,
                                 alignItems: 'center', justifyContent: 'center',
                             }}>
-                                {isDone && <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' }}>✓</Text>}
-                                {isActive && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.primary }} />}
+                                {isDone && <Ionicons name="checkmark" size={10} color="#fff" />}
+                                {isActive && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.primary }} />}
                             </View>
-                            <Text style={{ fontSize: 7.5, color: isActive ? COLORS.primary : COLORS.textMuted, fontWeight: isActive ? '700' : '500', marginTop: 3, textAlign: 'center' }}>
-                                {step}
+                            <Text style={{ fontSize: 7, color: isActive ? COLORS.primary : COLORS.textMuted, fontWeight: isActive ? '800' : '600', marginTop: 4 }}>
+                                {step.toUpperCase()}
                             </Text>
                         </View>
                         {idx < steps.length - 1 && (
-                            <View style={{ flex: 1, height: 2, backgroundColor: isDone ? COLORS.primary : COLORS.border, marginBottom: 14 }} />
+                            <View style={{ flex: 1, height: 2, backgroundColor: isDone ? COLORS.primary : COLORS.border, marginBottom: 12, marginHorizontal: -5 }} />
                         )}
                     </React.Fragment>
                 );
@@ -65,7 +75,7 @@ const StatusStepper = ({ status, COLORS }) => {
 };
 
 
-const BookingsScreen = () => {
+const BookingsScreen = ({ navigation, route }) => {
     const { userInfo, userToken } = useContext(AuthContext);
     const { COLORS } = useContext(ThemeContext);
     const styles = getStyles(COLORS);
@@ -79,6 +89,18 @@ const BookingsScreen = () => {
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [detailsModalVisible, setDetailsModalVisible] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [alertData, setAlertData] = useState({ visible: false, title: '', message: '', type: 'info', onConfirm: null });
+
+    // ── Auto-open Summary Modal on Navigation from Success ──
+    useEffect(() => {
+        const item = route.params?.autoOpenItem;
+        if (item) {
+            setSelectedBooking(item);
+            setDetailsModalVisible(true);
+            // Clear the params so they don't pop up again
+            navigation.setParams({ autoOpenItem: null });
+        }
+    }, [route.params?.autoOpenItem, navigation]);
 
     // Pagination cursors (one per source)
     const washPage = useRef(1);
@@ -232,58 +254,67 @@ const BookingsScreen = () => {
     const getStatusColor = (status) => {
         switch ((status || '').toLowerCase()) {
             case 'completed': return '#22c55e';
-            case 'active': return '#22c55e';
+            case 'on the way': return '#f97316';
             case 'pending': return '#f59e0b';
             case 'in-progress': return '#23A0CE';
             case 'confirmed': return '#3b82f6';
             case 'queued': return '#c023ce';
             case 'cancelled': return '#ef4444';
-            case 'returned': return '#9ca3af';
             default: return COLORS.textMuted;
         }
     };
 
     const handleCancel = async (item) => {
-        Alert.alert(
-            "Cancel Request?",
-            "Are you sure you want to cancel? Any applied vouchers will be returned to your account.",
-            [
-                { text: "No, Keep it", style: "cancel" },
-                {
-                    text: "Yes, Cancel",
-                    style: "destructive",
-                    onPress: async () => {
-                        setIsCancelling(true);
-                        try {
-                            const endpoint = item.type === 'rental'
-                                ? `${API_BASE}/car-rentals/${item._id}/cancel`
-                                : `${API_BASE}/booking/${item._id}/cancel`;
+        setAlertData({
+            visible: true,
+            title: "Cancel Request?",
+            message: "Are you sure you want to cancel? Any applied vouchers will be returned to your account.",
+            type: 'confirm',
+            onConfirm: async () => {
+                setIsCancelling(true);
+                try {
+                    const endpoint = item.type === 'rental'
+                        ? `${API_BASE}/car-rentals/${item._id}/cancel`
+                        : `${API_BASE}/booking/${item._id}/cancel`;
 
-                            const response = await fetch(endpoint, {
-                                method: 'PATCH',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${userToken}`
-                                }
-                            });
-
-                            const data = await response.json();
-                            if (response.ok) {
-                                setDetailsModalVisible(false);
-                                Alert.alert("Cancelled", "Your request has been successfully cancelled.");
-                                onRefresh(); // Refresh the list
-                            } else {
-                                Alert.alert("Error", data.error || "Failed to cancel.");
-                            }
-                        } catch (err) {
-                            Alert.alert("Error", "Check your internet connection.");
-                        } finally {
-                            setIsCancelling(false);
+                    const response = await fetch(endpoint, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${userToken}`
                         }
+                    });
+
+                    const data = await response.json();
+                    if (response.ok) {
+                        setDetailsModalVisible(false);
+                        setAlertData({
+                            visible: true,
+                            title: "Success",
+                            message: "Your request has been successfully cancelled.",
+                            type: 'success'
+                        });
+                        onRefresh(); // Refresh the list
+                    } else {
+                        setAlertData({
+                            visible: true,
+                            title: "Error",
+                            message: data.error || "Failed to cancel.",
+                            type: 'error'
+                        });
                     }
+                } catch (err) {
+                    setAlertData({
+                        visible: true,
+                        title: "Error",
+                        message: "Check your internet connection.",
+                        type: 'error'
+                    });
+                } finally {
+                    setIsCancelling(false);
                 }
-            ]
-        );
+            }
+        });
     };
 
     // ONLY show WASH types in this screen now
@@ -323,27 +354,14 @@ const BookingsScreen = () => {
                     </View>
                 </View>
                 <View style={styles.bookingMeta}>
-                    {item.type === 'rental' ? (
-                        <Text style={styles.metaText}>
-                            {new Date(item.rentalStartDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            {' – '}
-                            {new Date(item.returnDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            {`  ·  ${item.rentalDays || 1} day${(item.rentalDays || 1) !== 1 ? 's' : ''}`}
-                        </Text>
-                    ) : (
-                        <Text style={styles.metaText}>
-                            {new Date(item.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            {item.bookingTime ? `  ·  ${item.bookingTime}:00` : ''}
-                        </Text>
-                    )}
                     <Text style={styles.metaText}>
-                        {item.type === 'rental' ? 'Requested ' : 'Booked '}
                         {new Date(item.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {item.bookingTime ? `  ·  ${item.bookingTime}:00` : ''}
                     </Text>
                 </View>
                 {/* Status Stepper - only show for active/in progress */}
-                {!['completed', 'returned', 'cancelled'].includes((item.status || '').toLowerCase()) && (
-                    <StatusStepper status={item.status} type={item.type} COLORS={COLORS} />
+                {!['completed', 'cancelled'].includes((item.status || '').toLowerCase()) && (
+                    <StatusStepper status={item.status} isHomeService={item.serviceLocationType === 'Home Service'} COLORS={COLORS} />
                 )}
             </View>
         </TouchableOpacity>
@@ -409,17 +427,26 @@ const BookingsScreen = () => {
             </Text>
 
             {isLoading ? (
-                <ActivityIndicator color={COLORS.primary} style={{ marginTop: 60 }} size="large" />
+                <View style={{ marginTop: 10 }}>
+                    {[1, 2, 3, 4, 5].map((key) => (
+                        <BookingCardSkeleton key={key} />
+                    ))}
+                </View>
             ) : (
-                <FlatList
+                <FlashList
                     data={filtered}
                     renderItem={renderBooking}
                     keyExtractor={(item, idx) => item._id || String(idx)}
+                    estimatedItemSize={140}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
                     onEndReached={activeFilter === 'All' ? onEndReached : null}
                     onEndReachedThreshold={0.4}
                     ListFooterComponent={renderFooter}
                     ListEmptyComponent={renderEmpty}
+                    onScrollBeginDrag={() => DeviceEventEmitter.emit('toggleTabBar', true)}
+                    onScrollEndDrag={() => DeviceEventEmitter.emit('toggleTabBar', false)}
+                    onMomentumScrollBegin={() => DeviceEventEmitter.emit('toggleTabBar', true)}
+                    onMomentumScrollEnd={() => DeviceEventEmitter.emit('toggleTabBar', false)}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ paddingBottom: 32, flexGrow: 1 }}
                 />
@@ -436,6 +463,21 @@ const BookingsScreen = () => {
                 isCancelling={isCancelling}
                 COLORS={COLORS}
                 getStatusColor={getStatusColor}
+                onReviewSuccess={(bookingId) => {
+                    setBookings(prev => prev.map(b => b._id === bookingId ? { ...b, isReviewed: true } : b));
+                    if (selectedBooking && selectedBooking._id === bookingId) {
+                        setSelectedBooking({ ...selectedBooking, isReviewed: true });
+                    }
+                }}
+            />
+
+            <CustomAlertModal 
+                visible={alertData.visible}
+                title={alertData.title}
+                message={alertData.message}
+                type={alertData.type}
+                onConfirm={alertData.onConfirm}
+                onClose={() => setAlertData({ ...alertData, visible: false })}
             />
         </View>
     );

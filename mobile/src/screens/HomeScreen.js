@@ -1,9 +1,10 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ScrollView,
-    Image, RefreshControl, ActivityIndicator, Alert
+    Image, RefreshControl, ActivityIndicator, Alert, DeviceEventEmitter
 } from 'react-native';
 import Toast from 'react-native-toast-message';
+import BookingCardSkeleton from '../components/BookingCardSkeleton';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import axios from 'axios';
@@ -11,7 +12,8 @@ import { API_BASE } from '../api/config';
 import { io } from 'socket.io-client';
 import carwashActiveIcon from '../../assets/icon/carwash-active.png';
 import carRentActiveIcon from '../../assets/icon/car-rent-active.png';
-
+const carWashIcon = require('../../assets/icon/wash.png');
+const carRentIcon = require('../../assets/icon/car-key.png');
 
 const darkThemeIcon = require('../../assets/icon/dark-theme.png');
 const lightThemeIcon = require('../../assets/icon/light-theme.png');
@@ -116,6 +118,10 @@ const HomeScreen = ({ navigation }) => {
     return (
         <ScrollView
             style={styles.container}
+            onScrollBeginDrag={() => DeviceEventEmitter.emit('toggleTabBar', true)}
+            onScrollEndDrag={() => DeviceEventEmitter.emit('toggleTabBar', false)}
+            onMomentumScrollBegin={() => DeviceEventEmitter.emit('toggleTabBar', true)}
+            onMomentumScrollEnd={() => DeviceEventEmitter.emit('toggleTabBar', false)}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         >
             {/* ── Header ── */}
@@ -138,7 +144,7 @@ const HomeScreen = ({ navigation }) => {
             {/* ── Hero Banner ── */}
             <View style={styles.heroBanner}>
                 <Text style={styles.heroTitle}>Premium Car Wash</Text>
-                <Text style={styles.heroSubtitle}>Book your wash in seconds. We come to you.</Text>
+                <Text style={styles.heroSubtitle}>Book your wash in seconds.</Text>
                 <TouchableOpacity
                     style={styles.heroButton}
                     onPress={() => navigation.navigate('Book')}
@@ -192,7 +198,7 @@ const HomeScreen = ({ navigation }) => {
                     style={styles.actionCard}
                     onPress={() => navigation.navigate('Book')}
                 >
-                    <Image source={carwashActiveIcon} style={styles.actionIcon} />
+                    <Image source={carWashIcon} style={styles.actionIcon} />
                     <Text style={styles.actionTitle}>Book a Wash</Text>
                     <Text style={styles.actionSubtitle}>View services & prices</Text>
                 </TouchableOpacity>
@@ -200,7 +206,7 @@ const HomeScreen = ({ navigation }) => {
                     style={[styles.actionCard]}
                     onPress={() => navigation.navigate('Rental')}
                 >
-                    <Image source={carRentActiveIcon} style={styles.actionIcon} />
+                    <Image source={carRentIcon} style={styles.actionIcon} />
                     <Text style={styles.actionTitle}>Car Rental</Text>
                     <Text style={styles.actionSubtitle}>Rent a vehicle</Text>
                 </TouchableOpacity>
@@ -215,7 +221,9 @@ const HomeScreen = ({ navigation }) => {
             </View>
 
             {isLoading ? (
-                <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 24 }} />
+                <View style={{ marginTop: 10 }}>
+                    {[1, 2, 3].map((key) => <BookingCardSkeleton key={key} compact={true} />)}
+                </View>
             ) : recentBookings.length === 0 ? (
                 <View style={styles.emptyState}>
                     <Text style={styles.emptyIcon}>🚿</Text>
@@ -285,7 +293,7 @@ const getStyles = (COLORS) => StyleSheet.create({
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2
     },
     actionCardSecondary: { borderColor: COLORS.primary + '30', backgroundColor: COLORS.primary + '08' },
-    actionIcon: { fontSize: 28, marginBottom: 10 },
+    actionIcon: { fontSize: 28, marginBottom: 10, width: 28, height: 28, tintColor: COLORS.primary },
     actionTitle: { color: COLORS.text, fontWeight: '700', fontSize: 14, textAlign: 'center' },
     actionSubtitle: { color: COLORS.textMuted, fontSize: 11, marginTop: 4, textAlign: 'center' },
     emptyState: { backgroundColor: COLORS.cardBackground, padding: 32, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderStyle: 'dashed', marginBottom: 24 },

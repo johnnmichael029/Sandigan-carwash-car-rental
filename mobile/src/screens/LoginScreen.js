@@ -6,11 +6,12 @@ import { ThemeContext } from '../context/ThemeContext';
 
 const showIcon = require('../../assets/icon/show.png');
 const hideIcon = require('../../assets/icon/hide.png');
-
+const loginIcon = require('../../assets/icon/log-in.png');
 const LoginScreen = ({ navigation }) => {
-    const { login, isLoading } = useContext(AuthContext);
+    const { login, employeeLogin, isLoading } = useContext(AuthContext);
     const { COLORS } = useContext(ThemeContext);
 
+    const [loginMode, setLoginMode] = useState('customer'); // 'customer' or 'employee'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -20,11 +21,18 @@ const LoginScreen = ({ navigation }) => {
 
     const handleLogin = async () => {
         setErrorMessage('');
-        const result = await login(email, password);
+
+        let result;
+        if (loginMode === 'employee') {
+            result = await employeeLogin(email, password);
+        } else {
+            result = await login(email, password);
+        }
+
         if (!result.success) {
             setErrorMessage(result.message);
             setPassword(''); // specifically clears password if login failed
-            
+
             // Auto dismiss the error block after 3 seconds
             setTimeout(() => {
                 setErrorMessage('');
@@ -41,7 +49,25 @@ const LoginScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.formContainer}>
-                <Text style={styles.welcomeText}>Welcome Back</Text>
+                {/* LOGIN MODE TOGGLE */}
+                <View style={styles.modeToggleContainer}>
+                    <TouchableOpacity
+                        style={[styles.modeToggleBtn, loginMode === 'customer' && { backgroundColor: COLORS.primary }]}
+                        onPress={() => { setLoginMode('customer'); setErrorMessage(''); }}
+                    >
+                        <Text style={[styles.modeToggleText, loginMode === 'customer' && { color: '#fff', fontWeight: 'bold' }]}>Customer</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.modeToggleBtn, loginMode === 'employee' && { backgroundColor: COLORS.primary }]}
+                        onPress={() => { setLoginMode('employee'); setErrorMessage(''); }}
+                    >
+                        <Text style={[styles.modeToggleText, loginMode === 'employee' && { color: '#fff', fontWeight: 'bold' }]}>Detailer</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <Text style={styles.welcomeText}>
+                    {loginMode === 'employee' ? 'Detailer Portal' : 'Welcome Back'}
+                </Text>
 
                 <TextInput
                     style={styles.input}
@@ -84,7 +110,13 @@ const LoginScreen = ({ navigation }) => {
                             <Text style={styles.buttonText}>Signing in...</Text>
                         </View>
                     ) : (
-                        <Text style={styles.buttonText}>SIGN IN</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                            <Text style={styles.buttonText}>SIGN IN</Text>
+                            <Image
+                                source={loginIcon}
+                                style={styles.signInIcon}
+                            />
+                        </View>
                     )}
                 </TouchableOpacity>
 
@@ -98,10 +130,14 @@ const LoginScreen = ({ navigation }) => {
                 ) : null}
 
                 <View style={styles.footerRow}>
-                    <Text style={styles.footerText}>Don't have an account? </Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                        <Text style={styles.linkText}>Register here</Text>
-                    </TouchableOpacity>
+                    <Text style={styles.footerText}>
+                        {loginMode === 'employee' ? 'Need an account? Contact Admin' : "Don't have an account? "}
+                    </Text>
+                    {loginMode === 'customer' && (
+                        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                            <Text style={styles.linkText}>Register here</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
         </View>
@@ -151,6 +187,24 @@ const getStyles = (COLORS) => StyleSheet.create({
         shadowRadius: 10,
         elevation: 2,
     },
+    modeToggleContainer: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.inputBackground,
+        borderRadius: 8,
+        padding: 4,
+        marginBottom: 24,
+    },
+    modeToggleBtn: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 6,
+    },
+    modeToggleText: {
+        fontSize: 14,
+        color: COLORS.textMuted,
+        fontWeight: '600',
+    },
     welcomeText: {
         fontSize: 22,
         fontWeight: 'bold',
@@ -184,6 +238,7 @@ const getStyles = (COLORS) => StyleSheet.create({
     },
     iconToggle: {
         padding: 16,
+        tintColor: COLORS.text,
     },
     iconImage: {
         width: 20,
@@ -231,6 +286,11 @@ const getStyles = (COLORS) => StyleSheet.create({
         color: COLORS.primary,
         fontSize: 14,
         fontWeight: 'bold',
+    },
+    signInIcon: {
+        width: 16,
+        height: 16,
+        tintColor: COLORS.buttonText,
     }
 });
 
