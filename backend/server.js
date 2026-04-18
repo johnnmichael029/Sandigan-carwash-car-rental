@@ -66,7 +66,7 @@ app.use(helmet({
 // ─────────────────────────────────────────────────────────────────────────────
 app.use(cors({
     origin: [
-        'http://localhost:5173', 
+        'http://localhost:5173',
         'https://sandigan-carwash-carrental-akd8a6cde6hpg4cc.japaneast-01.azurewebsites.net',
         'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net'
     ],
@@ -84,6 +84,7 @@ const loginLimiter = rateLimit({
     max: 10, // 10 attempts
     message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
     standardHeaders: true, legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
 });
 
 // 2. Booking creation limiter
@@ -92,6 +93,7 @@ const bookingLimiter = rateLimit({
     max: 20, // 20 requests
     message: { error: 'Too many booking requests. Please try again later.' },
     standardHeaders: true, legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
 });
 
 // 2b. Rental submission limiter
@@ -100,6 +102,7 @@ const rentalLimiter = rateLimit({
     max: 10, // 10 rental requests per IP per hour
     message: { error: 'Too many rental requests. Please try again later.' },
     standardHeaders: true, legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
 });
 
 // 3. General API limiter
@@ -116,7 +119,7 @@ app.use('/api/', generalLimiter);
 const io = new Server(server, {
     cors: {
         origin: [
-            'http://localhost:5173', 
+            'http://localhost:5173',
             'https://sandigan-carwash-carrental-akd8a6cde6hpg4cc.japaneast-01.azurewebsites.net',
             'https://sandigan-backend-api-gzdvgkcphtbbcngq.japaneast-01.azurewebsites.net'
         ],
