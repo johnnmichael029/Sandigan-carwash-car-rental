@@ -19,7 +19,6 @@ const FILTER_TABS = ['All', 'Pending', 'Confirmed', 'Queued', 'In-Progress', 'Co
 const PAGE_LIMIT = 15; // items per page per source
 
 // ── Status Stepper ────────────────────────────────────────────────────────────
-// ── Status Stepper ────────────────────────────────────────────────────────────
 const WASH_STEPS = ['Pending', 'Confirmed', 'Queued', 'In-Progress', 'Completed'];
 const HOME_STEPS = ['Pending', 'Confirmed', 'Queued', 'On the Way', 'In-Progress', 'Completed'];
 const RENTAL_STEPS = ['Pending', 'Confirmed', 'Active', 'Returned'];
@@ -400,27 +399,33 @@ const BookingsScreen = ({ navigation, route }) => {
                 <Text style={styles.pageSubtitle}>Your carwash history</Text>
             </View>
 
-            {/* Filter Tabs — horizontal scroll, text never clipped */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.filterRow}
-                contentContainerStyle={{ gap: 8, paddingRight: 20, alignItems: 'center' }}
-            >
-                {FILTER_TABS.map(tab => (
-                    <TouchableOpacity
-                        key={tab}
-                        style={[styles.filterTab, activeFilter === tab && styles.filterTabActive]}
-                        onPress={() => setActiveFilter(tab)}
-                    >
-                        <Text style={[styles.filterTabText, activeFilter === tab && styles.filterTabTextActive]}>
-                            {tab}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
+            {/* Filter Tabs */}
+            <View >
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.filterRow}
+                    contentContainerStyle={{ paddingHorizontal: 4, paddingVertical: 10, alignItems: 'center' }}
+                >
+                    {FILTER_TABS.map(tab => (
+                        <TouchableOpacity
+                            key={tab}
+                            style={[
+                                styles.filterTab,
+                                { marginRight: 8 },
+                                activeFilter === tab && styles.filterTabActive
+                            ]}
+                            onPress={() => setActiveFilter(tab)}
+                        >
+                            <Text style={[styles.filterTabText, activeFilter === tab && styles.filterTabTextActive]}>
+                                {tab}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
 
-            {/* Count badge */}
+            {/* Count */}
             <Text style={styles.countText}>
                 {filtered.length} {activeFilter === 'All' ? 'total' : activeFilter.toLowerCase()} booking{filtered.length !== 1 ? 's' : ''}
                 {(hasMoreWash.current || hasMoreRental.current) && activeFilter === 'All' ? ' · scroll to load more' : ''}
@@ -433,6 +438,7 @@ const BookingsScreen = ({ navigation, route }) => {
                     ))}
                 </View>
             ) : (
+
                 <FlashList
                     data={filtered}
                     renderItem={renderBooking}
@@ -450,6 +456,7 @@ const BookingsScreen = ({ navigation, route }) => {
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ paddingBottom: 32, flexGrow: 1 }}
                 />
+
             )}
 
             {/* Loading More Indicator */}
@@ -471,7 +478,7 @@ const BookingsScreen = ({ navigation, route }) => {
                 }}
             />
 
-            <CustomAlertModal 
+            <CustomAlertModal
                 visible={alertData.visible}
                 title={alertData.title}
                 message={alertData.message}
@@ -489,7 +496,7 @@ const getStyles = (COLORS) => StyleSheet.create({
     pageTitle: { fontSize: 26, fontWeight: '800', color: COLORS.text },
     pageSubtitle: { fontSize: 14, color: COLORS.textMuted, marginTop: 2 },
 
-    filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14, height: 40 },
+    filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     filterTab: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, backgroundColor: COLORS.cardBackground, borderWidth: 1, borderColor: COLORS.border },
     filterTabActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
     filterTabText: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
@@ -518,7 +525,10 @@ const getStyles = (COLORS) => StyleSheet.create({
     footerLoader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 8 },
     footerText: { fontSize: 12, color: COLORS.textMuted },
 
-    emptyText: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', paddingHorizontal: 32 },
+    emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
+    emptyIcon: { fontSize: 52, marginBottom: 16 },
+    emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
+    emptyText: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', paddingHorizontal: 32, marginBottom: 20 },
 });
 
 export default BookingsScreen;

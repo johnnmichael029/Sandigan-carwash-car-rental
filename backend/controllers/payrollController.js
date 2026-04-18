@@ -120,10 +120,15 @@ const processPayrollCalculations = (employee, logs) => {
         // Late Logic
         if (employee.shiftStartTime) {
             try {
-                const [timePart, modifier] = employee.shiftStartTime.split(' ');
-                let [h, m] = timePart.split(':').map(Number);
-                if (modifier === 'PM' && h < 12) h += 12;
-                if (modifier === 'AM' && h === 12) h = 0;
+                let h, m;
+                if (employee.shiftStartTime.includes(' ')) {
+                    const [timePart, modifier] = employee.shiftStartTime.split(' ');
+                    [h, m] = timePart.split(':').map(Number);
+                    if (modifier === 'PM' && h < 12) h += 12;
+                    if (modifier === 'AM' && h === 12) h = 0;
+                } else {
+                    [h, m] = employee.shiftStartTime.split(':').map(Number);
+                }
                 const shiftStartDate = new Date(clockIn);
                 shiftStartDate.setHours(h, m, 0, 0);
                 if (clockIn > shiftStartDate) {
@@ -605,10 +610,17 @@ const getPendingFixedSalary = async (req, res) => {
                 // Late Logic
                 if (emp.shiftStartTime) {
                     try {
-                        const [timePart, modifier] = emp.shiftStartTime.split(' ');
-                        let [h, m] = timePart.split(':').map(Number);
-                        if (modifier === 'PM' && h < 12) h += 12;
-                        if (modifier === 'AM' && h === 12) h = 0;
+                        let h, m;
+                        if (emp.shiftStartTime.includes(' ')) {
+                            // Legacy AM/PM
+                            const [timePart, modifier] = emp.shiftStartTime.split(' ');
+                            [h, m] = timePart.split(':').map(Number);
+                            if (modifier === 'PM' && h < 12) h += 12;
+                            if (modifier === 'AM' && h === 12) h = 0;
+                        } else {
+                            // New 24h
+                            [h, m] = emp.shiftStartTime.split(':').map(Number);
+                        }
                         const shiftStartDate = new Date(clockIn);
                         shiftStartDate.setHours(h, m, 0, 0);
                         if (clockIn > shiftStartDate) {

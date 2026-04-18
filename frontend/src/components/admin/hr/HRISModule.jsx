@@ -32,6 +32,14 @@ import AdminModalWrapper from '../shared/AdminModalWrapper';
 const HRISPage = ({ user, isDark }) => {
     const getEmpName = (emp) => emp?.fullName || emp?.fullname || 'Unknown Staff';
     const getEmpId = (emp) => emp?.employeeId || 'No ID';
+    const formatToAMPM = (timeStr) => {
+        if (!timeStr || !timeStr.includes(':')) return timeStr;
+        const [h, m] = timeStr.split(':');
+        let hours = parseInt(h);
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12 || 12;
+        return `${hours}:${m} ${ampm}`;
+    };
 
     const getPayableMinutes = (log, fallbackEmp = null) => {
         const emp = log.employee || fallbackEmp;
@@ -230,6 +238,10 @@ const HRISPage = ({ user, isDark }) => {
     const [ledgerSearch, setLedgerSearch] = useState('');
     const [staffSearch, setStaffSearch] = useState('');
     const [detSearch, setDetSearch] = useState('');
+    const [directorySearch, setDirectorySearch] = useState('');
+    const [directorySearchDebounced, setDirectorySearchDebounced] = useState('');
+    const [directoryCurrentPage, setDirectoryCurrentPage] = useState(1);
+    const directoryPerPage = 10;
 
     const isHrisMounted = useRef(false);
 
@@ -270,6 +282,15 @@ const HRISPage = ({ user, isDark }) => {
 
     const filteredAttendance = filterDataBySearch(attendanceLogs, attendanceSearch, ['employee.fullName', 'holidayType', 'holidayName', 'status'], ['date', 'clockInTime', 'clockOutTime']);
 
+    const filteredDirectory = useMemo(() => {
+        return filterDataBySearch(employees, directorySearchDebounced, ['fullName', 'fullname', 'email', 'role', 'employeeId', 'employeeID']);
+    }, [employees, directorySearchDebounced]);
+
+    const paginatedDirectory = useMemo(() => {
+        const start = (directoryCurrentPage - 1) * directoryPerPage;
+        return filteredDirectory.slice(start, start + directoryPerPage);
+    }, [filteredDirectory, directoryCurrentPage]);
+
     const [attendanceCurrentPage, setAttendanceCurrentPage] = useState(1);
     const [auditCurrentPage, setAuditCurrentPage] = useState(1);
 
@@ -289,6 +310,7 @@ const HRISPage = ({ user, isDark }) => {
     useEffect(() => { setLedgerCurrentPage(1); }, [ledgerSearch]);
     useEffect(() => { setStaffCurrentPage(1); }, [staffSearch]);
     useEffect(() => { setDetCurrentPage(1); }, [detSearch]);
+    useEffect(() => { setDirectoryCurrentPage(1); }, [directorySearchDebounced]);
     useEffect(() => { setAttendanceCurrentPage(1); setAuditCurrentPage(1); }, [attendanceSearch]);
 
     // Search states handled by client-side filtering
@@ -321,7 +343,10 @@ const HRISPage = ({ user, isDark }) => {
         data: swrEmployees,
         isLoading: swrEmpLoading,
         mutate: mutateEmployees
-    } = useSWR('/employees', swrFetcher, SWR_CONFIG);
+    } = useSWR('/employees', swrFetcher, { 
+        ...SWR_CONFIG, 
+        dedupingInterval: 0 // Allow immediate re-fetching via mutateEmployees()
+    });
 
     // Sync SWR data into local state so all existing code still works unchanged
     useEffect(() => {
@@ -791,7 +816,9 @@ const HRISPage = ({ user, isDark }) => {
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
-            confirmButtonText: 'Yes, remove'
+            confirmButtonText: 'Yes, remove',
+            background: 'var(--theme-card-bg)',
+            color: 'var(--theme-content-text'
         });
         if (!result.isConfirmed) return;
         try {
@@ -1210,8 +1237,17 @@ const HRISPage = ({ user, isDark }) => {
                             ))}
                     </div>
                     <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
-                        <div className="card-header bg-white border-bottom py-3 px-4">
+                        <div className="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                             <h6 className="mb-0 fw-bold text-dark-secondary">Employee Directory</h6>
+                            <div style={{ width: '300px' }}>
+                                <SharedSearchBar
+                                    placeholder="Search directory..."
+                                    searchTerm={directorySearch}
+                                    onSearchChange={setDirectorySearch}
+                                    onDebouncedSearch={setDirectorySearchDebounced}
+                                    debounceDelay={400}
+                                />
+                            </div>
                         </div>
                         <div className="card-body p-0">
                             {isLoading ? (
@@ -1232,9 +1268,9 @@ const HRISPage = ({ user, isDark }) => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {employees.length === 0 ? (
-                                                <tr><td colSpan="5" className="text-center p-4 text-muted">No employees found.</td></tr>
-                                            ) : employees.map(emp => {
+                                            {paginatedDirectory.length === 0 ? (
+                                                <tr><td colSpan="9" className="text-center p-4 text-muted">No employees found matching "{directorySearchDebounced}".</td></tr>
+                                            ) : paginatedDirectory.map(emp => {
                                                 const roleStyle = ROLE_COLORS[emp.role] || ROLE_COLORS.employee;
                                                 const isSelf = emp._id === user?.id;
                                                 return (
@@ -1272,7 +1308,7 @@ const HRISPage = ({ user, isDark }) => {
                                                                 </span>
                                                                 {emp.role !== 'admin' && (
                                                                     <small className="text-muted fw-semibold" style={{ fontSize: '0.62rem' }}>
-                                                                        {emp.shiftType && emp.shiftType !== 'None' ? `${emp.shiftType} (${emp.shiftStartTime || 'No Time'})` : 'No Fixed Sched'}
+                                                                        {emp.shiftType && emp.shiftType !== 'None' ? `${emp.shiftType} (${formatToAMPM(emp.shiftStartTime) || 'No Time'})` : 'No Fixed Sched'}
                                                                     </small>
                                                                 )}
                                                             </div>
@@ -1384,9 +1420,49 @@ const HRISPage = ({ user, isDark }) => {
                                     </table>
                                 </div>
                             )}
+                            {filteredDirectory.length > directoryPerPage && (
+                                <div className="card-footer border-top py-2 px-4 d-flex justify-content-between align-items-center" style={{ background: 'transparent' }}>
+                                    <div className="text-muted" style={{ fontSize: '0.8rem' }}>
+                                        Showing {(directoryCurrentPage - 1) * directoryPerPage + 1}–{Math.min(directoryCurrentPage * directoryPerPage, filteredDirectory.length)} of {filteredDirectory.length}
+                                    </div>
+                                    <div className="d-flex align-items-center gap-1">
+                                        <button
+                                            className="btn btn-sm p-0 rounded-circle border-0"
+                                            disabled={directoryCurrentPage === 1}
+                                            onClick={() => setDirectoryCurrentPage(directoryCurrentPage - 1)}
+                                            style={{ width: '30px', height: '30px', background: directoryCurrentPage === 1 ? '#f1f5f9' : 'transparent' }}
+                                        >
+                                            <img src={leftArrowIcon} style={{ width: '9px', opacity: directoryCurrentPage === 1 ? 0.3 : 0.7 }} alt="prev" />
+                                        </button>
+                                        {getPaginationRange(directoryCurrentPage, Math.ceil(filteredDirectory.length / directoryPerPage)).map((p, idx) => (
+                                            p === '...' ? (
+                                                <span key={`dot-d-${idx}`} className="px-1 text-muted" style={{ fontSize: '0.8rem' }}>...</span>
+                                            ) : (
+                                                <button
+                                                    key={`dp-${p}`}
+                                                    onClick={() => setDirectoryCurrentPage(p)}
+                                                    className={`btn btn-sm p-0 rounded-circle border-0 fw-bold ${directoryCurrentPage === p ? 'text-white shadow-sm' : 'text-muted'}`}
+                                                    style={{ width: '30px', height: '30px', fontSize: '0.78rem', background: directoryCurrentPage === p ? '#23A0CE' : 'transparent' }}
+                                                >
+                                                    {p}
+                                                </button>
+                                            )
+                                        ))}
+                                        <button
+                                            className="btn btn-sm p-0 rounded-circle border-0"
+                                            disabled={directoryCurrentPage >= Math.ceil(filteredDirectory.length / directoryPerPage)}
+                                            onClick={() => setDirectoryCurrentPage(directoryCurrentPage + 1)}
+                                            style={{ width: '30px', height: '30px', background: directoryCurrentPage >= Math.ceil(filteredDirectory.length / directoryPerPage) ? '#f1f5f9' : 'transparent' }}
+                                        >
+                                            <img src={rightArrowIcon} style={{ width: '9px', opacity: directoryCurrentPage >= Math.ceil(filteredDirectory.length / directoryPerPage) ? 0.3 : 0.7 }} alt="next" />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </>
+
             )}
 
             {/* ── LEAVES TAB ── */}
@@ -2668,7 +2744,14 @@ const HRISPage = ({ user, isDark }) => {
                                         <label className="form-label fw-semibold text-dark-secondary" style={{ fontSize: '0.83rem' }}>Shift Start Time</label>
                                         <div className="input-group">
 
-                                            <input type="text" className="form-control border-start-0 rounded-end-3 shadow-none border-light-subtle bg-light-subtle" value={empForm.shiftStartTime} onChange={(e) => setEmpForm({ ...empForm, shiftStartTime: e.target.value })} placeholder="08:00 AM" />
+                                            {/* Disabled when shiftType is None */}
+                                            <input
+                                                type="time"
+                                                className="form-control border-start-0 rounded-end-3 shadow-none border-light-subtle bg-light-subtle"
+                                                disabled={empForm.shiftType === 'None'}
+                                                value={empForm.shiftStartTime}
+                                                placeholder='08:00 AM'
+                                                onChange={(e) => setEmpForm({ ...empForm, shiftStartTime: e.target.value })} />
                                         </div>
                                     </div>
                                     <div className="col-12 col-md-4">

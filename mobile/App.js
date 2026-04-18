@@ -205,8 +205,9 @@ const AppNav = () => {
       const token = await registerForPushNotificationsAsync();
       if (token) {
         try {
+          const endpoint = userInfo?.isEmployee ? `${API_BASE}/employees/push-token` : `${API_BASE}/customer-auth/push-token`;
           await axios.post(
-            `${API_BASE}/customer-auth/push-token`,
+            endpoint,
             { pushToken: token },
             { headers: { Authorization: `Bearer ${userToken}` } }
           );

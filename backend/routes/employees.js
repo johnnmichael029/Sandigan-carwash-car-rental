@@ -17,7 +17,8 @@ const {
     addEvaluation,
     updateSkills,
     backfillEmployeeIds,
-    getMyEarnings
+    getMyEarnings,
+    savePushToken
 } = require('../controllers/employeeController');
 
 // --- PUBLIC ROUTES (no auth needed) ---
@@ -59,7 +60,7 @@ router.post('/login', loginEmployee);
 router.post('/logout', logoutEmployee);
 
 // Create a new employee (sign up - restrict to admin)
-router.post('/signup', requireAuth, adminOnly, createEmployee);
+router.post('/signup', requireAuth, adminOnly, (req, res, next) => { invalidatePrefixes('employee', 'payroll', 'sandi'); next(); }, createEmployee);
 
 // Backfill: Assign IDs to all employees missing one (Admin only — run once)
 router.post('/backfill-ids', requireAuth, adminOnly, backfillEmployeeIds);
@@ -68,6 +69,9 @@ router.post('/backfill-ids', requireAuth, adminOnly, backfillEmployeeIds);
 
 // Get detailer earnings
 router.get('/my-earnings', requireAuth, getMyEarnings);
+
+// Save push token (authenticated)
+router.post('/push-token', requireAuth, savePushToken);
 
 // Get all employees
 router.get('/', requireAuth, cache('employee', 90), getEmployees);

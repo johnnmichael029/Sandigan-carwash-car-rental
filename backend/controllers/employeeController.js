@@ -545,6 +545,23 @@ const getMyEarnings = async (req, res) => {
     }
 };
 
+// @desc    Save or update Push Notification token for this employee
+// @access  Private (Employee Token Required)
+const savePushToken = async (req, res) => {
+    try {
+        const { pushToken } = req.body;
+        const employeeId = req.user ? req.user.id : req.employeeId;
+        
+        if (!pushToken) return res.status(400).json({ error: 'pushToken is required.' });
+        if (!employeeId) return res.status(401).json({ error: 'Unauthorized.' });
+
+        await Employee.findByIdAndUpdate(employeeId, { pushToken });
+        res.status(200).json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     getEmployee,
     getEmployees,
@@ -556,5 +573,6 @@ module.exports = {
     addEvaluation,
     updateSkills,
     backfillEmployeeIds,
-    getMyEarnings
+    getMyEarnings,
+    savePushToken
 }

@@ -310,7 +310,7 @@ const DetailerDashboard = ({ navigation }) => {
         const msg = newStatus === 'In-progress'
             ? 'Mark yourself as arrived and start the service?'
             : 'Mark this job as completed?';
-        
+
         setAlertData({
             visible: true,
             title: `${actionText} Job`,
@@ -719,7 +719,7 @@ const DetailerDashboard = ({ navigation }) => {
                 confirmText="Yes, I'm done"
             />
 
-            <CustomAlertModal 
+            <CustomAlertModal
                 visible={alertData.visible}
                 title={alertData.title}
                 message={alertData.message}

@@ -326,24 +326,30 @@ const RentalsScreen = ({ navigation }) => {
             </View>
 
             {/* Filter Tabs */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.filterRow}
-                contentContainerStyle={{ gap: 8, paddingRight: 20, alignItems: 'center' }}
-            >
-                {FILTER_TABS.map(tab => (
-                    <TouchableOpacity
-                        key={tab}
-                        style={[styles.filterTab, activeFilter === tab && styles.filterTabActive]}
-                        onPress={() => setActiveFilter(tab)}
-                    >
-                        <Text style={[styles.filterTabText, activeFilter === tab && styles.filterTabTextActive]}>
-                            {tab}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
+            <View>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.filterRow}
+                    contentContainerStyle={{ paddingHorizontal: 4, paddingVertical: 10, alignItems: 'center' }}
+                >
+                    {FILTER_TABS.map(tab => (
+                        <TouchableOpacity
+                            key={tab}
+                            style={[
+                                styles.filterTab,
+                                { marginRight: 8 },
+                                activeFilter === tab && styles.filterTabActive
+                            ]}
+                            onPress={() => setActiveFilter(tab)}
+                        >
+                            <Text style={[styles.filterTabText, activeFilter === tab && styles.filterTabTextActive]}>
+                                {tab}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
 
             {/* Count */}
             <Text style={styles.countText}>
@@ -362,7 +368,7 @@ const RentalsScreen = ({ navigation }) => {
                     data={filtered}
                     renderItem={renderRental}
                     keyExtractor={(item, idx) => item._id || String(idx)}
-                    estimatedItemSize={160}
+                    estimatedItemSize={180}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
                     onEndReached={activeFilter === 'All' ? onEndReached : null}
                     onEndReachedThreshold={0.4}
@@ -387,7 +393,7 @@ const RentalsScreen = ({ navigation }) => {
                 getStatusColor={getStatusColor}
             />
 
-            <CustomAlertModal 
+            <CustomAlertModal
                 visible={alertData.visible}
                 title={alertData.title}
                 message={alertData.message}
@@ -405,9 +411,10 @@ const getStyles = (COLORS) => StyleSheet.create({
     pageTitle: { fontSize: 26, fontWeight: '800', color: COLORS.text },
     pageSubtitle: { fontSize: 14, color: COLORS.textMuted, marginTop: 2 },
 
-    filterRow: { flexDirection: 'row', marginBottom: 14, height: 40 },
+
+    filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     filterTab: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, backgroundColor: COLORS.cardBackground, borderWidth: 1, borderColor: COLORS.border },
-    filterTabActive: { backgroundColor: '#23A0CE', borderColor: '#23A0CE' },
+    filterTabActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
     filterTabText: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
     filterTabTextActive: { color: '#fff' },
 

@@ -68,7 +68,8 @@ const employeeSchema = new Schema({
         comment: String,
         reviewerName: String,
         date: { type: Date, default: Date.now }
-    }]
+    }],
+    pushToken: { type: String }
 }, { timestamps: true });
 
 // ── CRITICAL: Convert empty-string emails to null before save ──
