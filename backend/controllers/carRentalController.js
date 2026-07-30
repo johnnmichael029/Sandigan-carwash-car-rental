@@ -3,6 +3,7 @@ const RentalFleet = require('../models/rentalFleetModel');
 const Notification = require('../models/notificationModel');
 const Customer = require('../models/customerModel');
 const { sendPushNotification } = require('../utils/pushNotification');
+const { sendRentalConfirmation } = require('../utils/emailService');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const Promotion = require('../models/promotionModel');
@@ -91,10 +92,18 @@ const createRental = async (req, res) => {
                 });
             }
         }
-        // Fetch vehicle info
-        const vehicle = await RentalFleet.findById(vehicleId);
-        if (!vehicle) return res.status(404).json({ error: 'Selected vehicle not found.' });
-        if (!vehicle.isAvailable) return res.status(400).json({ error: 'This vehicle is currently not available.' });
+        // ── Atomically claim the vehicle ────────────────────────────────────────
+        // findOneAndUpdate with { isAvailable: true } condition ensures only ONE
+        // request can claim the vehicle — even if two customers submit simultaneously.
+        const vehicle = await RentalFleet.findOneAndUpdate(
+            { _id: vehicleId, isAvailable: true },   // condition: must still be available
+            { $set: { isAvailable: false } },          // atomically lock it
+            { new: false }                              // return the OLD doc (before update)
+        );
+        if (!vehicle) {
+            // Either vehicle doesn't exist, or it was just taken by another request
+            return res.status(400).json({ error: 'This vehicle is currently not available. It may have just been booked by another customer.' });
+        }
 
         // Compute days and total
         const start = new Date(rentalStartDate);
@@ -129,7 +138,14 @@ const createRental = async (req, res) => {
             promoDiscount: promoDiscount || 0
         });
 
+        // Notify frontend of fleet update (vehicle was already locked atomically above)
+        try {
+            const io = req.app.get('io');
+            if (io) io.emit('fleet_updated');
+        } catch (_) { /* non-critical */ }
+
         // Consuming Promotion Usage (One-time per customer)
+
         if (promoCode) {
             try {
                 const authHeader = req.headers.authorization;
@@ -174,6 +190,9 @@ const createRental = async (req, res) => {
                 io.emit('new_rental', rental); // Explicit event for the rental dashboard
             }
         } catch (_) { /* non-critical */ }
+
+        // Send confirmation email to customer (fire-and-forget)
+        sendRentalConfirmation(rental);
 
         res.status(201).json({ success: true, rentalId, rental });
     } catch (err) {
@@ -251,8 +270,8 @@ const updateStatus = async (req, res) => {
         // Automatic Vehicle Availability Management & Revenue Generation
         try {
             const io = req.app.get('io');
-            if (status === 'Confirmed' || status === 'Active') {
-                // Mark vehicle as UNAVAILABLE
+            if (status === 'Pending' || status === 'Confirmed' || status === 'Active') {
+                // Mark vehicle as UNAVAILABLE as soon as rental is Pending
                 await RentalFleet.findByIdAndUpdate(rental.vehicleId, { isAvailable: false }, { returnDocument: 'after', runValidators: true });
                 if (io) io.emit('fleet_updated');
 

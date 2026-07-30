@@ -3,6 +3,7 @@ const Notification = require('../models/notificationModel');
 const { calculateTotalFromDb } = require('./pricingController');
 const { createLog } = require('./activityLogController');
 const { sendPushNotification } = require('../utils/pushNotification');
+const { sendBookingConfirmation } = require('../utils/emailService');
 
 
 const secretKey = process.env.RECAPTCHA_SECRET_KEY; // Use variable, not the raw key!
@@ -274,6 +275,9 @@ const createBooking = async (req, res) => {
             io.emit('new_booking', booking);
             if (log) io.emit('new_activity_log', log);
         }
+
+        // Send confirmation email to customer (fire-and-forget)
+        sendBookingConfirmation(booking);
 
         console.log("✅ Booking created:", booking.batchId);
         res.status(201).json(booking);

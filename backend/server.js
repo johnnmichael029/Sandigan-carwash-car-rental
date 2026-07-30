@@ -90,7 +90,7 @@ const loginLimiter = rateLimit({
 // 2. Booking creation limiter
 const bookingLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 20, // 20 requests
+    max: 3, // 20 requests
     message: { error: 'Too many booking requests. Please try again later.' },
     standardHeaders: true, legacyHeaders: false,
     validate: { xForwardedForHeader: false },
@@ -99,7 +99,7 @@ const bookingLimiter = rateLimit({
 // 2b. Rental submission limiter
 const rentalLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // 10 rental requests per IP per hour
+    max: 3, // 10 rental requests per IP per hour
     message: { error: 'Too many rental requests. Please try again later.' },
     standardHeaders: true, legacyHeaders: false,
     validate: { xForwardedForHeader: false },

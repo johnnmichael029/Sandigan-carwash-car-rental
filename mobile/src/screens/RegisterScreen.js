@@ -10,7 +10,7 @@ const hideIcon = require('../../assets/icon/hide.png');
 const RegisterScreen = ({ navigation }) => {
     const { register, isLoading } = useContext(AuthContext);
     const { COLORS } = useContext(ThemeContext);
-    
+
     // Form State
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -45,16 +45,16 @@ const RegisterScreen = ({ navigation }) => {
 
             <View style={styles.formContainer}>
                 <Text style={styles.subtitle}>Create your Sandigan account</Text>
-                
+
                 <View style={styles.row}>
-                    <TextInput 
+                    <TextInput
                         style={[styles.input, { flex: 1, marginRight: 8 }]}
                         placeholder="First Name"
                         placeholderTextColor={COLORS.textMuted}
                         value={firstName}
                         onChangeText={setFirstName}
                     />
-                    <TextInput 
+                    <TextInput
                         style={[styles.input, { flex: 1, marginLeft: 8 }]}
                         placeholder="Last Name"
                         placeholderTextColor={COLORS.textMuted}
@@ -63,7 +63,7 @@ const RegisterScreen = ({ navigation }) => {
                     />
                 </View>
 
-                <TextInput 
+                <TextInput
                     style={styles.input}
                     placeholder="Email Address"
                     placeholderTextColor={COLORS.textMuted}
@@ -73,7 +73,7 @@ const RegisterScreen = ({ navigation }) => {
                     keyboardType="email-address"
                 />
 
-                <TextInput 
+                <TextInput
                     style={styles.input}
                     placeholder="Phone Number (11 digits)"
                     placeholderTextColor={COLORS.textMuted}
@@ -84,26 +84,27 @@ const RegisterScreen = ({ navigation }) => {
                 />
 
                 <View style={styles.passwordContainer}>
-                    <TextInput 
+                    <TextInput
                         style={styles.passwordInput}
                         placeholder="Password"
                         placeholderTextColor={COLORS.textMuted}
                         value={password}
                         onChangeText={setPassword}
                         secureTextEntry={!showPassword}
+                        autoCapitalize="none"
                     />
-                    <TouchableOpacity 
-                        style={styles.iconToggle} 
+                    <TouchableOpacity
+                        style={styles.iconToggle}
                         onPress={() => setShowPassword(!showPassword)}
                     >
-                        <Image 
-                            source={showPassword ? hideIcon : showIcon} 
-                            style={styles.iconImage} 
+                        <Image
+                            source={showPassword ? hideIcon : showIcon}
+                            style={styles.iconImage}
                         />
                     </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.primaryButton}
                     onPress={handleRegister}
                     disabled={isLoading}

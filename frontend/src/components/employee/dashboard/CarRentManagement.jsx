@@ -376,9 +376,15 @@ const CarRentManagement = ({ employee, isDark }) => {
         const socket = io(SOCKET_URL, { withCredentials: true });
 
         // Listen for new rental requests submitted via the public booking page
-        socket.on('new_rental', (newRental) => {
+        socket.on('new_rental', async (newRental) => {
             // Add to the top of the list immediately
             setRentals(prev => [newRental, ...prev]);
+
+            // Also refresh fleet — the booked vehicle is now unavailable
+            try {
+                const fleetRes = await axios.get(`${API_BASE}/rental-fleet`);
+                setFleet(fleetRes.data);
+            } catch (err) { /* non-critical */ }
 
             // Show a friendly notification toast
             Swal.fire({

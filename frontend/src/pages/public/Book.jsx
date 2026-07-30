@@ -59,7 +59,8 @@ const Book = () => {
                     const vId = queryParams.get('vehicleId');
                     if (vId) {
                         const v = res.data.find(v => v._id === vId);
-                        if (v) {
+                        // Only auto-select if the vehicle is still available
+                        if (v && v.isAvailable) {
                             setSelectedRentalVehicle(v);
                             setVehicleType(v.vehicleName);
                         }
@@ -573,9 +574,12 @@ const Book = () => {
                                                                     }}
                                                                 >
                                                                     <option value="">-- Select Rental Vehicle --</option>
-                                                                    {rentalFleet.map(v => (
+                                                                    {rentalFleet.filter(v => v.isAvailable).map(v => (
                                                                         <option key={v._id} value={v._id}>{v.vehicleName} ({v.seats}-Seater) - ₱{v.pricePerDay?.toLocaleString()}/day</option>
                                                                     ))}
+                                                                    {rentalFleet.every(v => !v.isAvailable) && (
+                                                                        <option disabled value="">No vehicles currently available</option>
+                                                                    )}
                                                                 </select>
                                                             </div>
                                                             <div className="input-container mb-3">

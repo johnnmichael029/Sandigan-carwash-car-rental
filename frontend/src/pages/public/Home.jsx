@@ -392,15 +392,42 @@ const AboutSection = () => (
 ═══════════════════════════════════════════ */
 
 // Reusable service card component
-const ServiceCard = ({ image, title, duration, price, description, icons, type, onRentNow, vehicleTypeName, vehicleTypeBg, vehicleTypeText }) => (
-    <div className="service-card d-flex flex-column align-items-start gap-0 ">
+const ServiceCard = ({ image, title, duration, price, description, icons, type, onRentNow, vehicleTypeName, vehicleTypeBg, vehicleTypeText, isAvailable }) => (
+    <div className="service-card d-flex flex-column align-items-start gap-0 " style={type === 'rental' && !isAvailable ? { opacity: 0.75 } : {}}>
         {/* Card image - Edge to Edge */}
         <div className="service-img-wrapper w-100 overflow-hidden" style={{ borderTopLeftRadius: '24px', borderTopRightRadius: '24px', position: 'relative' }}>
-            <img src={image} className="img-fluid w-100" style={{ objectFit: 'cover', aspectRatio: '16/12' }} alt={title} />
+            <img src={image} className="img-fluid w-100" style={{ objectFit: 'cover', aspectRatio: '16/12', filter: type === 'rental' && !isAvailable ? 'grayscale(60%)' : 'none' }} alt={title} />
             {vehicleTypeName && (
                 <span className="badge rounded-pill position-absolute" style={{ top: '16px', left: '16px', background: vehicleTypeBg || '#6c757d', color: vehicleTypeText || '#fff', fontSize: '0.75rem', padding: '0.4rem 0.8rem', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>
                     {vehicleTypeName}
                 </span>
+            )}
+            {/* Unavailable overlay badge */}
+            {type === 'rental' && !isAvailable && (
+                <div style={{
+                    position: 'absolute', inset: 0,
+                    background: 'rgba(0,0,0,0.45)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    borderTopLeftRadius: '24px', borderTopRightRadius: '24px'
+                }}>
+                    <span style={{
+                        background: '#1a1a1a',
+                        border: '1.5px solid #ef4444',
+                        color: '#f87171',
+                        fontWeight: 700,
+                        fontSize: '0.75rem',
+                        letterSpacing: '1.5px',
+                        textTransform: 'uppercase',
+                        padding: '6px 16px',
+                        borderRadius: '99px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }}>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }}></span>
+                        Currently Unavailable
+                    </span>
+                </div>
             )}
         </div>
 
@@ -434,13 +461,24 @@ const ServiceCard = ({ image, title, duration, price, description, icons, type, 
                 {/* Rent Now — for rental cards */}
                 {type === 'rental' && (
                     <div className="mt-5">
-                        <button
-                            onClick={onRentNow}
-                            className="btn btn-primary w-100 d-flex align-items-center justify-content-center text-white gap-2"
-                            style={{ height: '2.75rem', borderRadius: '24px', border: 'none', fontSize: '0.875rem', fontWeight: 600 }}
-                        >
-                            Rent Now
-                        </button>
+                        {isAvailable ? (
+                            <button
+                                onClick={onRentNow}
+                                className="btn btn-primary w-100 d-flex align-items-center justify-content-center text-white gap-2"
+                                style={{ height: '2.75rem', borderRadius: '24px', border: 'none', fontSize: '0.875rem', fontWeight: 600 }}
+                            >
+                                Rent Now
+                            </button>
+                        ) : (
+                            <button
+                                disabled
+                                className="btn w-100 d-flex align-items-center justify-content-center gap-2"
+                                style={{ height: '2.75rem', borderRadius: '24px', border: '1.5px solid #374151', fontSize: '0.875rem', fontWeight: 600, background: '#111827', color: '#6b7280', cursor: 'not-allowed' }}
+                            >
+                                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6b7280', display: 'inline-block' }}></span>
+                                Not Available
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
@@ -526,9 +564,14 @@ const ServiceSection = () => {
         if (activeCategory === 'rental' && rentalFleet.length === 0) {
             fetchFleet();
         }
+    }, [activeCategory]);
 
+    // Socket listener — runs once, always re-fetches fleet on any fleet_updated event
+    useEffect(() => {
         const socket = io(SOCKET_URL);
+
         socket.on('fleet_updated', () => {
+            // Always refetch so the slider stays in sync regardless of active tab
             fetchFleet();
         });
 
@@ -538,14 +581,8 @@ const ServiceSection = () => {
                 .catch(() => { });
         });
 
-        // Also refresh if pricing/settings change (if Home were dynamic)
-        socket.on('pricing_updated', () => {
-            // If we had dynamic car wash pricing on landing, we'd fetch it here
-            // fetchServices(); 
-        });
-
         return () => socket.disconnect();
-    }, [activeCategory]);
+    }, []); // intentionally empty — socket setup only once
 
     const scroll = (direction) => {
         if (scrollRef.current) {
@@ -645,12 +682,12 @@ const ServiceSection = () => {
                             {rentalLoading && activeCategory === 'rental' && (
                                 <div className="w-100 text-center py-5">
                                     <div className="spinner-border text-info" role="status"></div>
-                                    <p className="text-muted mt-3">Loading available vehicles...</p>
+                                    <p className="text-muted mt-3">Loading vehicles...</p>
                                 </div>
                             )}
                             {!rentalLoading && activeCategory === 'rental' && rentalFleet.length === 0 && (
                                 <div className="w-100 text-center py-5">
-                                    <p className="text-muted">No vehicles currently available. Please check back soon.</p>
+                                    <p className="text-muted">No vehicles in fleet. Please check back soon.</p>
                                 </div>
                             )}
                             {displayData.map((service, index) => {
@@ -661,7 +698,8 @@ const ServiceSection = () => {
                                     duration: `${service.seats}-SEATER`,
                                     price: `₱${service.pricePerDay?.toLocaleString()}/day`,
                                     type: 'rental',
-                                    onRentNow: () => window.location.href = `/book?type=rental&vehicleId=${service._id}`,
+                                    isAvailable: service.isAvailable,
+                                    onRentNow: service.isAvailable ? () => window.location.href = `/book?type=rental&vehicleId=${service._id}` : undefined,
                                     vehicleTypeName: service.vehicleType,
                                     vehicleTypeBg: vehicleTypesList.find(t => t.name === service.vehicleType)?.color || '#6c757d',
                                     vehicleTypeText: vehicleTypesList.find(t => t.name === service.vehicleType)?.textColor || '#ffffff'

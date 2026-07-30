@@ -87,6 +87,7 @@ const LoginScreen = ({ navigation }) => {
                         value={password}
                         onChangeText={setPassword}
                         secureTextEntry={!showPassword}
+                        autoCapitalize="none"
                     />
                     <TouchableOpacity
                         style={styles.iconToggle}

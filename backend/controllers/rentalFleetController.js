@@ -1,14 +1,39 @@
 const RentalFleet = require('../models/rentalFleetModel');
+const CarRental = require('../models/carRentalModel');
+
 
 // GET all vehicles — PUBLIC (for landing page)
+// Derives availability from actual rentals (Pending/Confirmed/Active),
+// so it's always accurate even if isAvailable flag is stale.
 const getFleet = async (req, res) => {
     try {
-        const vehicles = await RentalFleet.find({ isAvailable: true }).sort({ createdAt: 1 });
-        res.json(vehicles);
+        const [vehicles, activeRentals] = await Promise.all([
+            RentalFleet.find().sort({ createdAt: 1 }),
+            // Get all vehicle IDs that are currently tied to an active rental
+            CarRental.distinct('vehicleId', {
+                status: { $in: ['Pending', 'Confirmed', 'Active'] }
+            })
+        ]);
+
+        // Build a fast lookup set of locked vehicle IDs
+        const lockedIds = new Set(activeRentals.map(id => id.toString()));
+
+        // Override isAvailable based on live rental data
+        const result = vehicles.map(v => {
+            const obj = v.toObject();
+            obj.isAvailable = !lockedIds.has(v._id.toString());
+            return obj;
+        });
+
+        // Sort: available first, unavailable last
+        result.sort((a, b) => b.isAvailable - a.isAvailable);
+
+        res.json(result);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch rental fleet.' });
     }
 };
+
 
 // GET all vehicles including unavailable — ADMIN only
 const getFleetAdmin = async (req, res) => {
