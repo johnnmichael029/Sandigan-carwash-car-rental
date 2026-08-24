@@ -135,7 +135,17 @@ const createRental = async (req, res) => {
             status: 'Pending',
             statusLogs: [{ status: 'Pending' }],
             promoCode: promoCode || null,
-            promoDiscount: promoDiscount || 0
+            promoDiscount: promoDiscount || 0,
+            downPaymentPercent: req.body.downPaymentPercent || 30,
+            downPaymentAmount: req.body.downPaymentAmount || Math.round(estimatedTotal * ((req.body.downPaymentPercent || 30) / 100)),
+            payment: req.body.payment ? {
+                method: req.body.payment.method || 'Not Selected',
+                status: req.body.payment.status || (req.body.payment.method === 'Pay at Counter' ? 'Unpaid' : 'Pending Verification'),
+                referenceNumber: req.body.payment.referenceNumber || null,
+                amountPaid: req.body.payment.amountPaid || Math.round(estimatedTotal * ((req.body.downPaymentPercent || 30) / 100)),
+                proofImageBase64: req.body.payment.proofImageBase64 || null,
+                proofUploadedAt: req.body.payment.proofImageBase64 ? new Date() : null,
+            } : undefined
         });
 
         // Notify frontend of fleet update (vehicle was already locked atomically above)
@@ -223,6 +233,7 @@ const getRentals = async (req, res) => {
         const rentals = await CarRental.find(filter)
             .sort({ createdAt: -1 })
             .populate('handledBy', 'firstName lastName')
+            .populate('payment.verifiedBy', 'firstName lastName fullName')
             .lean();
 
         res.json(rentals);
@@ -236,6 +247,7 @@ const getRental = async (req, res) => {
     try {
         const rental = await CarRental.findById(req.params.id)
             .populate('handledBy', 'firstName lastName')
+            .populate('payment.verifiedBy', 'firstName lastName fullName')
             .lean();
         if (!rental) return res.status(404).json({ error: 'Rental not found.' });
         res.json(rental);
@@ -418,4 +430,175 @@ const cancelRental = async (req, res) => {
     }
 }
 
-module.exports = { createRental, getRentals, getRental, updateStatus, updateRental, cancelRental };
+// ─────────────────────────────────────────────────────────────────────────────
+//  POST /api/car-rentals/:id/payment-proof  — PUBLIC
+//  Customer submits down payment screenshot after rental submission.
+// ─────────────────────────────────────────────────────────────────────────────
+const submitRentalPaymentProof = async (req, res) => {
+    const { id } = req.params;
+    const { method, referenceNumber, proofImageBase64, amountPaid } = req.body;
+
+    if (!method) {
+        return res.status(400).json({ error: 'Payment method is required.' });
+    }
+
+    // Validate base64 size (~2MB limit)
+    if (proofImageBase64 && proofImageBase64.length > 3 * 1024 * 1024) {
+        return res.status(400).json({ error: 'Screenshot is too large. Please upload an image under 2MB.' });
+    }
+
+    try {
+        const rental = await CarRental.findById(id);
+        if (!rental) return res.status(404).json({ error: 'Rental not found.' });
+
+        if (rental.payment?.status === 'Verified') {
+            return res.status(400).json({ error: 'Payment has already been verified.' });
+        }
+
+        const isCounterPayment = method === 'Pay at Counter';
+
+        rental.payment = {
+            method,
+            status: isCounterPayment ? 'Pending Verification' : (proofImageBase64 ? 'Pending Verification' : 'Unpaid'),
+            referenceNumber: referenceNumber || null,
+            amountPaid: amountPaid || 0,
+            proofImageBase64: proofImageBase64 || null,
+            proofUploadedAt: proofImageBase64 ? new Date() : null,
+            verifiedBy: null,
+            verifiedAt: null,
+            rejectionReason: null,
+        };
+
+        await rental.save();
+
+        // Notify staff via Socket.IO
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('payment_proof_uploaded', {
+                rentalId: rental.rentalId,
+                method,
+                status: rental.payment.status,
+                type: 'rental',
+            });
+        }
+
+        console.log(`✅ [Payment] Proof submitted for rental ${rental.rentalId} (${method})`);
+        res.status(200).json({ success: true, status: rental.payment.status });
+    } catch (err) {
+        console.error('[RENTAL_PAYMENT_PROOF_ERR]', err);
+        res.status(500).json({ error: 'Failed to save payment proof.' });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PATCH /api/car-rentals/:id/payment-verify  — AUTH: Staff/Admin
+//  Staff verifies or rejects a rental down payment proof.
+// ─────────────────────────────────────────────────────────────────────────────
+const verifyRentalPayment = async (req, res) => {
+    const { id } = req.params;
+    const { action, rejectionReason } = req.body;
+
+    if (!['verify', 'reject'].includes(action)) {
+        return res.status(400).json({ error: 'Invalid action. Must be "verify" or "reject".' });
+    }
+
+    try {
+        const rental = await CarRental.findById(id);
+        if (!rental) return res.status(404).json({ error: 'Rental not found.' });
+
+        const staffName = req.user.fullName || `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Staff';
+
+        if (action === 'verify') {
+            rental.payment.status = 'Verified';
+            rental.payment.verifiedBy = req.user._id;
+            rental.payment.verifiedByName = staffName;
+            rental.payment.verifiedAt = new Date();
+            rental.payment.rejectionReason = null;
+        } else {
+            if (!rejectionReason?.trim()) {
+                return res.status(400).json({ error: 'A rejection reason is required.' });
+            }
+            rental.payment.status = 'Rejected';
+            rental.payment.rejectionReason = rejectionReason.trim();
+            rental.payment.verifiedBy = req.user._id;
+            rental.payment.verifiedByName = staffName;
+            rental.payment.verifiedAt = new Date();
+        }
+
+        await rental.save();
+
+        // Emit real-time update
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('payment_status_updated', {
+                rentalId: rental.rentalId,
+                status: rental.payment.status,
+                type: 'rental',
+            });
+        }
+
+        // Send email to customer
+        const { sendPaymentVerifiedEmail, sendPaymentRejectedEmail } = require('../utils/emailService');
+        if (action === 'verify') {
+            sendPaymentVerifiedEmail(rental, 'rental');
+        } else {
+            sendPaymentRejectedEmail(rental, rejectionReason, 'rental');
+        }
+
+        console.log(`✅ [Payment] Rental ${rental.rentalId} payment ${action}d by ${req.user.fullName}`);
+        res.status(200).json({ success: true, status: rental.payment.status, payment: rental.payment, rental });
+    } catch (err) {
+        console.error('[RENTAL_PAYMENT_VERIFY_ERR]', err);
+        res.status(500).json({ error: 'Failed to process payment verification.' });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  POST /api/car-rentals/:id/pickup-reminder  — AUTH: Staff/Admin
+//  Sends an email reminder to customers who have not picked up their rental.
+// ─────────────────────────────────────────────────────────────────────────────
+const sendPickupReminder = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const rental = await CarRental.findById(id);
+        if (!rental) return res.status(404).json({ error: 'Rental not found.' });
+
+        if (!rental.emailAddress) {
+            return res.status(400).json({ error: 'This rental record has no email address.' });
+        }
+
+        const { sendRentalPickupReminderEmail } = require('../utils/emailService');
+        const emailResult = await sendRentalPickupReminderEmail(rental);
+
+        if (!emailResult.success) {
+            return res.status(500).json({ error: emailResult.error || 'Failed to send reminder email.' });
+        }
+
+        rental.pickupReminderSentAt = new Date();
+        rental.pickupReminderCount = (rental.pickupReminderCount || 0) + 1;
+        await rental.save();
+
+        console.log(`✅ [Rental Reminder] Pickup reminder sent for ${rental.rentalId} to ${rental.emailAddress}`);
+        res.status(200).json({
+            success: true,
+            message: `Pickup reminder sent successfully to ${rental.emailAddress}!`,
+            rental
+        });
+    } catch (err) {
+        console.error('[RENTAL_REMINDER_ERR]', err);
+        res.status(500).json({ error: 'Failed to send pickup reminder email.' });
+    }
+};
+
+module.exports = {
+    createRental,
+    getRentals,
+    getRental,
+    updateStatus,
+    updateRental,
+    cancelRental,
+    submitRentalPaymentProof,
+    verifyRentalPayment,
+    sendPickupReminder
+};

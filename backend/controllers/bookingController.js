@@ -51,7 +51,10 @@ const getBookings = async (req, res) => {
             };
         }
 
-        let query = Booking.find(filter).sort({ createdAt: -1 }).populate('bayId', 'name');
+        let query = Booking.find(filter)
+            .sort({ createdAt: -1 })
+            .populate('bayId', 'name')
+            .populate('payment.verifiedBy', 'fullName firstName lastName');
         
         // Conditional Pagination
         if (req.query.page && req.query.limit) {
@@ -83,7 +86,9 @@ const getBookings = async (req, res) => {
 const getBooking = async (req, res) => {
     const { id } = req.params;
     try {
-        const booking = await Booking.findById(id).populate('bayId', 'name');
+        const booking = await Booking.findById(id)
+            .populate('bayId', 'name')
+            .populate('payment.verifiedBy', 'fullName firstName lastName');
         if (!booking) {
             return res.status(404).json({ error: "Booking not found." });
         }
@@ -192,7 +197,15 @@ const createBooking = async (req, res) => {
             rentalDurationDays: rentalDurationDays || null,
             destination: destination || null,
             serviceLocationType: req.body.serviceLocationType || 'In-Store',
-            homeServiceDetails: req.body.homeServiceDetails || {}
+            homeServiceDetails: req.body.homeServiceDetails || {},
+            payment: req.body.payment ? {
+                method: req.body.payment.method || 'Not Selected',
+                status: req.body.payment.status || (req.body.payment.method === 'Pay at Counter' ? 'Unpaid' : 'Pending Verification'),
+                referenceNumber: req.body.payment.referenceNumber || null,
+                amountPaid: req.body.payment.amountPaid || totalPrice,
+                proofImageBase64: req.body.payment.proofImageBase64 || null,
+                proofUploadedAt: req.body.payment.proofImageBase64 ? new Date() : null,
+            } : undefined
         });
         await booking.populate('bayId', 'name');
 
@@ -940,6 +953,145 @@ const updateDetailerLocation = async (req, res) => {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  POST /api/booking/:id/payment-proof  — PUBLIC
+//  Customer submits their GCash/bank payment screenshot after booking.
+// ─────────────────────────────────────────────────────────────────────────────
+const submitBookingPaymentProof = async (req, res) => {
+    const { id } = req.params;
+    const { method, referenceNumber, proofImageBase64, amountPaid } = req.body;
+
+    if (!method) {
+        return res.status(400).json({ error: 'Payment method is required.' });
+    }
+
+    // Validate base64 size (~2MB limit: base64 is ~1.37x raw, so 2MB raw ≈ 2.7MB base64)
+    if (proofImageBase64 && proofImageBase64.length > 3 * 1024 * 1024) {
+        return res.status(400).json({ error: 'Screenshot is too large. Please upload an image under 2MB.' });
+    }
+
+    try {
+        const booking = await Booking.findById(id);
+        if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+
+        // Allow re-submission if previously rejected
+        if (booking.payment?.status === 'Verified') {
+            return res.status(400).json({ error: 'Payment has already been verified.' });
+        }
+
+        const isCounterPayment = method === 'Pay at Counter';
+
+        booking.payment = {
+            method,
+            status: isCounterPayment ? 'Pending Verification' : (proofImageBase64 ? 'Pending Verification' : 'Unpaid'),
+            referenceNumber: referenceNumber || null,
+            amountPaid: amountPaid || 0,
+            proofImageBase64: proofImageBase64 || null,
+            proofUploadedAt: proofImageBase64 ? new Date() : null,
+            verifiedBy: null,
+            verifiedAt: null,
+            rejectionReason: null,
+        };
+
+        await booking.save();
+
+        // Notify staff via Socket.IO
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('payment_proof_uploaded', {
+                bookingId: id,
+                batchId: booking.batchId,
+                method,
+                status: booking.payment.status,
+            });
+        }
+
+        console.log(`✅ [Payment] Proof submitted for booking ${booking.batchId} (${method})`);
+        res.status(200).json({ success: true, status: booking.payment.status });
+    } catch (err) {
+        console.error('[PAYMENT_PROOF_ERR]', err);
+        res.status(500).json({ error: 'Failed to save payment proof.' });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PATCH /api/booking/:id/payment-verify  — AUTH: Staff/Admin
+//  Staff verifies or rejects a customer's payment proof.
+// ─────────────────────────────────────────────────────────────────────────────
+const verifyBookingPayment = async (req, res) => {
+    const { id } = req.params;
+    const { action, rejectionReason } = req.body; // action: 'verify' | 'reject'
+
+    if (!['verify', 'reject'].includes(action)) {
+        return res.status(400).json({ error: 'Invalid action. Must be "verify" or "reject".' });
+    }
+
+    try {
+        const booking = await Booking.findById(id);
+        if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+
+        const staffName = req.user.fullName || `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Staff';
+
+        if (action === 'verify') {
+            booking.payment.status = 'Verified';
+            booking.payment.verifiedBy = req.user._id;
+            booking.payment.verifiedByName = staffName;
+            booking.payment.verifiedAt = new Date();
+            booking.payment.rejectionReason = null;
+        } else {
+            if (!rejectionReason?.trim()) {
+                return res.status(400).json({ error: 'A rejection reason is required.' });
+            }
+            booking.payment.status = 'Rejected';
+            booking.payment.rejectionReason = rejectionReason.trim();
+            booking.payment.verifiedBy = req.user._id;
+            booking.payment.verifiedByName = staffName;
+            booking.payment.verifiedAt = new Date();
+        }
+
+        await booking.save();
+
+        // Activity log
+        await createLog({
+            actorId: req.user._id,
+            actorName: req.user.fullName,
+            actorRole: req.user.role,
+            module: 'BOOKINGS',
+            action: `payment_${action}d`,
+            message: `Payment ${action === 'verify' ? 'verified' : 'rejected'} for booking ${booking.batchId}`,
+            meta: { bookingId: id, action, rejectionReason: rejectionReason || null }
+        });
+
+        // Emit to booking room for real-time UI updates
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`booking:${id}`).emit('payment_status_updated', {
+                bookingId: id,
+                status: booking.payment.status,
+            });
+            io.emit('payment_status_updated', {
+                bookingId: id,
+                batchId: booking.batchId,
+                status: booking.payment.status,
+            });
+        }
+
+        // Send email notification to customer
+        const { sendPaymentVerifiedEmail, sendPaymentRejectedEmail } = require('../utils/emailService');
+        if (action === 'verify') {
+            sendPaymentVerifiedEmail(booking); // fire-and-forget
+        } else {
+            sendPaymentRejectedEmail(booking, rejectionReason); // fire-and-forget
+        }
+
+        console.log(`✅ [Payment] Booking ${booking.batchId} payment ${action}d by ${req.user.fullName}`);
+        res.status(200).json({ success: true, status: booking.payment.status, payment: booking.payment, booking });
+    } catch (err) {
+        console.error('[PAYMENT_VERIFY_ERR]', err);
+        res.status(500).json({ error: 'Failed to process payment verification.' });
+    }
+};
+
 module.exports = {
     getBookings,
     getBooking,
@@ -949,5 +1101,7 @@ module.exports = {
     cancelBooking,
     getAvailableTimeSlots,
     getEmployeeHistory,
-    updateDetailerLocation
+    updateDetailerLocation,
+    submitBookingPaymentProof,
+    verifyBookingPayment,
 };

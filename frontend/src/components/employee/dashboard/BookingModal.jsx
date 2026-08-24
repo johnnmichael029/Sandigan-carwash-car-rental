@@ -17,6 +17,24 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
     const [editMode, setEditMode] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [detailers, setDetailers] = useState([]);
+    const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+    const [paymentData, setPaymentData] = useState(booking.payment || null);
+
+    const getCurrentEmployeeName = () => {
+        try {
+            const stored = localStorage.getItem('employee');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                return parsed.fullName || `${parsed.firstName || ''} ${parsed.lastName || ''}`.trim() || 'Staff';
+            }
+        } catch (_) { }
+        return 'Staff';
+    };
+
+    useEffect(() => {
+        setPaymentData(booking.payment || null);
+    }, [booking]);
+
     const [formData, setFormData] = useState({
         firstName: booking.firstName || '',
         lastName: booking.lastName || '',
@@ -344,6 +362,79 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
         }
     }
 
+    // ─── Payment Screenshot Viewer ─────────────────────────────────────
+    const handlePreviewProof = (imageSrc) => {
+        if (!imageSrc) return;
+        Swal.fire({
+            imageUrl: imageSrc,
+            imageAlt: 'Payment Screenshot',
+            showConfirmButton: false,
+            showCloseButton: true,
+            background: 'var(--theme-modal-bg)',
+            width: '90%',
+            maxWidth: '650px',
+            customClass: {
+                popup: 'rounded-4 border-0 shadow-lg',
+                image: 'rounded-3 img-fluid'
+            }
+        });
+    };
+
+    // ─── Payment Verification Handler ───────────────────────────────────
+    const handleVerifyPayment = async (action) => {
+        let rejectionReason = null;
+        if (action === 'reject') {
+            const { value: reason, isConfirmed } = await Swal.fire({
+                title: 'Reject Payment?',
+                input: 'textarea',
+                inputPlaceholder: 'Reason for rejection (e.g. invalid reference, unclear screenshot)...',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'Reject Payment',
+                background: 'var(--theme-modal-bg)',
+                color: 'var(--theme-content-text)',
+                inputValidator: (val) => (!val?.trim() ? 'Please provide a rejection reason.' : null)
+            });
+            if (!isConfirmed || !reason) return;
+            rejectionReason = reason;
+        } else {
+            const { isConfirmed } = await Swal.fire({
+                title: 'Verify & Confirm Payment?',
+                text: 'Mark this payment as verified and notify the customer?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#22c55e',
+                confirmButtonText: 'Yes, Verify Payment',
+                background: 'var(--theme-modal-bg)',
+                color: 'var(--theme-content-text)',
+            });
+            if (!isConfirmed) return;
+        }
+
+        setIsVerifyingPayment(true);
+        try {
+            const res = await axios.patch(
+                `${API_BASE}/booking/${booking._id}/payment-verify`,
+                { action, rejectionReason },
+                { headers: authHeaders(), withCredentials: true }
+            );
+            const currentEmployeeName = getCurrentEmployeeName();
+            const updatedPayment = res.data.payment || {
+                ...paymentData,
+                status: action === 'verify' ? 'Verified' : 'Rejected',
+                verifiedByName: currentEmployeeName,
+                verifiedBy: currentEmployeeName
+            };
+            setPaymentData(updatedPayment);
+            showToast(`Payment ${action === 'verify' ? 'verified' : 'rejected'} successfully!`);
+            if (onSave) onSave();
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'Failed to update payment', 'error');
+        } finally {
+            setIsVerifyingPayment(false);
+        }
+    };
+
     return (
         <AdminModalWrapper show={!!booking} onClose={onClose} size="lg">
             <div className="modal-content rounded-4 shadow border-0" style={{ background: 'var(--theme-modal-bg)' }}>
@@ -652,6 +743,144 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
                                     {durationText}
                                 </div>
                             )}
+
+                            {/* ─── PAYMENT VERIFICATION PANEL ─── */}
+                            <div className="mt-4">
+                                <h6 className="fw-bold mb-3 font-poppins" style={{ fontSize: '0.9rem', color: '#23A0CE' }}>PAYMENT</h6>
+                                {!paymentData || !paymentData.status || paymentData.status === 'none' ? (
+                                    <div className="p-3 rounded-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                                        <span style={{ color: 'var(--theme-content-text-secondary)', fontSize: '0.82rem' }}>No payment submitted yet.</span>
+                                    </div>
+                                ) : (
+                                    <div className="p-3 rounded-3" style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                                        {/* Status Badge */}
+                                        {(() => {
+                                            const st = (paymentData.status || '').toLowerCase();
+                                            const isVer = st === 'verified';
+                                            const isRej = st === 'rejected';
+                                            return (
+                                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                                    <span style={{ fontSize: '0.75rem', color: 'var(--theme-content-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Payment Status</span>
+                                                    <span style={{
+                                                        padding: '2px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700,
+                                                        background: isVer ? 'rgba(74,222,128,0.12)' : isRej ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
+                                                        color: isVer ? '#4ade80' : isRej ? '#ef4444' : '#f59e0b',
+                                                        border: `1px solid ${isVer ? 'rgba(74,222,128,0.3)' : isRej ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`
+                                                    }}>
+                                                        {isVer ? '✓ Verified' : isRej ? '✕ Rejected' : '⏳ Pending Review'}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Details */}
+                                        <div className="d-flex flex-column gap-1 mb-3" style={{ fontSize: '0.82rem' }}>
+                                            <div className="d-flex justify-content-between">
+                                                <span style={{ color: 'var(--theme-content-text-secondary)' }}>Method</span>
+                                                <span style={{ color: 'var(--theme-content-text)', fontWeight: 600 }}>{paymentData.method || '—'}</span>
+                                            </div>
+                                            {paymentData.referenceNumber && (
+                                                <div className="d-flex justify-content-between">
+                                                    <span style={{ color: 'var(--theme-content-text-secondary)' }}>Reference No.</span>
+                                                    <span style={{ color: 'var(--theme-content-text-primary)', fontFamily: 'monospace', fontWeight: 600 }}>{paymentData.referenceNumber}</span>
+                                                </div>
+                                            )}
+                                            {paymentData.amountPaid && (
+                                                <div className="d-flex justify-content-between">
+                                                    <span style={{ color: 'var(--theme-content-text-secondary)' }}>Amount Paid</span>
+                                                    <span style={{ color: '#4ade80', fontWeight: 700 }}>₱{paymentData.amountPaid?.toLocaleString()}</span>
+                                                </div>
+                                            )}
+                                            {paymentData.rejectionReason && (
+                                                <div className="d-flex justify-content-between text-danger">
+                                                    <span>Rejection Reason</span>
+                                                    <span style={{ fontWeight: 600 }}>{paymentData.rejectionReason}</span>
+                                                </div>
+                                            )}
+                                            {paymentData.submittedAt && (
+                                                <div className="d-flex justify-content-between">
+                                                    <span style={{ color: 'var(--theme-content-text-secondary)' }}>Submitted</span>
+                                                    <span style={{ color: 'var(--theme-content-text)' }}>{new Date(paymentData.submittedAt).toLocaleString('en-PH', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Screenshot Thumbnail with Modal Preview */}
+                                        {paymentData.proofImageBase64 && (
+                                            <div className="mb-3 text-center">
+                                                <div className="small mb-1 text-start" style={{ color: 'var(--theme-content-text-secondary)' }}>Payment Screenshot</div>
+                                                <div
+                                                    onClick={() => handlePreviewProof(paymentData.proofImageBase64)}
+                                                    style={{ cursor: 'pointer', display: 'inline-block' }}
+                                                    title="Click to view full size"
+                                                >
+                                                    <img
+                                                        src={paymentData.proofImageBase64}
+                                                        alt="Payment Proof"
+                                                        style={{ maxHeight: '110px', maxWidth: '100%', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.3)' }}
+                                                    />
+                                                    <div className="small mt-1 text-info font-poppins" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                                                        Click to view full image
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Action Buttons */}
+                                        {(() => {
+                                            const st = (paymentData.status || '').toLowerCase();
+                                            const isPending = st === 'pending' || st === 'pending verification' || st === 'unpaid';
+
+                                            return (
+                                                <div>
+                                                    <div className="d-flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm flex-fill fw-bold"
+                                                            onClick={() => handleVerifyPayment('verify')}
+                                                            disabled={isVerifyingPayment || st === 'verified'}
+                                                            style={{
+                                                                background: st === 'verified' ? 'rgba(74,222,128,0.05)' : 'rgba(74,222,128,0.15)',
+                                                                border: '1px solid rgba(74,222,128,0.4)',
+                                                                color: '#4ade80',
+                                                                borderRadius: '8px',
+                                                                padding: '6px 12px'
+                                                            }}
+                                                        >
+                                                            {isVerifyingPayment ? <span className="spinner-border spinner-border-sm" /> : (st === 'verified' ? '✓ Verified' : '✓ Verify Payment')}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm flex-fill fw-bold"
+                                                            onClick={() => handleVerifyPayment('reject')}
+                                                            disabled={isVerifyingPayment || st === 'rejected'}
+                                                            style={{
+                                                                background: st === 'rejected' ? 'rgba(239,68,68,0.05)' : 'rgba(239,68,68,0.12)',
+                                                                border: '1px solid rgba(239,68,68,0.4)',
+                                                                color: '#ef4444',
+                                                                borderRadius: '8px',
+                                                                padding: '6px 12px'
+                                                            }}
+                                                        >
+                                                            {st === 'rejected' ? '✕ Rejected' : '✕ Reject'}
+                                                        </button>
+                                                    </div>
+                                                    {(paymentData.verifiedBy || paymentData.verifiedByName || st === 'verified' || st === 'rejected') && (() => {
+                                                        const verifiedName = paymentData.verifiedByName ||
+                                                            (typeof paymentData.verifiedBy === 'object' && paymentData.verifiedBy ? (paymentData.verifiedBy?.fullName || `${paymentData.verifiedBy?.firstName || ''} ${paymentData.verifiedBy?.lastName || ''}`.trim()) : null) ||
+                                                            getCurrentEmployeeName();
+                                                        return (
+                                                            <div className="small mt-2 text-center text-muted font-poppins" style={{ fontSize: '0.75rem' }}>
+                                                                {st === 'verified' ? 'Verified' : 'Updated'} by <strong style={{ color: 'var(--theme-content-text)' }}>{verifiedName}</strong>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -664,23 +893,24 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
                             </button>
                         </>
                     ) : (
-                        // Hide Edit button entirely for terminal statuses
-                        !['Completed', 'Cancelled'].includes(booking.status) && (
-                            <button className="btn brand-primary rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2" style={{ fontSize: '0.85rem' }} onClick={() => setEditMode(true)}>
-                                <img src={editBooking} alt="" style={{ width: '16px' }} />
-                                Edit Details
-                            </button>
-                        )
-                    )}
+                        <>
+                            {/* Receipt Button — available whenever booking is not Cancelled */}
+                            {booking.status !== 'Cancelled' && (
+                                <button className="btn btn-outline-primary rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2"
+                                    style={{ fontSize: '0.85rem', borderColor: '#23A0CE', color: '#23A0CE' }}
+                                    onClick={() => onPrint(booking)}>
+                                    Generate Receipt
+                                </button>
+                            )}
 
-                    {booking.status === 'Completed' && (
-                        <div className="d-flex gap-2">
-                            <button className="btn btn-receipt btn-outline-primary rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2"
-                                style={{ fontSize: '0.85rem', borderColor: '#23A0CE', color: 'var(--text-secondary)', backgroundColor: 'var(--brand-primary)' }}
-                                onClick={() => onPrint(booking)}>
-                                Generate Receipt
-                            </button>
-                        </div>
+                            {/* Hide Edit button entirely for terminal statuses */}
+                            {!['Completed', 'Cancelled'].includes(booking.status) && (
+                                <button className="btn brand-primary rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2" style={{ fontSize: '0.85rem' }} onClick={() => setEditMode(true)}>
+                                    <img src={editBooking} alt="" style={{ width: '16px' }} />
+                                    Edit Details
+                                </button>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

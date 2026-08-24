@@ -48,8 +48,40 @@ const getSettingValue = async (key, defaultValue) => {
     }
 };
 
+// ─── PUBLIC: Payment Methods ──────────────────────────────────────────────────
+// GET /api/settings/payment-methods
+// Returns only active payment methods, sorted by sortOrder.
+// Used by the public booking page — no auth required.
+const getPaymentMethods = async (req, res) => {
+    try {
+        const setting = await Setting.findOne({ key: 'payment_methods' });
+        const methods = Array.isArray(setting?.value) ? setting.value : [];
+        const active = methods
+            .filter(m => m.isActive)
+            .sort((a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99));
+        res.status(200).json(active);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// ─── PUBLIC: Rental Down Payment Percentage ───────────────────────────────────
+// GET /api/settings/rental-downpayment
+// Returns the configured down payment % for car rentals (default: 30).
+// Used by the public booking page — no auth required.
+const getRentalDownPaymentPercent = async (req, res) => {
+    try {
+        const setting = await Setting.findOne({ key: 'rental_down_payment_percent' });
+        res.status(200).json({ percent: setting?.value ?? 30 });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     getSettings,
     updateSetting,
-    getSettingValue
+    getSettingValue,
+    getPaymentMethods,
+    getRentalDownPaymentPercent,
 };

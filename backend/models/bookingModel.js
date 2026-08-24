@@ -149,6 +149,19 @@ const bookingSchema = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'customer',
         default: null
+    },
+    // ── Payment ──────────────────────────────────────────────────────────────
+    payment: {
+        method:           { type: String, default: 'Not Selected' }, // e.g. 'GCash', 'BPI', 'Pay at Counter'
+        status:           { type: String, enum: ['Unpaid', 'Pending Verification', 'Verified', 'Rejected'], default: 'Unpaid' },
+        referenceNumber:  { type: String, default: null },           // GCash/bank reference no.
+        amountPaid:       { type: Number, default: 0 },
+        proofImageBase64: { type: String, default: null },           // customer screenshot (base64)
+        proofUploadedAt:  { type: Date,   default: null },
+        verifiedBy:       { type: mongoose.Schema.Types.ObjectId, ref: 'employee', default: null },
+        verifiedByName:   { type: String, default: null },
+        verifiedAt:       { type: Date,   default: null },
+        rejectionReason:  { type: String, default: null },
     }
 }, { timestamps: true });
 const Booking = mongoose.model('booking', bookingSchema);

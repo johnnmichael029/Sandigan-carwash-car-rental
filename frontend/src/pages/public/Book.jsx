@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Swal from 'sweetalert2'
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -16,6 +16,7 @@ import bubble2 from '../../assets/img/bubble-container1.png';
 import ellipse from '../../assets/img/ellipse.png';
 import { API_BASE, SOCKET_URL, authHeaders } from '../../api/config';
 import { io } from 'socket.io-client';
+import gcashQrFallback from '../../assets/img/gcash-qr.png';
 
 // 1. Keep the base hours as military for backend compatibility
 const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
@@ -42,6 +43,20 @@ const Book = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+
+    // ── Payment Step (Step 4) State ───────────────────────────────────────────
+    const [paymentMethods, setPaymentMethods] = useState([]);
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+    const [referenceNumber, setReferenceNumber] = useState('');
+    const [proofFile, setProofFile] = useState(null);           // base64 string
+    const [proofPreview, setProofPreview] = useState(null);     // base64 for thumbnail
+    const [isUploadingProof, setIsUploadingProof] = useState(false);
+    const [paymentDone, setPaymentDone] = useState(false);
+    const [bookingResultId, setBookingResultId] = useState(null);   // returned batchId / rentalId
+    const [bookingMongoId, setBookingMongoId] = useState(null);     // MongoDB _id for API call
+    const [rentalDownPaymentPct, setRentalDownPaymentPct] = useState(30);
+    const [copySuccess, setCopySuccess] = useState(false);
+    const copyTimeoutRef = useRef(null);
 
     const [activeCategory, setActiveCategory] = useState(queryParams.get('type') === 'rental' ? 'rental' : 'wash');
     const [rentalFleet, setRentalFleet] = useState([]);
@@ -209,113 +224,34 @@ const Book = () => {
         return true;
     };
 
-    // Handle form submission
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
+    // ── Step 3 -> Step 4 Transition (No DB creation yet) ─────────────────────
+    const handleProceedToPayment = async (e) => {
+        if (e) e.preventDefault();
         if (!validateStep3()) return;
 
+        setError(null);
         setIsLoading(true);
-
-        const isRentalMode = activeCategory === 'rental';
-        const SUBMIT_URL = isRentalMode ? `${API_BASE}/car-rentals` : `${API_BASE}/booking`;
-
-        // Sanitize all inputs before sending to the server to prevent XSS
-        const cleanData = isRentalMode ? {
-            fullName: `${sanitizeInput(firstName)} ${sanitizeInput(lastName)}`,
-            contactNumber: phoneNumber.trim(),
-            emailAddress: email.trim().toLowerCase(),
-            address: sanitizeInput(address),
-            vehicleId: selectedRentalVehicle?._id,
-            rentalStartDate: rentalStartDate,
-            returnDate: new Date(new Date(rentalStartDate).getTime() + (parseInt(rentalDurationDays) * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
-            destination: sanitizeInput(destination),
-            notes: `Booked via Web Portal`,
-            requirementsAcknowledged: true, // Checkbox validated by step logic
-            captchaToken
-        } : {
-            firstName: sanitizeInput(firstName),
-            lastName: sanitizeInput(lastName),
-            vehicleType: sanitizeInput(vehicleType),
-            phoneNumber: phoneNumber.trim(),
-            emailAddress: email.trim().toLowerCase(),
-            serviceType: serviceType,
-            bookingTime: selectedHour,
-            captchaToken,
-            isRental: false
-        };
-
         try {
-            const response = await fetch(SUBMIT_URL, {
-                method: 'POST',
-                body: JSON.stringify(cleanData),
-                headers: authHeaders(),
-                credentials: 'include',
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                // If the server sends an error (like "Captcha required"), show that specifically
-                throw new Error(data.error || `Server Error: ${response.status}`);
+            const isRentalMode = activeCategory === 'rental';
+            const [methodsRes, dpRes] = await Promise.all([
+                axios.get(`${API_BASE}/settings/payment-methods`),
+                isRentalMode ? axios.get(`${API_BASE}/settings/rental-downpayment`) : Promise.resolve({ data: null }),
+            ]);
+            const loadedMethods = methodsRes.data || [];
+            const validMethods = isRentalMode
+                ? loadedMethods.filter(m => m.type !== 'counter')
+                : loadedMethods;
+            setPaymentMethods(validMethods);
+            if (validMethods.length > 0) {
+                setSelectedPaymentMethod(validMethods[0]);
+            } else {
+                setSelectedPaymentMethod(null);
             }
-
-            // If we reach here, it's successful (response.ok is true)
-            setFirstName('');
-            setLastName('');
-            setEmail('');
-            setPhoneNumber('');
-            setVehicleType('');
-            setServiceType([]);
-            setAddress('');
-            setPrivacyChecked(false);
-            setError(null);
-            setSuccess(true);
-            setStep(1);
-
-            // Get the ID from the server response (it's called batchId for wash, rentalId for rent)
-            const finalDisplayId = isRentalMode ? data.rentalId : data.batchId;
-
-
-            // Trigger SweetAlert
-            Swal.fire({
-                title: activeCategory === 'rental' ? 'Rental Request Successful!' : 'Booking Successful!',
-                html: `Your ${activeCategory === 'rental' ? 'Rental ID' : 'BookID'} is: <b>${finalDisplayId}</b><br>Staff will contact you shortly.`,
-                icon: 'success',
-                showDenyButton: true,
-                showConfirmButton: false,
-                denyButtonText: 'Download PDF',
-                denyButtonColor: '#23A0CE',
-                background: '#111',
-                color: '#FAFAFA',
-                customClass: { popup: 'rounded-5' }
-            }).then((result) => {
-                if (result.isDenied) {
-                    console.log(`Downloading PDF for ${activeCategory === 'rental' ? 'RentalID' : 'BookID'}:`, finalDisplayId);
-                    generatePDF(finalDisplayId);
-
-                    // Small delay to ensure browser captures the download trigger
-                    setTimeout(() => {
-                        Swal.fire({
-                            title: 'Download Started!',
-                            html: 'Your receipt is ready to download.',
-                            icon: 'info',
-                            confirmButtonText: 'Back to Home',
-                            confirmButtonColor: '#23A0CE',
-                            background: '#111',
-                            color: '#FAFAFA',
-                        }).then(() => {
-                            navigate('/');
-                        });
-                    }, 500);
-                } else {
-                    navigate('/');
-                }
-            });
+            if (dpRes.data?.percent !== undefined) setRentalDownPaymentPct(dpRes.data.percent);
+            setStep(4);
         } catch (err) {
-            // Show the actual message (e.g., "Please solve the captcha first.")
-            setError(err.message || "Server connection failed. Please try again.");
-            setSuccess(false);
+            console.error('Failed to load payment options:', err);
+            setStep(4);
         } finally {
             setIsLoading(false);
         }
@@ -377,11 +313,142 @@ const Book = () => {
     const stepTitles = activeCategory === 'rental' ? {
         1: "Rental Details",
         2: "Requirements",
-        3: "Personal Information"
+        3: "Personal Information",
+        4: "Payment"
     } : {
         1: "Vehicle Information",
         2: "Date and Time",
-        3: "Personal Information"
+        3: "Personal Information",
+        4: "Payment"
+    };
+
+    // ── Payment Step Handlers ────────────────────────────────────────────────
+    const handleProofFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            setError('Screenshot must be less than 2MB. Please compress or crop the image.');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            setProofFile(reader.result);
+            setProofPreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleCopyNumber = (text) => {
+        navigator.clipboard.writeText(text).then(() => {
+            setCopySuccess(true);
+            clearTimeout(copyTimeoutRef.current);
+            copyTimeoutRef.current = setTimeout(() => setCopySuccess(false), 2000);
+        });
+    };
+
+    const handleDownloadQR = async (imgSrc, filename = 'gcash-qr.png') => {
+        try {
+            const response = await fetch(imgSrc);
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            // Fallback for direct download link
+            const link = document.createElement('a');
+            link.href = imgSrc;
+            link.download = filename;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+
+    // ── Final Step 4 Submission (Creates booking in DB with payment) ────────
+    const handleSubmitProof = async (e) => {
+        if (e) e.preventDefault();
+        if (!selectedPaymentMethod) { setError('Please select a payment method.'); return; }
+        const isCounter = selectedPaymentMethod.type === 'counter';
+        if (!isCounter && !referenceNumber.trim()) { setError('Please enter your payment reference number.'); return; }
+        if (!isCounter && !proofFile) { setError('Please upload your payment screenshot.'); return; }
+
+        setIsUploadingProof(true);
+        setError(null);
+
+        const isRentalMode = activeCategory === 'rental';
+        const SUBMIT_URL = isRentalMode ? `${API_BASE}/car-rentals` : `${API_BASE}/booking`;
+        const downPaymentAmount = isRentalMode
+            ? Math.round((selectedRentalVehicle?.pricePerDay || 0) * parseInt(rentalDurationDays || 1) * (rentalDownPaymentPct / 100))
+            : totalPrice;
+
+        const paymentPayload = {
+            method: selectedPaymentMethod.label,
+            status: isCounter ? 'Unpaid' : 'Pending Verification',
+            referenceNumber: referenceNumber.trim() || null,
+            proofImageBase64: proofFile || null,
+            amountPaid: downPaymentAmount,
+        };
+
+        const cleanData = isRentalMode ? {
+            fullName: `${sanitizeInput(firstName)} ${sanitizeInput(lastName)}`,
+            contactNumber: phoneNumber.trim(),
+            emailAddress: email.trim().toLowerCase(),
+            address: sanitizeInput(address),
+            vehicleId: selectedRentalVehicle?._id,
+            rentalStartDate: rentalStartDate,
+            returnDate: new Date(new Date(rentalStartDate).getTime() + (parseInt(rentalDurationDays) * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+            destination: sanitizeInput(destination),
+            notes: `Booked via Web Portal`,
+            requirementsAcknowledged: true,
+            captchaToken,
+            payment: paymentPayload,
+            downPaymentAmount,
+            downPaymentPercent: rentalDownPaymentPct
+        } : {
+            firstName: sanitizeInput(firstName),
+            lastName: sanitizeInput(lastName),
+            vehicleType: sanitizeInput(vehicleType),
+            phoneNumber: phoneNumber.trim(),
+            emailAddress: email.trim().toLowerCase(),
+            serviceType: serviceType,
+            bookingTime: selectedHour,
+            captchaToken,
+            isRental: false,
+            payment: paymentPayload
+        };
+
+        try {
+            const response = await fetch(SUBMIT_URL, {
+                method: 'POST',
+                body: JSON.stringify(cleanData),
+                headers: authHeaders(),
+                credentials: 'include',
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || `Server Error: ${response.status}`);
+            }
+
+            const finalDisplayId = isRentalMode ? data.rentalId : data.batchId;
+            const mongoId = isRentalMode ? (data.rental?._id || data.rental?.id) : (data._id || data.id);
+
+            setBookingResultId(finalDisplayId);
+            setBookingMongoId(mongoId);
+            setPaymentDone(true);
+            setSuccess(true);
+        } catch (err) {
+            setError(err.message || 'Server connection failed. Please try again.');
+        } finally {
+            setIsUploadingProof(false);
+        }
     };
 
     // Sanitize input to prevent XSS (basic example, consider using a library for production)
@@ -442,18 +509,20 @@ const Book = () => {
                                     <p className="fs-5 lead hero-description">Experience the best car wash service and car rental in the business.</p>
                                 </div>
                                 <div className="col-md-6">
-                                    <form className="form-container p-5 w-100" onSubmit={handleSubmit}>
+                                    <form className="form-container p-5 w-100" onSubmit={(e) => { e.preventDefault(); if (step === 3) handleProceedToPayment(e); else if (step === 4) handleSubmitProof(e); }}>
                                         {/* Category Toggle */}
                                         <div className="service-toggle-wrapper mb-4 d-flex justify-content-center">
                                             <div className="service-toggle-wrapper">
                                                 <div className="toggle-capsule shadow-sm">
                                                     <button
+                                                        type="button"
                                                         className={`toggle-btn  ${activeCategory === 'wash' ? 'active' : ''}`}
                                                         onClick={() => setActiveCategory('wash')}
                                                     >
                                                         <img src={carwashIcon} alt="Car Wash" /> Car Wash
                                                     </button>
                                                     <button
+                                                        type="button"
                                                         className={`toggle-btn ${activeCategory === 'rental' ? 'active' : ''}`}
                                                         onClick={() => setActiveCategory('rental')}
                                                     >
@@ -466,18 +535,18 @@ const Book = () => {
                                         {/* Progress Bar Header */}
                                         <div className="mb-4">
                                             <div className="d-flex justify-content-between mb-1">
-                                                <span className="text-light small">Step {step} of 3</span>
+                                                <span className="text-light small">Step {step} of 4</span>
                                                 <span className='hero-description text-uppercase fw-bold' style={{ fontSize: '0.85rem', letterSpacing: '1px' }}>
                                                     {stepTitles[step]}
                                                 </span>
                                             </div>
-                                            <div className="progress" role="progressbar" aria-valuenow={(step / 3) * 100} aria-valuemin="0" aria-valuemax="100" style={{ height: '2px', backgroundColor: '#333' }}>
+                                            <div className="progress" role="progressbar" aria-valuenow={(step / 4) * 100} aria-valuemin="0" aria-valuemax="100" style={{ height: '2px', backgroundColor: '#333' }}>
                                                 <div
                                                     className="progress-bar"
                                                     style={{
-                                                        width: `${(step / 3) * 100}%`,
-                                                        backgroundColor: '#00e8e9', // Matching your cyan theme
-                                                        transition: 'width 0.4s ease' // Makes the bar slide smoothly
+                                                        width: `${(step / 4) * 100}%`,
+                                                        backgroundColor: step === 4 ? '#4ade80' : '#00e8e9',
+                                                        transition: 'width 0.4s ease'
                                                     }}
                                                 ></div>
                                             </div>
@@ -864,9 +933,11 @@ const Book = () => {
                                                     />
                                                 </div>
                                                 <button
-                                                    type="submit"
+                                                    type="button"
                                                     disabled={isLoading || !captchaToken}
-                                                    className="btn btn-primary w-100 btn-lg d-flex align-items-center justify-content-center text-white"
+                                                    onClick={handleProceedToPayment}
+                                                    className="btn btn-primary w-100 btn-lg d-flex align-items-center justify-content-center text-white font-poppins"
+                                                    style={{ fontWeight: '600' }}
                                                 >
                                                     {isLoading ? (
                                                         <>
@@ -874,14 +945,384 @@ const Book = () => {
                                                             <span role="status">Processing...</span>
                                                         </>
                                                     ) : (
-                                                        activeCategory === 'rental' ? "Submit Rental Request" : "Book"
+                                                        "Proceed to Payment →"
                                                     )}
                                                 </button>
                                             </>
                                         )}
 
+                                        {/* ── Step 4: Payment ── */}
+                                        {step === 4 && (
+                                            <div className="payment-step" style={{ color: '#e2e8f0' }}>
+                                                {!paymentDone ? (
+                                                    <>
+                                                        {/* Previous Button & Step Indicator */}
+                                                        <div className="d-flex justify-content-between align-items-center mb-3">
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-secondary btn-sm"
+                                                                style={{ width: '100px' }}
+                                                                onClick={() => { setStep(3); setError(null); }}
+                                                                disabled={isUploadingProof}
+                                                            >
+                                                                Previous
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Order Summary Card */}
+                                                        <div className="p-3 rounded-3 mb-4" style={{ background: 'rgba(35,160,206,0.08)', border: '1px solid rgba(35,160,206,0.25)' }}>
+                                                            <div className="d-flex justify-content-between align-items-center mb-1">
+                                                                <span className="small text-uppercase fw-bold" style={{ letterSpacing: '0.5px' }}>
+                                                                    {activeCategory === 'rental' ? 'Car Rental Summary' : 'Car Wash Summary'}
+                                                                </span>
+                                                                <span className="fw-bold" style={{ color: '#23A0CE' }}>
+                                                                    {activeCategory === 'rental' ? selectedRentalVehicle?.vehicleName : vehicleType}
+                                                                </span>
+                                                            </div>
+                                                            <div className="d-flex justify-content-between align-items-center">
+                                                                <span className="small ">
+                                                                    {activeCategory === 'rental'
+                                                                        ? `${rentalDurationDays} Day(s) · ${rentalDownPaymentPct}% Down Payment`
+                                                                        : (Array.isArray(serviceType) ? serviceType.join(', ') : serviceType)}
+                                                                </span>
+                                                                <span className="fw-bold fs-5" style={{ color: '#4ade80' }}>
+                                                                    ₱{activeCategory === 'rental'
+                                                                        ? Math.round((selectedRentalVehicle?.pricePerDay || 0) * parseInt(rentalDurationDays || 1) * (rentalDownPaymentPct / 100)).toLocaleString()
+                                                                        : totalPrice.toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Payment Method Selector */}
+                                                        <p className="small fw-semibold mb-2" style={{ color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Choose Payment Method</p>
+                                                        <div className="d-flex flex-wrap gap-2 mb-4">
+                                                            {paymentMethods.length === 0 && (
+                                                                <div className="small" style={{ color: '#64748b' }}>Loading payment options...</div>
+                                                            )}
+                                                            {paymentMethods
+                                                                .filter(method => activeCategory !== 'rental' || method.type !== 'counter')
+                                                                .map((method) => (
+                                                                <button
+                                                                    key={method.id}
+                                                                    type="button"
+                                                                    onClick={() => { setSelectedPaymentMethod(method); setReferenceNumber(''); setProofFile(null); setProofPreview(null); setError(null); }}
+                                                                    style={{
+                                                                        padding: '10px 18px',
+                                                                        borderRadius: '12px',
+                                                                        border: selectedPaymentMethod?.id === method.id ? '2px solid #6366f1' : '1px solid rgba(255,255,255,0.12)',
+                                                                        background: selectedPaymentMethod?.id === method.id ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.04)',
+                                                                        color: selectedPaymentMethod?.id === method.id ? '#a5b4fc' : '#cbd5e1',
+                                                                        fontSize: '0.85rem',
+                                                                        fontWeight: '600',
+                                                                        cursor: 'pointer',
+                                                                        transition: 'all 0.2s ease',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '8px',
+                                                                    }}
+                                                                >
+                                                                    {method.type === 'qr' && ''}
+                                                                    {method.type === 'bank' && ''}
+                                                                    {method.type === 'counter' && ''}
+                                                                    {method.label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+
+                                                        {/* ── QR Method Panel ── */}
+                                                        {selectedPaymentMethod?.type === 'qr' && (
+                                                            <div className="p-4 rounded-3 mb-3" style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                                                                <p className="small fw-semibold mb-3" style={{ color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                                                    Scan {selectedPaymentMethod.label} QR Code
+                                                                </p>
+                                                                {/* QR Image */}
+                                                                <div className="text-center mb-3">
+                                                                    <img
+                                                                        src={selectedPaymentMethod.qrImageBase64 || gcashQrFallback}
+                                                                        alt={`${selectedPaymentMethod.label} QR`}
+                                                                        style={{ width: '180px', height: '180px', objectFit: 'contain', borderRadius: '12px', background: '#fff', padding: '8px' }}
+                                                                    />
+                                                                    <div className="mt-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleDownloadQR(selectedPaymentMethod.qrImageBase64 || gcashQrFallback, `${selectedPaymentMethod.label.toLowerCase()}-qr.png`)}
+                                                                            className="btn btn-sm d-inline-flex align-items-center gap-1"
+                                                                            style={{
+                                                                                background: 'rgba(99,102,241,0.15)',
+                                                                                border: '1px solid rgba(99,102,241,0.4)',
+                                                                                borderRadius: '8px',
+                                                                                padding: '5px 14px',
+                                                                                fontSize: '0.78rem',
+                                                                                color: '#a5b4fc',
+                                                                                cursor: 'pointer',
+                                                                                fontWeight: '600',
+                                                                                transition: 'all 0.2s'
+                                                                            }}
+                                                                        >
+                                                                            Download QR Code
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                {/* Account Info with Copy Button */}
+                                                                <div className="mb-3 p-3 rounded-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                                                    <div className="small mb-1" style={{ color: '#64748b' }}>Account Name</div>
+                                                                    <div className="fw-semibold mb-2" style={{ color: '#e2e8f0' }}>{selectedPaymentMethod.accountName}</div>
+                                                                    <div className="small mb-1" style={{ color: '#64748b' }}>Mobile Number</div>
+                                                                    <div className="d-flex align-items-center gap-2">
+                                                                        <span className="fw-bold" style={{ color: '#a5b4fc', letterSpacing: '1px', fontFamily: 'monospace', fontSize: '1rem' }}>
+                                                                            {selectedPaymentMethod.accountNumber}
+                                                                        </span>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleCopyNumber(selectedPaymentMethod.accountNumber)}
+                                                                            title="Copy number"
+                                                                            style={{
+                                                                                background: copySuccess ? 'rgba(74,222,128,0.15)' : 'rgba(99,102,241,0.15)',
+                                                                                border: copySuccess ? '1px solid #4ade80' : '1px solid rgba(99,102,241,0.4)',
+                                                                                borderRadius: '8px',
+                                                                                padding: '3px 10px',
+                                                                                fontSize: '0.75rem',
+                                                                                color: copySuccess ? '#4ade80' : '#a5b4fc',
+                                                                                cursor: 'pointer',
+                                                                                transition: 'all 0.2s',
+                                                                                whiteSpace: 'nowrap',
+                                                                            }}
+                                                                        >
+                                                                            {copySuccess ? '✓ Copied!' : 'Copy'}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                {/* Amount to Pay */}
+                                                                <div className="mb-3 p-3 rounded-2 d-flex justify-content-between align-items-center" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)' }}>
+                                                                    <div>
+                                                                        <div className="small" style={{ color: '#94a3b8' }}>
+                                                                            {activeCategory === 'rental' ? `Amount Due (${rentalDownPaymentPct}% Down Payment)` : 'Amount to Pay (Full)'}
+                                                                        </div>
+                                                                        {activeCategory === 'rental' && (
+                                                                            <div className="small" style={{ color: '#64748b' }}>
+                                                                                Total: ₱{((selectedRentalVehicle?.pricePerDay || 0) * parseInt(rentalDurationDays || 1)).toLocaleString()}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <span className="fw-bold" style={{ fontSize: '1.25rem', color: '#4ade80' }}>
+                                                                        ₱{activeCategory === 'rental'
+                                                                            ? Math.round((selectedRentalVehicle?.pricePerDay || 0) * parseInt(rentalDurationDays || 1) * (rentalDownPaymentPct / 100)).toLocaleString()
+                                                                            : totalPrice.toLocaleString()}
+                                                                    </span>
+                                                                </div>
+                                                                {/* Reference No Input */}
+                                                                <div className="mb-3">
+                                                                    <label className="small fw-semibold mb-1 d-block" style={{ color: '#94a3b8' }}>Gcash Reference Number</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        className="form-control"
+                                                                        placeholder="e.g. 1234567890"
+                                                                        value={referenceNumber}
+                                                                        onChange={e => setReferenceNumber(e.target.value)}
+                                                                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#e2e8f0' }}
+                                                                    />
+                                                                </div>
+                                                                {/* Screenshot Upload */}
+                                                                <div className="mb-3">
+                                                                    <label className="small fw-semibold mb-1 d-block" style={{ color: '#94a3b8' }}>Upload Payment Screenshot</label>
+                                                                    <input
+                                                                        type="file"
+                                                                        accept="image/*"
+                                                                        className="form-control"
+                                                                        onChange={handleProofFileChange}
+                                                                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#e2e8f0' }}
+                                                                    />
+                                                                    <div className="small mt-1" style={{ color: '#64748b' }}>Max 2MB · JPG, PNG, WebP</div>
+                                                                    {proofPreview && (
+                                                                        <div className="mt-2">
+                                                                            <img src={proofPreview} alt="Proof preview" style={{ maxHeight: '120px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.3)' }} />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn w-100"
+                                                                    onClick={handleSubmitProof}
+                                                                    disabled={isUploadingProof}
+                                                                    style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff', fontWeight: '700', borderRadius: '10px', padding: '12px' }}
+                                                                >
+                                                                    {isUploadingProof ? (
+                                                                        <><span className="spinner-border spinner-border-sm me-2" />Submitting...</>
+                                                                    ) : 'Submit Payment Proof'}
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        {/* ── Bank Transfer Panel ── */}
+                                                        {selectedPaymentMethod?.type === 'bank' && (
+                                                            <div className="p-4 rounded-3 mb-3" style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                                                                <p className="small fw-semibold mb-3" style={{ color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                                                    {selectedPaymentMethod.label} — Transfer Details
+                                                                </p>
+                                                                <div className="mb-3 p-3 rounded-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                                                    <div className="small mb-1" style={{ color: '#64748b' }}>Account Name</div>
+                                                                    <div className="fw-semibold mb-2" style={{ color: '#e2e8f0' }}>{selectedPaymentMethod.accountName}</div>
+                                                                    <div className="small mb-1" style={{ color: '#64748b' }}>Account Number</div>
+                                                                    <div className="d-flex align-items-center gap-2">
+                                                                        <span className="fw-bold" style={{ color: '#a5b4fc', letterSpacing: '2px', fontFamily: 'monospace', fontSize: '1rem' }}>
+                                                                            {selectedPaymentMethod.accountNumber}
+                                                                        </span>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleCopyNumber(selectedPaymentMethod.accountNumber)}
+                                                                            title="Copy account number"
+                                                                            style={{
+                                                                                background: copySuccess ? 'rgba(74,222,128,0.15)' : 'rgba(99,102,241,0.15)',
+                                                                                border: copySuccess ? '1px solid #4ade80' : '1px solid rgba(99,102,241,0.4)',
+                                                                                borderRadius: '8px',
+                                                                                padding: '3px 10px',
+                                                                                fontSize: '0.75rem',
+                                                                                color: copySuccess ? '#4ade80' : '#a5b4fc',
+                                                                                cursor: 'pointer',
+                                                                                transition: 'all 0.2s',
+                                                                            }}
+                                                                        >
+                                                                            {copySuccess ? '✓ Copied!' : 'Copy'}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                {/* Amount */}
+                                                                <div className="mb-3 p-3 rounded-2 d-flex justify-content-between align-items-center" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)' }}>
+                                                                    <div className="small" style={{ color: '#94a3b8' }}>
+                                                                        {activeCategory === 'rental' ? `Amount Due (${rentalDownPaymentPct}% Down Payment)` : 'Amount to Pay (Full)'}
+                                                                    </div>
+                                                                    <span className="fw-bold" style={{ fontSize: '1.25rem', color: '#4ade80' }}>
+                                                                        ₱{activeCategory === 'rental'
+                                                                            ? Math.round((selectedRentalVehicle?.pricePerDay || 0) * parseInt(rentalDurationDays || 1) * (rentalDownPaymentPct / 100)).toLocaleString()
+                                                                            : totalPrice.toLocaleString()}
+                                                                    </span>
+                                                                </div>
+                                                                {/* Reference No */}
+                                                                <div className="mb-3">
+                                                                    <label className="small fw-semibold mb-1 d-block" style={{ color: '#94a3b8' }}>Bank Reference / Transaction No.</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        className="form-control"
+                                                                        placeholder="e.g. TXN-1234567890"
+                                                                        value={referenceNumber}
+                                                                        onChange={e => setReferenceNumber(e.target.value)}
+                                                                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#e2e8f0' }}
+                                                                    />
+                                                                </div>
+                                                                {/* Screenshot Upload */}
+                                                                <div className="mb-3">
+                                                                    <label className="small fw-semibold mb-1 d-block" style={{ color: '#94a3b8' }}>Upload Transfer Screenshot</label>
+                                                                    <input
+                                                                        type="file"
+                                                                        accept="image/*"
+                                                                        className="form-control"
+                                                                        onChange={handleProofFileChange}
+                                                                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#e2e8f0' }}
+                                                                    />
+                                                                    <div className="small mt-1" style={{ color: '#64748b' }}>Max 2MB · JPG, PNG, WebP</div>
+                                                                    {proofPreview && (
+                                                                        <div className="mt-2">
+                                                                            <img src={proofPreview} alt="Proof preview" style={{ maxHeight: '120px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.3)' }} />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn w-100"
+                                                                    onClick={handleSubmitProof}
+                                                                    disabled={isUploadingProof}
+                                                                    style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff', fontWeight: '700', borderRadius: '10px', padding: '12px' }}
+                                                                >
+                                                                    {isUploadingProof ? (
+                                                                        <><span className="spinner-border spinner-border-sm me-2" />Submitting...</>
+                                                                    ) : '📤 Submit Payment Proof'}
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        {/* ── Pay at Counter Panel ── */}
+                                                        {selectedPaymentMethod?.type === 'counter' && (
+                                                            <div className="p-4 rounded-3 mb-3 text-center" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)' }}>
+                                                                <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>🏪</div>
+                                                                <p className="fw-semibold mb-1" style={{ color: '#fbbf24' }}>Pay at the Counter</p>
+                                                                <p className="small mb-3" style={{ color: '#94a3b8' }}>
+                                                                    You can pay in cash or via our in-store POS terminal upon arrival. Click the button below to confirm your booking and get your Reference ID.
+                                                                </p>
+                                                                <div className="mb-3 p-3 rounded-2 d-flex justify-content-between align-items-center" style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)' }}>
+                                                                    <div className="small" style={{ color: '#94a3b8' }}>
+                                                                        {activeCategory === 'rental' ? `Amount to Pay (${rentalDownPaymentPct}% Down Payment)` : 'Amount to Pay at Counter'}
+                                                                    </div>
+                                                                    <span className="fw-bold" style={{ fontSize: '1.25rem', color: '#fbbf24' }}>
+                                                                        ₱{activeCategory === 'rental'
+                                                                            ? Math.round((selectedRentalVehicle?.pricePerDay || 0) * parseInt(rentalDurationDays || 1) * (rentalDownPaymentPct / 100)).toLocaleString()
+                                                                            : totalPrice.toLocaleString()}
+                                                                    </span>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn w-100"
+                                                                    onClick={handleSubmitProof}
+                                                                    disabled={isUploadingProof}
+                                                                    style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff', borderRadius: '10px', padding: '12px', fontWeight: '700' }}
+                                                                >
+                                                                    {isUploadingProof ? (
+                                                                        <><span className="spinner-border spinner-border-sm me-2" />Creating Booking...</>
+                                                                    ) : '🏪 Confirm Booking (Pay at Counter)'}
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Error display */}
+                                                        {error && (
+                                                            <div className="toast show align-items-center text-bg-danger border-0 mt-3" role="alert">
+                                                                <div className="d-flex">
+                                                                    <div className="toast-body">❌ {error}</div>
+                                                                    <button type="button" className="btn-close btn-close-white me-2 m-auto" onClick={() => setError(null)} />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    /* ── Payment Done State ── */
+                                                    <div className="text-center py-3">
+                                                        <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🎉</div>
+                                                        <h5 className="fw-bold mb-2" style={{ color: '#4ade80' }}>
+                                                            {selectedPaymentMethod?.type === 'counter' ? 'Booking Confirmed!' : 'Payment Submitted!'}
+                                                        </h5>
+                                                        <p className="small mb-1" style={{ color: '#94a3b8' }}>
+                                                            {selectedPaymentMethod?.type === 'counter'
+                                                                ? 'See you at the counter! Please present your Reference ID upon arrival.'
+                                                                : 'Our staff will verify your payment screenshot shortly. You will receive an email confirmation.'}
+                                                        </p>
+                                                        <div className="p-3 rounded-2 my-3" style={{ background: 'rgba(74,222,128,0.07)', border: '1px dashed rgba(74,222,128,0.25)' }}>
+                                                            <div className="small text-uppercase fw-bold" style={{ color: '#94a3b8', fontSize: '0.75rem', letterSpacing: '0.5px' }}>Your Reference ID</div>
+                                                            <div className="fw-bold my-1" style={{ color: '#a5b4fc', fontFamily: 'monospace', fontSize: '1.4rem', letterSpacing: '2px' }}>{bookingResultId}</div>
+                                                        </div>
+                                                        <div className="d-flex gap-2 justify-content-center flex-wrap">
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-sm"
+                                                                onClick={() => generatePDF(bookingResultId)}
+                                                                style={{ background: 'rgba(35,160,206,0.15)', border: '1px solid rgba(35,160,206,0.4)', color: '#23A0CE', borderRadius: '8px' }}
+                                                            >
+                                                                Download PDF Receipt
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-sm"
+                                                                onClick={() => navigate('/')}
+                                                                style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc', borderRadius: '8px' }}
+                                                            >
+                                                                Back to Home
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
                                         <div className="">
-                                            {error && (
+                                            {error && step !== 4 && (
                                                 <div className="toast show align-items-center text-bg-danger border-0 mt-3" role="alert" aria-live="assertive" aria-atomic="true">
                                                     <div className="d-flex">
                                                         <div className="toast-body">

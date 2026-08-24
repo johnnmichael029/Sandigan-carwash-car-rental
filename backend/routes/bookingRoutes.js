@@ -11,7 +11,9 @@ const {
     cancelBooking,
     getAvailableTimeSlots,
     getEmployeeHistory,
-    updateDetailerLocation
+    updateDetailerLocation,
+    submitBookingPaymentProof,
+    verifyBookingPayment,
 } = require('../controllers/bookingController');
 const router = express.Router();
 
@@ -19,6 +21,10 @@ const router = express.Router();
 router.get('/availability', cache('booking', 30), getAvailableTimeSlots);
 router.post('/', (req, res, next) => { invalidatePrefixes('booking', 'forecast', 'finance', 'revenue', 'sandi'); next(); }, createBooking);
 router.patch('/:id/cancel', (req, res, next) => { invalidatePrefixes('booking', 'forecast', 'finance', 'revenue', 'sandi'); next(); }, cancelBooking);
+
+// ── Payment Routes ────────────────────────────────────────────────────────────
+router.post('/:id/payment-proof', submitBookingPaymentProof);             // PUBLIC — customer submits proof
+router.patch('/:id/payment-verify', requireAuth, verifyBookingPayment);   // STAFF — verify or reject
 
 // --- PROTECTED ROUTES ---
 router.get('/employee-history/:id', requireAuth, cache('booking', 60), getEmployeeHistory);

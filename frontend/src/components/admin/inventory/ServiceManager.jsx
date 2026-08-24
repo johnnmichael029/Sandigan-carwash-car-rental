@@ -7,6 +7,7 @@ import { swrFetcher, SWR_CONFIG_STATIC } from '../../../api/swrFetcher';
 import { TableSkeleton, InventorySkeleton } from '../../SkeletonLoaders';
 import deleteIcon from '../../../assets/icon/delete.png';
 import VehicleTypeSettings from './VehicleTypeSettings';
+import PaymentSettingsManager from './PaymentSettingsManager';
 
 const ServiceSettingsPage = ({ user, isDark }) => {
     // ── SWR Data Fetching (static configs — 1hr dedupe) ───────────────────────
@@ -272,6 +273,13 @@ const ServiceSettingsPage = ({ user, isDark }) => {
 
                         Car Rental Fleet
                     </button>
+                    <button
+                        className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'payment' ? 'shadow-sm fw-bold' : 'text-muted'}`}
+                        onClick={() => setActiveTab('payment')}
+                        style={{ fontSize: '0.85rem', background: activeTab === 'payment' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'payment' ? 'var(--theme-content-text)' : 'inherit' }}
+                    >
+                        Payment Methods
+                    </button>
 
                 </div>
             </div>
@@ -533,6 +541,12 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                     </div>
                 </div>
             )}
+
+            {/* Payment Methods Tab */}
+            {activeTab === 'payment' && (
+                <PaymentSettingsManager isDark={isDark} />
+            )}
+
             {/* Modals */}
             {showVehicleTypeModal && (
                 <VehicleTypeSettings

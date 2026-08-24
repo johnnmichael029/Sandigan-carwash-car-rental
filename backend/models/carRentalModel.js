@@ -106,6 +106,25 @@ const carRentalSchema = new mongoose.Schema({
     promoDiscount: {
         type: Number,
         default: 0
+    },
+    // ── Pickup Reminder Tracking ──────────────────────────────────────────────
+    pickupReminderSentAt: { type: Date, default: null },
+    pickupReminderCount:  { type: Number, default: 0 },
+    // ── Down Payment ─────────────────────────────────────────────────────────
+    downPaymentPercent: { type: Number, default: 30 },   // snapshot of % at time of booking
+    downPaymentAmount:  { type: Number, default: 0 },    // computed: estimatedTotal * (downPaymentPercent / 100)
+    // ── Payment ──────────────────────────────────────────────────────────────
+    payment: {
+        method:           { type: String, default: 'Not Selected' },
+        status:           { type: String, enum: ['Unpaid', 'Pending Verification', 'Verified', 'Rejected'], default: 'Unpaid' },
+        referenceNumber:  { type: String, default: null },
+        amountPaid:       { type: Number, default: 0 },
+        proofImageBase64: { type: String, default: null },
+        proofUploadedAt:  { type: Date,   default: null },
+        verifiedBy:       { type: mongoose.Schema.Types.ObjectId, ref: 'employee', default: null },
+        verifiedByName:   { type: String, default: null },
+        verifiedAt:       { type: Date,   default: null },
+        rejectionReason:  { type: String, default: null },
     }
 }, { timestamps: true });
 

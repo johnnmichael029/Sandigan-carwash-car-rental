@@ -257,6 +257,10 @@ const BookingManagement = ({ employee, onNavigate, onShowSMC, isDark }) => {
             dateStr.includes(search) ||
             id.includes(search);
             
+        if (statusFilter === 'Payment Pending') {
+            return matchesSearch && b.payment?.status === 'pending';
+        }
+
         if (statusFilter !== 'All') {
             const bStatus = b.status || 'Pending';
             if (bStatus !== statusFilter) return false;
@@ -264,6 +268,9 @@ const BookingManagement = ({ employee, onNavigate, onShowSMC, isDark }) => {
 
         return matchesSearch;
     });
+
+    // Count bookings with payment awaiting verification
+    const paymentPendingCount = bookings.filter(b => b.payment?.status === 'pending').length;
 
     // Reset to page 1 on search or filter change
     useEffect(() => {
@@ -354,6 +361,30 @@ const BookingManagement = ({ employee, onNavigate, onShowSMC, isDark }) => {
                                             {status}
                                         </button>
                                     ))}
+                                    {/* Payment Pending quick-filter */}
+                                    <button
+                                        onClick={() => setStatusFilter('Payment Pending')}
+                                        className="btn btn-sm rounded-pill font-poppins position-relative"
+                                        style={{
+                                            fontSize: '0.75rem',
+                                            fontWeight: 600,
+                                            padding: '4px 16px',
+                                            background: statusFilter === 'Payment Pending' ? '#6366f1' : 'transparent',
+                                            color: statusFilter === 'Payment Pending' ? '#fff' : '#a5b4fc',
+                                            border: statusFilter === 'Payment Pending' ? '1px solid #6366f1' : '1px solid rgba(99,102,241,0.4)',
+                                            transition: 'all 0.2s',
+                                        }}
+                                    >
+                                        💳 Payment
+                                        {paymentPendingCount > 0 && (
+                                            <span style={{
+                                                position: 'absolute', top: -6, right: -4,
+                                                background: '#ef4444', color: '#fff', borderRadius: '50%',
+                                                width: 18, height: 18, fontSize: '0.6rem', fontWeight: 800,
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                            }}>{paymentPendingCount}</span>
+                                        )}
+                                    </button>
                                 </div>
                                 <div className="d-flex gap-2">
                                     <SharedSearchBar
@@ -488,6 +519,22 @@ const BookingManagement = ({ employee, onNavigate, onShowSMC, isDark }) => {
                                                         <td className="pe-3 text-end rounded-end align-middle">
                                                             <div className="d-flex flex-column align-items-end justify-content-center gap-2">
                                                                 <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--theme-content-text)' }}>₱{booking.totalPrice.toLocaleString()}</span>
+                                                                {/* Payment status badge */}
+                                                                {booking.payment?.status && booking.payment.status !== 'none' && (() => {
+                                                                    const st = (booking.payment.status || '').toLowerCase();
+                                                                    const isVer = st === 'verified';
+                                                                    const isRej = st === 'rejected';
+                                                                    return (
+                                                                        <span style={{
+                                                                            fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: '20px',
+                                                                            background: isVer ? 'rgba(74,222,128,0.12)' : isRej ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
+                                                                            color: isVer ? '#4ade80' : isRej ? '#ef4444' : '#f59e0b',
+                                                                            border: `1px solid ${isVer ? 'rgba(74,222,128,0.3)' : isRej ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`
+                                                                        }}>
+                                                                            {isVer ? '✓ Paid' : isRej ? '✕ Rejected' : '⏳ Pay Pending'}
+                                                                        </span>
+                                                                    );
+                                                                })()}
                                                                 <button className="btn btn-action btn-sm border-outline-primary brand-primary shadow-sm"
                                                                     style={{ background: 'var(--theme-card-bg)', border: '1px solid rgba(35,160,206,0.4)', color: '#23A0CE', borderRadius: '8px', padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
                                                                     onClick={() => setSelectedBooking(booking)}>

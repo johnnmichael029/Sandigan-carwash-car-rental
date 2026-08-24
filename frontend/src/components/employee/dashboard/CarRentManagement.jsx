@@ -45,6 +45,137 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
     const [isUpdating, setIsUpdating] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ ...rental });
+    const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+    const [isSendingReminder, setIsSendingReminder] = useState(false);
+    const [paymentData, setPaymentData] = useState(rental.payment || null);
+
+    const handleSendPickupReminder = async () => {
+        if (!rental.emailAddress) {
+            Swal.fire({ title: 'No Email', text: 'This customer has no email address on record.', icon: 'warning', background: 'var(--theme-modal-bg)', color: 'var(--theme-content-text)' });
+            return;
+        }
+
+        const { isConfirmed } = await Swal.fire({
+            title: 'Send Pickup Reminder?',
+            text: `Send an email reminder to ${rental.fullName} (${rental.emailAddress}) that their vehicle is ready for pickup?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#eab308',
+            confirmButtonText: 'Yes, Send Reminder',
+            background: 'var(--theme-modal-bg)',
+            color: 'var(--theme-content-text)',
+        });
+        if (!isConfirmed) return;
+
+        setIsSendingReminder(true);
+        try {
+            const res = await axios.post(
+                `${API_BASE}/car-rentals/${rental._id}/pickup-reminder`,
+                {},
+                { headers: authHeaders(), withCredentials: true }
+            );
+            if (onStatusChange && res.data.rental) onStatusChange(res.data.rental);
+            Swal.fire({
+                icon: 'success',
+                title: 'Reminder Sent!',
+                text: `Pickup reminder has been sent to ${rental.emailAddress}`,
+                background: 'var(--theme-modal-bg)',
+                color: 'var(--theme-content-text)',
+                timer: 2500,
+                showConfirmButton: false,
+            });
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'Failed to send pickup reminder.', 'error');
+        } finally {
+            setIsSendingReminder(false);
+        }
+    };
+
+    const getCurrentEmployeeName = () => {
+        try {
+            const stored = localStorage.getItem('employee');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                return parsed.fullName || `${parsed.firstName || ''} ${parsed.lastName || ''}`.trim() || 'Staff';
+            }
+        } catch (_) { }
+        return 'Staff';
+    };
+
+    useEffect(() => {
+        setPaymentData(rental.payment || null);
+    }, [rental]);
+
+    const handlePreviewProof = (imageSrc) => {
+        if (!imageSrc) return;
+        Swal.fire({
+            imageUrl: imageSrc,
+            imageAlt: 'Payment Screenshot',
+            showConfirmButton: false,
+            showCloseButton: true,
+            background: 'var(--theme-modal-bg)',
+            width: '90%',
+            maxWidth: '650px',
+            customClass: {
+                popup: 'rounded-4 border-0 shadow-lg',
+                image: 'rounded-3 img-fluid'
+            }
+        });
+    };
+
+    const handleVerifyRentalPayment = async (action) => {
+        let rejectionReason = null;
+        if (action === 'reject') {
+            const { value: reason, isConfirmed } = await Swal.fire({
+                title: 'Reject Payment?',
+                input: 'textarea',
+                inputPlaceholder: 'Reason for rejection (e.g. invalid reference number, unclear screenshot)...',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'Reject Payment',
+                background: 'var(--theme-modal-bg)',
+                color: 'var(--theme-content-text)',
+                inputValidator: (val) => (!val?.trim() ? 'Please provide a rejection reason.' : null)
+            });
+            if (!isConfirmed || !reason) return;
+            rejectionReason = reason;
+        } else {
+            const { isConfirmed } = await Swal.fire({
+                title: 'Verify & Confirm Payment?',
+                text: 'Mark this down payment as verified and notify the customer?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#22c55e',
+                confirmButtonText: 'Yes, Verify Payment',
+                background: 'var(--theme-modal-bg)',
+                color: 'var(--theme-content-text)',
+            });
+            if (!isConfirmed) return;
+        }
+
+        setIsVerifyingPayment(true);
+        try {
+            const res = await axios.patch(
+                `${API_BASE}/car-rentals/${rental._id}/payment-verify`,
+                { action, rejectionReason },
+                { headers: authHeaders(), withCredentials: true }
+            );
+            const currentEmployeeName = getCurrentEmployeeName();
+            const updatedPayment = res.data.payment || {
+                ...paymentData,
+                status: action === 'verify' ? 'Verified' : 'Rejected',
+                verifiedByName: currentEmployeeName,
+                verifiedBy: currentEmployeeName
+            };
+            setPaymentData(updatedPayment);
+            if (onStatusChange && res.data.rental) onStatusChange(res.data.rental);
+            Swal.fire({ icon: 'success', title: `Payment ${action === 'verify' ? 'verified' : 'rejected'}!`, toast: true, position: 'top-end', timer: 2000, showConfirmButton: false, background: '#002525' });
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'Failed to update payment', 'error');
+        } finally {
+            setIsVerifyingPayment(false);
+        }
+    };
 
     useEffect(() => {
         if (rental) {
@@ -253,13 +384,20 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
                                             <div className="p-2 rounded-2 text-center" style={{ color: '#23A0CE', fontWeight: 800, fontSize: '0.85rem' }}>{rental.rentalDays}</div>
                                         </div>
                                     </div>
+                                    {/* Pickup Reminder Notice */}
+                                    {rental.pickupReminderSentAt && (
+                                        <div className="small mt-2 p-2 rounded-2 d-flex align-items-center justify-content-between" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.25)', color: '#fbbf24', fontSize: '0.75rem' }}>
+                                            <span>⏰ Pickup reminder sent on {new Date(rental.pickupReminderSentAt).toLocaleString('en-PH', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                                            {rental.pickupReminderCount > 1 && <span className="badge bg-warning text-dark">{rental.pickupReminderCount}x sent</span>}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
 
                         </div>
 
-                        {/* Timeline Section */}
+                        {/* Timeline Section — right column now split: status logs + payment */}
                         <div className="col-md-5 ps-md-4 position-relative" style={{ borderColor: 'var(--theme-content-border)!important' }}>
                             <p className="text-uppercase fw-bold mb-4" style={{ color: '#23A0CE', fontSize: '0.65rem', letterSpacing: '1px' }}>STATUS LOGS</p>
 
@@ -283,6 +421,115 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
                                     </div>
                                 ))}
                             </div>
+
+                            {/* ── PAYMENT VERIFICATION PANEL ── */}
+                            <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--theme-content-border)' }}>
+                                <p className="text-uppercase fw-bold mb-3" style={{ color: '#23A0CE', fontSize: '0.65rem', letterSpacing: '1px' }}>PAYMENT</p>
+                                {!paymentData || !paymentData.status || paymentData.status === 'none' ? (
+                                    <div className="p-3 rounded-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                                        <span style={{ color: 'var(--theme-content-text-secondary)', fontSize: '0.82rem' }}>No payment submitted yet.</span>
+                                    </div>
+                                ) : (
+                                    <div className="p-3 rounded-3" style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                                        {/* Status Badge */}
+                                        {(() => {
+                                            const st = (paymentData.status || '').toLowerCase();
+                                            const isVer = st === 'verified';
+                                            const isRej = st === 'rejected';
+                                            return (
+                                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                                    <span style={{ fontSize: '0.72rem', color: 'var(--theme-content-text-secondary)', textTransform: 'uppercase' }}>Status</span>
+                                                    <span style={{
+                                                        padding: '2px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 700,
+                                                        background: isVer ? 'rgba(74,222,128,0.12)' : isRej ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
+                                                        color: isVer ? '#4ade80' : isRej ? '#ef4444' : '#f59e0b',
+                                                        border: `1px solid ${isVer ? 'rgba(74,222,128,0.3)' : isRej ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`
+                                                    }}>
+                                                        {isVer ? '✓ Verified' : isRej ? '✕ Rejected' : '⏳ Pending Review'}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        <div className="d-flex flex-column gap-1 mb-3" style={{ fontSize: '0.8rem' }}>
+                                            <div className="d-flex justify-content-between">
+                                                <span style={{ color: 'var(--theme-content-text-secondary)' }}>Method</span>
+                                                <span style={{ color: 'var(--theme-content-text)', fontWeight: 600 }}>{paymentData.method || '—'}</span>
+                                            </div>
+                                            {paymentData.referenceNumber && (
+                                                <div className="d-flex justify-content-between">
+                                                    <span style={{ color: 'var(--theme-content-text-secondary)' }}>Reference No</span>
+                                                    <span style={{ color: 'var(--theme-content-text)', fontFamily: 'monospace', fontWeight: 600 }}>{paymentData.referenceNumber}</span>
+                                                </div>
+                                            )}
+                                            {paymentData.amountPaid && (
+                                                <div className="d-flex justify-content-between">
+                                                    <span style={{ color: 'var(--theme-content-text-secondary)' }}>Down Payment</span>
+                                                    <span style={{ color: '#4ade80', fontWeight: 700 }}>₱{paymentData.amountPaid?.toLocaleString()}</span>
+                                                </div>
+                                            )}
+                                            {paymentData.rejectionReason && (
+                                                <div className="d-flex justify-content-between text-danger">
+                                                    <span>Reason</span>
+                                                    <span style={{ fontWeight: 600 }}>{paymentData.rejectionReason}</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {paymentData.proofImageBase64 && (
+                                            <div className="mb-3 text-center">
+                                                <div className="small mb-1 text-start" style={{ color: 'var(--theme-content-text-secondary)' }}>Screenshot</div>
+                                                <div
+                                                    onClick={() => handlePreviewProof(paymentData.proofImageBase64)}
+                                                    style={{ cursor: 'pointer', display: 'inline-block' }}
+                                                    title="Click to view full image"
+                                                >
+                                                    <img src={paymentData.proofImageBase64} alt="Proof" style={{ maxHeight: '100px', maxWidth: '100%', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.3)' }} />
+                                                    <div className="small mt-1 text-info" style={{ fontSize: '0.72rem', fontWeight: 600 }}>Click to view full image</div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {(() => {
+                                            const st = (paymentData.status || '').toLowerCase();
+                                            return (
+                                                <div>
+                                                    <div className="d-flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm flex-fill fw-bold"
+                                                            onClick={() => handleVerifyRentalPayment('verify')}
+                                                            disabled={isVerifyingPayment || st === 'verified'}
+                                                            style={{ background: st === 'verified' ? 'rgba(74,222,128,0.05)' : 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.4)', color: '#4ade80', borderRadius: '8px' }}
+                                                        >
+                                                            {isVerifyingPayment ? <span className="spinner-border spinner-border-sm" /> : (st === 'verified' ? '✓ Verified' : '✓ Verify Payment')}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm flex-fill fw-bold"
+                                                            onClick={() => handleVerifyRentalPayment('reject')}
+                                                            disabled={isVerifyingPayment || st === 'rejected'}
+                                                            style={{ background: st === 'rejected' ? 'rgba(239,68,68,0.05)' : 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)', color: '#ef4444', borderRadius: '8px' }}
+                                                        >
+                                                            {st === 'rejected' ? '✕ Rejected' : '✕ Reject'}
+                                                        </button>
+                                                    </div>
+                                                    {(paymentData.verifiedBy || paymentData.verifiedByName || st === 'verified' || st === 'rejected') && (() => {
+                                                        const verifiedName = paymentData.verifiedByName ||
+                                                            (typeof paymentData.verifiedBy === 'object' && paymentData.verifiedBy ? (paymentData.verifiedBy?.fullName || `${paymentData.verifiedBy?.firstName || ''} ${paymentData.verifiedBy?.lastName || ''}`.trim()) : null) ||
+                                                            getCurrentEmployeeName();
+                                                        return (
+                                                            <div className="small mt-2 text-center text-muted" style={{ fontSize: '0.75rem' }}>
+                                                                {st === 'verified' ? 'Verified' : 'Updated'} by <strong style={{ color: 'var(--theme-content-text)' }}>{verifiedName}</strong>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -304,11 +551,24 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
                                 </button>
                             ))}
 
-                            {/* Receipt Button for Completed / Returned rentals */}
-                            {(rental.status === 'Returned' || rental.status === 'Active') && (
+                            {/* Send Pickup Reminder Button (for Pending or Confirmed bookings) */}
+                            {['Pending', 'Confirmed'].includes(rental.status) && rental.emailAddress && (
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-warning rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2"
+                                    style={{ fontSize: '0.85rem' }}
+                                    onClick={handleSendPickupReminder}
+                                    disabled={isSendingReminder}
+                                >
+                                    {isSendingReminder ? <span className="spinner-border spinner-border-sm" /> : 'Send Pickup Reminder'}
+                                </button>
+                            )}
+
+                            {/* Receipt Button for active/confirmed/returned rentals */}
+                            {rental.status !== 'Cancelled' && (
                                 <button
                                     className="btn btn-outline-primary rounded-pill px-4 shadow-sm font-poppins d-flex align-items-center gap-2"
-                                    style={{ fontSize: '0.85rem', borderColor: '#23A0CE' }}
+                                    style={{ fontSize: '0.85rem', borderColor: '#23A0CE', color: '#23A0CE' }}
                                     onClick={() => onReceipt(rental)}
                                 >
                                     Generate Receipt
@@ -568,7 +828,12 @@ const CarRentManagement = ({ employee, isDark }) => {
                                     <tr key={r._id}>
                                         <td className="ps-4" style={{ color: '#23A0CE', fontSize: '0.8rem', fontWeight: 700 }}>{r.rentalId}</td>
                                         <td>
-                                            <div className="fw-semibold" style={{ fontSize: '0.8rem' }}>{r.fullName}</div>
+                                            <div className="fw-semibold" style={{ fontSize: '0.8rem' }}>
+                                                {r.fullName}
+                                                {r.pickupReminderSentAt && (
+                                                    <span className="badge bg-warning text-dark ms-2" style={{ fontSize: '0.62rem', fontWeight: 600 }}>⏰ Reminder Sent</span>
+                                                )}
+                                            </div>
                                             <small style={{ color: 'var(--theme-content-text-secondary)', fontSize: '0.75rem' }}>{r.contactNumber}</small>
                                         </td>
                                         <td >{r.vehicleName}</td>
@@ -576,6 +841,11 @@ const CarRentManagement = ({ employee, isDark }) => {
                                             {new Date(r.rentalStartDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}
                                             {' – '}
                                             {new Date(r.returnDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            {['Pending', 'Confirmed'].includes(r.status) && new Date(r.rentalStartDate) <= new Date() && (
+                                                <div className="text-warning fw-bold mt-1" style={{ fontSize: '0.7rem' }}>
+                                                    ⚠️ Due for Pickup
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="text-center">{r.rentalDays}d</td>
                                         <td style={{ color: '#23A0CE', fontWeight: 700 }}>₱{r.estimatedTotal?.toLocaleString()}</td>
