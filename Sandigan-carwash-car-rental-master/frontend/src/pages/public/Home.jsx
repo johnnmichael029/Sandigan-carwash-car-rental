@@ -331,7 +331,7 @@ const AboutSection = () => (
                 {/* Description */}
                 <div className="about-description d-flex justify-content-center mb-4">
                     <p className="lead hero-description text-center fs-5" style={{ maxWidth: '800px', fontWeight: 300, color: 'rgba(255,255,255,0.8)' }}>
-                        We don't just wash cars — we protect your investment using the latest engine wash technology and a team that cares about every detail.
+                        Whether you need a cleaner car or a reliable ride, SANDIGAN provides quality car wash and rental services designed to keep you moving.
                     </p>
                 </div>
 
