@@ -1,0 +1,578 @@
+const Employee = require('../models/employeeModel');
+const Booking = require('../models/bookingModel');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { createLog } = require('./activityLogController');
+const { getSettingValue } = require('./settingController');
+
+// Get employee by ID
+const getEmployee = async (req, res) => {
+    try {
+        const employee = await Employee.findById(req.params.id);
+        if (!employee) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
+        res.json(employee);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Get all employees
+const getEmployees = async (req, res) => {
+    try {
+        const employees = await Employee.find();
+        res.json(employees);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const generateEmployeeId = async () => {
+    const year = new Date().getFullYear();
+
+    // Sort by employeeId descending to find the highest existing numeric suffix.
+    // This is more reliable than createdAt if records were manually inserted or backfilled.
+    const latestEmp = await Employee.findOne({
+        employeeId: new RegExp(`^EMP-${year}-`)
+    }).sort({ employeeId: -1 });
+
+    if (latestEmp && latestEmp.employeeId) {
+        const parts = latestEmp.employeeId.split('-');
+        const currentNum = parseInt(parts[2], 10);
+        if (!isNaN(currentNum)) {
+            const nextNum = (currentNum + 1).toString().padStart(3, '0');
+            return `EMP-${year}-${nextNum}`;
+        }
+    }
+    return `EMP-${year}-001`;
+};
+
+// Create employee
+const createEmployee = async (req, res) => {
+    let {
+        fullName, email, password, role, age, address, phone,
+        baseSalary, salaryFrequency, status,
+        hasAccount = true, shiftType = 'None', shiftStartTime,
+        hiredDate, restDay
+    } = req.body;
+
+    // Default shift times if not provided
+    if (shiftType === 'Morning' && !shiftStartTime) shiftStartTime = "08:00 AM";
+    if (shiftType === 'Night' && !shiftStartTime) shiftStartTime = "05:00 PM";
+
+    // ── Explicit boolean coercion ──
+    // The frontend may send hasAccount as the string "false", which JS treats as truthy.
+    if (typeof hasAccount === 'string') hasAccount = hasAccount === 'true';
+
+    // Fallback unique identity for directory-only staff (Satisfies DB uniqueness without requiring a real email)
+    // Fallback unique identity for directory-only staff
+    if (!hasAccount) {
+        if (!email || email.trim() === '') {
+            email = `noaccount_${Date.now()}_${Math.random().toString(36).slice(2, 6)}@sandigan.local`;
+        }
+        if (!password || password.trim() === '') {
+            password = `noaccount_${Date.now()}!`;
+        }
+    }
+
+    console.log(`[EMPLOYEE_CREATE] Attempting → name: "${fullName}", email: "${email}", hasAccount: ${hasAccount}, role: ${role}`);
+
+    try {
+        let hashedPassword = null;
+        if (hasAccount) {
+            if (!email || !password) {
+                return res.status(400).json({ error: 'Email and password are required for accounts.' });
+            }
+            // Check if email already exists
+            const existingEmployee = await Employee.findOne({ email });
+            if (existingEmployee) {
+                console.log(`[EMPLOYEE_CREATE] ❌ REJECTED — email "${email}" already exists (owned by "${existingEmployee.fullName}")`);
+                return res.status(400).json({ error: 'Email already in use' });
+            }
+            const salt = await bcrypt.genSalt(10);
+            hashedPassword = await bcrypt.hash(password, salt);
+        }
+
+        const newEmployeeId = await generateEmployeeId();
+
+        const newEmployee = await Employee.create({
+            employeeId: newEmployeeId,
+            fullName,
+            email,
+            password: hashedPassword,
+            hasAccount,
+            role: role || 'employee',
+            shiftType,
+            shiftStartTime,
+            age: age ? Number(age) : undefined,
+            address,
+            contactNumber: phone,
+            baseSalary: baseSalary ? Number(baseSalary) : 0,
+            salaryFrequency: salaryFrequency || 'Monthly',
+            status: status || 'Active',
+            hiredDate: hiredDate ? new Date(hiredDate) : undefined,
+            restDay: restDay || 'Sunday'
+        });
+
+        console.log(`[EMPLOYEE_CREATE] ✅ SUCCESS — "${fullName}" saved as ${newEmployeeId} (email: ${newEmployee.email || 'none'})`);
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'HRIS',
+                action: 'employee_created',
+                message: `Created new ${newEmployee.role}: ${newEmployee.fullName}`,
+                meta: { id: newEmployee._id, role: newEmployee.role }
+            });
+        }
+
+        res.status(201).json({ message: 'Employee created successfully' });
+    } catch (error) {
+        if (error.code === 11000) {
+            const key = Object.keys(error.keyPattern || {})[0];
+            const val = error.keyValue?.[key] || 'unknown';
+            console.log(`[EMPLOYEE_CREATE] ❌ FAILED — duplicate ${key}: "${val}" for "${fullName}"`);
+            if (key === 'email') {
+                return res.status(400).json({ error: 'The email address you entered is already in use.' });
+            }
+            if (key === 'employeeId') {
+                return res.status(400).json({ error: 'System generated a duplicate Employee ID. Please try again in 1 second.' });
+            }
+            return res.status(400).json({ error: 'A duplicate record already exists in the system.' });
+        }
+        console.log(`[EMPLOYEE_CREATE] ❌ FAILED — ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+// Update employee
+const updateEmployee = async (req, res) => {
+    const { id } = req.params;
+    const {
+        fullName, email, role, password, age, address, phone,
+        baseSalary, salaryFrequency, status,
+        hasAccount, shiftType, shiftStartTime,
+        hiredDate,
+        nonTaxableAllowance,
+        sssNo, tinNo, philhealthNo, pagibigNo,
+        restDay
+    } = req.body;
+
+    // // Safety: prevent admin from demoting their own account
+    if (req.employeeId && req.employeeId.toString() === id && role && role !== 'admin') {
+        return res.status(400).json({ message: 'You cannot change your own admin role.' });
+    }
+
+    try {
+        const updateFields = {};
+        if (fullName) updateFields.fullName = fullName;
+        if (email !== undefined) {
+            if (email && email.trim() !== '') {
+                updateFields.email = email;
+            } else if (!hasAccount) {
+                // If it was cleared and we don't need a real account, generate fallback
+                updateFields.email = `noaccount_${Date.now()}@sandigan.local`;
+            } else {
+                updateFields.email = null;
+            }
+        }
+        if (role) updateFields.role = role;
+        if (password && password.trim().length > 0) {
+            const salt = await bcrypt.genSalt(10);
+            updateFields.password = await bcrypt.hash(password, salt);
+        }
+        if (age !== undefined) updateFields.age = age ? Number(age) : null;
+        if (address !== undefined) updateFields.address = address;
+        if (phone !== undefined) updateFields.contactNumber = phone;
+        if (baseSalary !== undefined) updateFields.baseSalary = baseSalary ? Number(baseSalary) : 0;
+        if (salaryFrequency !== undefined) updateFields.salaryFrequency = salaryFrequency;
+        if (status !== undefined) updateFields.status = status;
+
+        if (hasAccount !== undefined) updateFields.hasAccount = (typeof hasAccount === 'string') ? hasAccount === 'true' : !!hasAccount;
+        if (shiftType !== undefined) updateFields.shiftType = shiftType;
+        if (shiftStartTime !== undefined) updateFields.shiftStartTime = shiftStartTime;
+        if (hiredDate !== undefined) updateFields.hiredDate = hiredDate ? new Date(hiredDate) : null;
+
+        // Government IDs & Allowances
+        if (nonTaxableAllowance !== undefined) updateFields.nonTaxableAllowance = nonTaxableAllowance ? Number(nonTaxableAllowance) : 0;
+        if (sssNo !== undefined) updateFields.sssNo = sssNo;
+        if (tinNo !== undefined) updateFields.tinNo = tinNo;
+        if (philhealthNo !== undefined) updateFields.philhealthNo = philhealthNo;
+        if (pagibigNo !== undefined) updateFields.pagibigNo = pagibigNo;
+        if (restDay !== undefined) updateFields.restDay = restDay;
+
+        // ── Ensure empty-string emails are stored as null  ──
+        // findByIdAndUpdate bypasses Mongoose pre-validate hooks, so we must do it here.
+        if (updateFields.email !== undefined && updateFields.email !== null && updateFields.email.trim() === '') {
+            updateFields.email = null;
+        }
+
+        const employee = await Employee.findByIdAndUpdate(id, updateFields, { returnDocument: 'after', runValidators: true });
+        if (!employee) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'HRIS',
+                action: 'employee_updated',
+                message: `Updated profile for ${employee.fullName}`,
+                meta: { id: employee._id, role: employee.role, changes: Object.keys(updateFields) }
+            });
+        }
+
+        res.json({ message: 'Employee updated successfully', employee });
+    } catch (error) {
+        if (error.code === 11000) {
+            const key = Object.keys(error.keyPattern || {})[0];
+            if (key === 'email') {
+                return res.status(400).json({ error: 'The email address you entered is already in use.' });
+            }
+            return res.status(400).json({ error: 'A duplicate record already exists in the system.' });
+        }
+        res.status(500).json({ error: error.message });
+    }
+};
+
+
+// Delete employee
+const deleteEmployee = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const employee = await Employee.findByIdAndDelete(id);
+        if (!employee) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'HRIS',
+                action: 'employee_deleted',
+                message: `Deleted employee record: ${employee.fullName}`,
+                meta: { id: employee._id, role: employee.role }
+            });
+        }
+
+        res.json({ message: 'Employee deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Login employee
+const loginEmployee = async (req, res) => {
+    const { email, password, source } = req.body;
+
+    try {
+        const employee = await Employee.findOne({ email });
+        if (!employee) return res.status(404).json({ error: "User not found" });
+
+        // Enforce that detailers CANNOT login to the the Admin Dashboard
+        if (employee.role === 'detailer' && source !== 'mobile') {
+            return res.status(403).json({ error: "Access Denied. Detailers can only log in through the Sandigan Mobile App." });
+        }
+
+        // Enforce that employees with no account CANNOT login to the the Admin Dashboard
+        if (!employee.hasAccount && source === 'mobile') {
+            return res.status(403).json({ error: "This account does not have login access. Please contact your administrator." });
+        }
+
+        // Compare the password typed vs the hashed password in DB
+        const isMatch = await bcrypt.compare(password, employee.password);
+        if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
+
+        // Issue a JWT token (expires in 8 hours)
+        const token = jwt.sign(
+            { id: employee._id, role: employee.role },
+            process.env.JWT_SECRET || 'fallback-secret-until-azure-env-set',
+            { expiresIn: '8h' }
+        );
+
+        // Set token as httpOnly cookie to prevent XSS-based token theft
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 8 * 60 * 60 * 1000, // 8 hours in milliseconds
+        });
+
+        res.status(200).json({
+            message: "Login successful",
+            token,
+            employee: {
+                id: employee._id,
+                fullName: employee.fullName,
+                role: employee.role,
+                isEmployee: true
+            }
+        });
+
+        // Log the login (non-blocking — after response sent)
+        createLog({
+            actorId: employee._id,
+            actorName: employee.fullName,
+            actorRole: employee.role,
+            module: 'SYSTEM',
+            action: 'staff_logged_in',
+            message: `${employee.fullName} logged into the system`,
+            meta: { role: employee.role }
+        }).catch(() => { });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Logout employee
+const logoutEmployee = async (req, res) => {
+    let actorName = 'Unknown Staff';
+    let actorId = null;
+    let actorRole = 'employee';
+
+    try {
+        const token = req.cookies?.token;
+        if (token) {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            actorId = decoded.id;
+            actorRole = decoded.role;
+
+            // Look up the name in the database before clearing the cookie
+            const emp = await Employee.findById(actorId).lean();
+            if (emp) actorName = emp.fullName;
+        }
+    } catch (_) { }
+
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    });
+
+    res.status(200).json({ message: 'Logged out successfully' });
+
+    // Log logout with the captured name
+    if (actorId) {
+        createLog({
+            actorId, actorName, actorRole,
+            module: 'SYSTEM',
+            action: 'staff_logged_out',
+            message: `${actorName} logged out of the system`,
+            meta: { role: actorRole }
+        }).catch(() => { });
+    }
+};
+
+// Add a performance evaluation
+const addEvaluation = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rating, comment } = req.body;
+        const reviewerName = req.user ? req.user.fullName : 'Admin';
+
+        const employee = await Employee.findByIdAndUpdate(
+            id,
+            { $push: { evaluations: { rating, comment, reviewerName, date: new Date() } } },
+            { returnDocument: 'after', runValidators: true }
+        );
+
+        if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+        // Audit Log
+        await createLog({
+            actorId: req.user ? req.user.id : null,
+            actorName: reviewerName,
+            actorRole: req.user ? req.user.role : 'admin',
+            module: 'HRIS',
+            action: 'performance_reviewed',
+            message: `Added a ${rating}-star review for ${employee.fullName}`,
+            meta: { employeeId: id, rating }
+        });
+
+        res.json({ message: 'Evaluation added successfully', employee });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Update employee skills/training
+const updateSkills = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { skills } = req.body;
+
+        const employee = await Employee.findByIdAndUpdate(id, { skills }, { returnDocument: 'after', runValidators: true });
+        if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+        // Audit Log
+        await createLog({
+            actorId: req.user ? req.user.id : null,
+            actorName: req.user ? req.user.fullName : 'Admin',
+            actorRole: req.user ? req.user.role : 'admin',
+            module: 'HRIS',
+            action: 'skills_updated',
+            message: `Updated skills/training records for ${employee.fullName}`,
+            meta: { employeeId: id, skillsCount: skills.length }
+        });
+
+        res.json({ message: 'Skills updated successfully', employee });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Backfill: Assign employeeId to all employees that don't have one
+const backfillEmployeeIds = async (req, res) => {
+    try {
+        // Find all employees missing an employeeId, sorted by creation date
+        const employees = await Employee.find({
+            $or: [{ employeeId: { $exists: false } }, { employeeId: null }, { employeeId: '' }]
+        }).sort({ createdAt: 1 });
+
+        if (employees.length === 0) {
+            return res.json({ message: 'All employees already have IDs.', updated: 0 });
+        }
+
+        let updatedCount = 0;
+        for (const emp of employees) {
+            const newId = await generateEmployeeId();
+            emp.employeeId = newId;
+            await emp.save();
+            console.log(`[BACKFILL] Assigned ${newId} to ${emp.fullName}`);
+            updatedCount++;
+        }
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'HRIS',
+                action: 'employee_ids_backfilled',
+                message: `Backfilled Employee IDs for ${updatedCount} employee(s).`,
+                meta: { updatedCount }
+            });
+        }
+
+        res.json({ message: `Successfully assigned IDs to ${updatedCount} employee(s).`, updated: updatedCount });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Get detailer earnings (Mobile)
+const getMyEarnings = async (req, res) => {
+    try {
+        const detailerId = req.user ? req.user.id : req.employeeId;
+        if (!detailerId) return res.status(401).json({ error: "Unauthorized" });
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 15;
+
+        const bookings = await Booking.find({
+            status: 'Completed',
+            assignedTo: detailerId
+        }).sort({ updatedAt: -1 }).lean();
+
+        const commissionRate = await getSettingValue('commission_rate', 0.30);
+
+        let totalEarned = 0;
+        let unpaidPool = 0;
+
+        const calculateComm = (b) => {
+            const retailTotal = (b.purchasedProducts || []).reduce((s, p) => s + (Number(p.price || 0) * Number(p.quantity || 0)), 0);
+            const commissionablePrice = Math.max(0, (b.totalPrice || 0) - retailTotal);
+            return commissionablePrice * commissionRate;
+        };
+
+        const processedBookings = bookings.map(b => {
+            const comm = calculateComm(b);
+            totalEarned += comm;
+            if (b.commissionStatus !== 'Paid') unpaidPool += comm;
+
+            return {
+                _id: b._id,
+                batchId: b.batchId,
+                totalPrice: b.totalPrice,
+                commissionEarned: comm,
+                commissionStatus: b.commissionStatus,
+                serviceType: b.serviceType,
+                vehicleType: b.vehicleType,
+                bookingTime: b.bookingTime,
+                createdAt: b.createdAt,
+                updatedAt: b.updatedAt,
+                status: b.status,
+                serviceLocationType: b.serviceLocationType,
+                homeServiceDetails: b.homeServiceDetails,
+                firstName: b.firstName,
+                lastName: b.lastName,
+                addons: b.addons,
+                purchasedProducts: b.purchasedProducts,
+                paymentMethod: b.paymentMethod,
+                isReviewed: b.isReviewed,
+                detailer: b.detailer,
+            };
+        });
+
+        const startIndex = (page - 1) * limit;
+        const endIndex = page * limit;
+        const paginatedBookings = processedBookings.slice(startIndex, endIndex);
+        const hasMore = endIndex < processedBookings.length;
+
+        res.json({
+            detailerId,
+            commissionRate,
+            totalEarned,
+            unpaidPool,
+            bookingCount: bookings.length,
+            bookings: paginatedBookings,
+            hasMore
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// @desc    Save or update Push Notification token for this employee
+// @access  Private (Employee Token Required)
+const savePushToken = async (req, res) => {
+    try {
+        const { pushToken } = req.body;
+        const employeeId = req.user ? req.user.id : req.employeeId;
+        
+        if (!pushToken) return res.status(400).json({ error: 'pushToken is required.' });
+        if (!employeeId) return res.status(401).json({ error: 'Unauthorized.' });
+
+        await Employee.findByIdAndUpdate(employeeId, { pushToken });
+        res.status(200).json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+module.exports = {
+    getEmployee,
+    getEmployees,
+    createEmployee,
+    updateEmployee,
+    deleteEmployee,
+    loginEmployee,
+    logoutEmployee,
+    addEvaluation,
+    updateSkills,
+    backfillEmployeeIds,
+    getMyEarnings,
+    savePushToken
+}

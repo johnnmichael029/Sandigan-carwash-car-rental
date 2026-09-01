@@ -1,0 +1,1136 @@
+const Booking = require('../models/bookingModel');
+const Notification = require('../models/notificationModel');
+const { calculateTotalFromDb } = require('./pricingController');
+const { createLog } = require('./activityLogController');
+const { sendPushNotification } = require('../utils/pushNotification');
+const { sendBookingConfirmation } = require('../utils/emailService');
+
+
+const secretKey = process.env.RECAPTCHA_SECRET_KEY; // Use variable, not the raw key!
+const axios = require('axios');
+const jwt = require('jsonwebtoken');
+const Promotion = require('../models/promotionModel');
+const Customer = require('../models/customerModel');
+const Employee = require('../models/employeeModel');
+
+// Get all bookings
+const getBookings = async (req, res) => {
+    try {
+        let filter = {};
+        if (req.query.smcOnly === 'true') filter.smcId = { $ne: null };
+        if (req.query.promoOnly === 'true') filter.promoCode = { $ne: null };
+        if (req.query.assignedTo) filter.assignedTo = req.query.assignedTo;
+        if (req.query.status) {
+            filter.status = { $in: req.query.status.split(',') };
+        }
+
+        const search = req.query.search || '';
+        if (search && search.trim()) {
+            const lowTerm = search.trim();
+            const searchRegex = { $regex: lowTerm, $options: 'i' };
+
+            filter = {
+                ...filter,
+                $or: [
+                    { firstName: searchRegex },
+                    { lastName: searchRegex },
+                    { serviceType: searchRegex },
+                    { smcId: searchRegex },
+                    { promoCode: searchRegex },
+                    { batchId: searchRegex },
+                    {
+                        $expr: {
+                            $regexMatch: {
+                                input: { $dateToString: { format: "%m/%d/%Y", date: "$createdAt", timezone: "Asia/Manila" } },
+                                regex: lowTerm,
+                                options: "i"
+                            }
+                        }
+                    }
+                ]
+            };
+        }
+
+        let query = Booking.find(filter)
+            .sort({ createdAt: -1 })
+            .populate('bayId', 'name')
+            .populate('payment.verifiedBy', 'fullName firstName lastName');
+        
+        // Conditional Pagination
+        if (req.query.page && req.query.limit) {
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 15;
+            const skip = (page - 1) * limit;
+            
+            const total = await Booking.countDocuments(filter);
+            const bookings = await query.skip(skip).limit(limit);
+            
+            return res.status(200).json({
+                bookings,
+                hasMore: (skip + bookings.length) < total
+            });
+        }
+
+        // Backward compatibility: flat array for admin dashboard
+        const bookings = await query.limit(200);
+        res.status(200).json(bookings);
+    }
+    catch (err) {
+        console.error("❌ Error fetching bookings:", err);
+        res.status(500).json({ error: "Error fetching bookings." });
+    }
+}
+
+
+// Get a single booking
+const getBooking = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const booking = await Booking.findById(id)
+            .populate('bayId', 'name')
+            .populate('payment.verifiedBy', 'fullName firstName lastName');
+        if (!booking) {
+            return res.status(404).json({ error: "Booking not found." });
+        }
+        res.status(200).json(booking);
+    }
+    catch (err) {
+        console.error("❌ Error fetching booking:", err);
+        res.status(500).json({ error: "Error fetching booking." });
+    }
+}
+
+// Create a new booking
+const createBooking = async (req, res) => {
+    const { firstName, lastName, phoneNumber, emailAddress, vehicleType, serviceType, bookingTime, captchaToken, promoCode, promoDiscount, isRental, rentalStartDate, rentalDurationDays, destination, rentalTotal } = req.body;
+
+    try {
+        // Skip captcha for internal staff (check for valid session cookie)
+        let skipCaptcha = false;
+        const token = req.cookies?.token;
+        if (token) {
+            try {
+                jwt.verify(token, process.env.JWT_SECRET);
+                skipCaptcha = true;
+            } catch (err) { /* Invalid token — force captcha check */ }
+        }
+
+        // Skip captcha for authenticated mobile app users
+        if (req.body.source === 'Mobile App' && req.headers.authorization) {
+            const custToken = req.headers.authorization.split(' ')[1];
+            try {
+                jwt.verify(custToken, process.env.JWT_SECRET); // Assuming same secret is used
+                skipCaptcha = true;
+            } catch (err) { /* Invalid token */ }
+        }
+
+        if (!skipCaptcha) {
+            if (!captchaToken) {
+                return res.status(400).json({ error: "Please solve the security captcha first." });
+            }
+            const verificationUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
+            const response = await axios.post(verificationUrl);
+            if (!response.data.success) {
+                return res.status(400).json({
+                    error: "Captcha verification failed. Please try again.",
+                    details: response.data['error-codes']
+                });
+            }
+        }
+
+        // Handle phone number formatting: Ensure single leading '0'
+        let formattedPhoneNumber = phoneNumber ? phoneNumber.toString() : '';
+        if (formattedPhoneNumber && !formattedPhoneNumber.startsWith('0')) {
+            formattedPhoneNumber = `0${formattedPhoneNumber}`;
+        }
+        // If it already starts with 0, or is 11 digits starting with 0, keep as is.
+        // Slice to 11 if it's too long
+        if (formattedPhoneNumber.length > 11) {
+            formattedPhoneNumber = formattedPhoneNumber.slice(-11);
+        }
+
+        // Generate the Batch ID before saving
+        const locType = req.body.serviceLocationType || 'In-Store';
+        const generatedBatchID = await generateBatchID(bookingTime, locType);
+        const basePrice = await calculateTotalFromDb(vehicleType, serviceType);
+        const discountAmount = req.body.discountAmount || 0;
+        const promoDiscountVal = promoDiscount || 0;
+
+        // Compute retail total from purchasedProducts, if any
+        const purchasedProducts = Array.isArray(req.body.purchasedProducts) ? req.body.purchasedProducts : [];
+        const retailTotal = purchasedProducts.reduce((sum, p) => sum + (Number(p.price) * Number(p.quantity)), 0);
+
+        let totalPrice = 0;
+        if (isRental) {
+            // Respect client-passed price if from Mobile App, else calculate
+            const baseRental = (req.body.source === 'Mobile App' && req.body.totalPrice)
+                ? (req.body.totalPrice - retailTotal + promoDiscountVal)
+                : (rentalTotal || 0);
+            totalPrice = Math.max(0, baseRental + retailTotal - discountAmount - promoDiscountVal);
+        } else {
+            const baseWash = (req.body.source === 'Mobile App' && req.body.totalPrice)
+                ? (req.body.totalPrice - retailTotal + promoDiscountVal)
+                : basePrice;
+            totalPrice = Math.max(0, baseWash + retailTotal - discountAmount - promoDiscountVal);
+        }
+
+        const booking = await Booking.create({
+            firstName,
+            lastName,
+            phoneNumber: formattedPhoneNumber,
+            emailAddress,
+            vehicleType,
+            serviceType,
+            bookingTime,
+            batchId: generatedBatchID,
+            totalPrice,
+            smcId: req.body.smcId || null,
+            discountAmount,
+            promoCode: promoCode || null,
+            promoDiscount: promoDiscountVal,
+            purchasedProducts,
+            assignedTo: req.body.assignedTo || null,
+            detailer: req.body.detailer || null,
+            bayId: req.body.bayId || null,
+            isRental: isRental || false,
+            rentalStartDate: rentalStartDate || null,
+            rentalDurationDays: rentalDurationDays || null,
+            destination: destination || null,
+            serviceLocationType: req.body.serviceLocationType || 'In-Store',
+            homeServiceDetails: req.body.homeServiceDetails || {},
+            payment: req.body.payment ? {
+                method: req.body.payment.method || 'Not Selected',
+                status: req.body.payment.status || (req.body.payment.method === 'Pay at Counter' ? 'Unpaid' : 'Pending Verification'),
+                referenceNumber: req.body.payment.referenceNumber || null,
+                amountPaid: req.body.payment.amountPaid || totalPrice,
+                proofImageBase64: req.body.payment.proofImageBase64 || null,
+                proofUploadedAt: req.body.payment.proofImageBase64 ? new Date() : null,
+            } : undefined
+        });
+        await booking.populate('bayId', 'name');
+
+        // Create a notification for this booking
+        const serviceName = isRental ? 'Car Rental' : (Array.isArray(serviceType) ? serviceType.join(', ') : serviceType);
+        const notif = await Notification.create({
+            message: `New booking: ${firstName} ${lastName} (${serviceName})`,
+            type: 'new_booking',
+            bookingId: booking._id
+        });
+
+        // Resolve actor from JWT (staff) or mark as public
+        let actorName = 'Public Customer';
+        let actorId = null;
+        let actorRole = 'public';
+        const tokenForLog = req.cookies?.token;
+        if (tokenForLog) {
+            try {
+                const decoded = jwt.verify(tokenForLog, process.env.JWT_SECRET);
+                actorId = decoded.id;
+                actorRole = decoded.role || 'employee';
+                // Fetch name
+                const emp = await Employee.findById(decoded.id).lean();
+                if (emp) actorName = emp.fullName;
+            } catch (_) { /* public booking */ }
+        }
+
+        // Log the activity
+        const log = await createLog({
+            actorId,
+            actorName,
+            actorRole,
+            module: 'BOOKING',
+            action: 'booking_created',
+            message: `${actorName} created a booking for ${firstName} ${lastName} (${serviceName})`,
+            bookingId: booking._id,
+            meta: { customer: `${firstName} ${lastName}`, services: serviceName }
+        });
+
+        // Consuming Promotion Usage (One-time per customer)
+        if (promoCode) {
+            try {
+                // If it's from Mobile App, we likely have a token
+                const authHeader = req.headers.authorization;
+                let customerId = null;
+                if (authHeader && authHeader.startsWith('Bearer ')) {
+                    const token = authHeader.split(' ')[1];
+                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                    customerId = decoded._id;
+                }
+
+                if (customerId) {
+                    const updateObj = { $inc: { usageCount: 1 } };
+                    // Only track unique users for non-infinite promos
+                    const promo = await Promotion.findOne({ code: promoCode.trim().toUpperCase() });
+                    if (promo && promo.useType !== 'Infinite') {
+                        updateObj.$addToSet = { usedBy: customerId };
+                    }
+                    
+                    await Promotion.findOneAndUpdate(
+                        { code: promoCode.trim().toUpperCase() },
+                        updateObj
+                    );
+                } else {
+                    // Fallback to usageCount if no customer is logged in
+                    await Promotion.findOneAndUpdate(
+                        { code: promoCode.trim().toUpperCase() },
+                        { $inc: { usageCount: 1 } }
+                    );
+                }
+            } catch (err) {
+                console.error("Promotion usage update failed:", err.message);
+            }
+        }
+
+        // Emit socket events
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('new_notification', notif);
+            io.emit('new_booking', booking);
+            if (log) io.emit('new_activity_log', log);
+        }
+
+        // Send confirmation email to customer (fire-and-forget)
+        sendBookingConfirmation(booking);
+
+        console.log("✅ Booking created:", booking.batchId);
+        res.status(201).json(booking);
+    }
+    catch (err) {
+        console.error("❌ Error creating booking:", err.message);
+
+        // Check if the error is our custom "Slot is full" message
+        if (err.message.includes("slot is full")) {
+            return res.status(400).json({ error: err.message });
+        }
+
+        res.status(500).json({ error: "Server error. Please try again later." });
+    }
+}
+
+// Delete a booking
+const deleteBooking = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const booking = await Booking.findByIdAndDelete(id);
+        if (!booking) {
+            return res.status(404).json({ error: "Booking not found." });
+        }
+
+        // Resolve actor
+        let actorName = 'Unknown Staff';
+        let actorId = null;
+        let actorRole = 'employee';
+        const token = req.cookies?.token;
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                actorId = decoded.id;
+                actorRole = decoded.role;
+                const emp = await Employee.findById(decoded.id).lean();
+                if (emp) actorName = emp.fullName;
+            } catch (_) { }
+        }
+
+        await createLog({
+            actorId, actorName, actorRole,
+            action: 'booking_deleted',
+            message: `${actorName} deleted booking for ${booking.firstName} ${booking.lastName}`,
+            bookingId: booking._id,
+            meta: { customer: `${booking.firstName} ${booking.lastName}` }
+        });
+
+        res.status(200).json(booking);
+    }
+    catch (err) {
+        console.error("❌ Error deleting booking:", err);
+        res.status(500).json({ error: "Error deleting booking." });
+    }
+}
+
+// Update a booking
+const updateBooking = async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Find existing to know if we need to log a status change
+        const currentBooking = await Booking.findById(id);
+        if (!currentBooking) {
+            return res.status(404).json({ error: "Booking not found." });
+        }
+
+        const updateQuery = { $set: { ...req.body } };
+
+        // If status changed, push to logs
+        if (req.body.status && req.body.status !== currentBooking.status) {
+            updateQuery.$push = { statusLogs: { status: req.body.status, timestamp: new Date() } };
+
+            // If it is being cancelled, free up the sequence ID
+            if (req.body.status === 'Cancelled' && currentBooking.batchId && !currentBooking.batchId.includes('-CANCELLED')) {
+                updateQuery.$set.batchId = `${currentBooking.batchId}-CANCELLED`;
+            }
+        }
+
+        const Bay = require('../models/bayModel');
+        const oldBayId = currentBooking.bayId;
+        const newBayId = req.body.bayId !== undefined ? req.body.bayId : oldBayId;
+        const finalStatus = req.body.status || currentBooking.status;
+
+        // If bay changed, free the old bay immediately
+        if (oldBayId && oldBayId.toString() !== (newBayId ? newBayId.toString() : '')) {
+            const freedBay = await Bay.findByIdAndUpdate(oldBayId, { status: 'Available', startTime: null, currentBookingId: null }, { returnDocument: 'after', runValidators: true });
+            if (freedBay) {
+                const io = req.app.get('io');
+                if (io) io.emit('update_bay', freedBay);
+            }
+        }
+
+        // Update the new bay's status based on the final booking status
+        if (newBayId) {
+            let bayUpdate = null;
+            if (finalStatus === 'In-progress') {
+                bayUpdate = await Bay.findByIdAndUpdate(newBayId, {
+                    status: 'Occupied',
+                    startTime: new Date(),
+                    currentBookingId: currentBooking.batchId
+                }, { returnDocument: 'after', runValidators: true });
+            } else if (['Completed', 'Cancelled', 'Pending', 'Confirmed', 'Queued'].includes(finalStatus)) {
+                bayUpdate = await Bay.findByIdAndUpdate(newBayId, {
+                    status: 'Available',
+                    startTime: null,
+                    currentBookingId: null
+                }, { returnDocument: 'after', runValidators: true });
+            }
+
+            // Emit update for real-time UI
+            if (bayUpdate) {
+                const io = req.app.get('io');
+                if (io) io.emit('update_bay', bayUpdate);
+            }
+        }
+
+        // If bookingTime changed, regenerate a fresh batchId to prevent duplicate sequences
+        if (req.body.bookingTime && req.body.bookingTime !== currentBooking.bookingTime) {
+            try {
+                const newBatchId = await generateBatchID(req.body.bookingTime, existingBooking.serviceLocationType);
+                updateQuery.$set.batchId = newBatchId;
+            } catch (slotError) {
+                // The new time slot is full – reject the edit
+                return res.status(400).json({ error: slotError.message });
+            }
+        }
+
+        // If vehicle, services, or SMC changed, recalculate total price
+        const newVehicle = req.body.vehicleType || currentBooking.vehicleType;
+        const newServices = req.body.serviceType || currentBooking.serviceType;
+
+        const newPurchasedProducts = req.body.purchasedProducts !== undefined ? req.body.purchasedProducts : (currentBooking.purchasedProducts || []);
+        let retailTotal = 0;
+        if (newPurchasedProducts.length > 0) {
+            newPurchasedProducts.forEach(p => {
+                // Parse correctly just in case
+                retailTotal += (Number(p.price) * Number(p.quantity));
+            });
+            updateQuery.$set.purchasedProducts = newPurchasedProducts;
+        }
+
+        if (req.body.vehicleType || req.body.serviceType || req.body.discountAmount !== undefined || req.body.promoDiscount !== undefined || req.body.purchasedProducts !== undefined) {
+            const basePrice = await calculateTotalFromDb(newVehicle, newServices);
+            const smcDiscount = req.body.discountAmount !== undefined ? req.body.discountAmount : (currentBooking.discountAmount || 0);
+            const promoDiscount = req.body.promoDiscount !== undefined ? req.body.promoDiscount : (currentBooking.promoDiscount || 0);
+
+            updateQuery.$set.totalPrice = Math.max(0, basePrice + retailTotal - smcDiscount - promoDiscount);
+            updateQuery.$set.discountAmount = smcDiscount;
+            updateQuery.$set.promoDiscount = promoDiscount;
+
+            if (req.body.smcId !== undefined) updateQuery.$set.smcId = req.body.smcId;
+            if (req.body.promoCode !== undefined) updateQuery.$set.promoCode = req.body.promoCode;
+        }
+
+        // --- ERP Phase 2: Handle Detailer Commission ---
+        const priceChanged = !!(req.body.vehicleType || req.body.serviceType);
+        const statusJustCompleted = (req.body.status === 'Completed' && currentBooking.status !== 'Completed');
+
+        if (finalStatus === 'Completed' && (statusJustCompleted || priceChanged)) {
+            const finalPrice = updateQuery.$set.totalPrice || currentBooking.totalPrice;
+
+            // Fetch current commission rate from settings (default to 0.30 if not set)
+            const { getSettingValue } = require('./settingController');
+            const commissionRate = await getSettingValue('commission_rate', 0.30);
+
+            // Calculate commission only on the service portion (Total Price minus Products)
+            const commissionablePrice = Math.max(0, finalPrice - retailTotal);
+            updateQuery.$set.commission = commissionablePrice * commissionRate;
+            const bayStatus = req.body.status;
+            if (statusJustCompleted) updateQuery.$set.commissionStatus = 'Unpaid';
+
+            // ERP Phase 3+: On first completion — deduct inventory, record expenses, revenue, update CRM
+            if (statusJustCompleted) {
+                // No need to record promo usage here, it's already done in createBooking 
+                // to support immediate voucher disablement for customers.
+
+                // Hoist serviceTypes so it's available in all sub-blocks below
+                const serviceTypes = Array.isArray(currentBooking.serviceType)
+                    ? currentBooking.serviceType
+                    : [currentBooking.serviceType].filter(Boolean);
+
+                // ── Auto-upsert CRM Customer Record & Capture SMC ID ──
+                let finalSMCId = currentBooking.smcId;
+                try {
+                    const { upsertCustomerFromBooking } = require('./crmController');
+                    const syncResult = await upsertCustomerFromBooking({
+                        firstName: currentBooking.firstName,
+                        lastName: currentBooking.lastName,
+                        email: currentBooking.emailAddress,
+                        phone: currentBooking.phoneNumber,
+                        vehicleType: newVehicle,
+                        totalPrice: updateQuery.$set.totalPrice ?? currentBooking.totalPrice,
+                        completedAt: new Date(),
+                        purchasedProducts: newPurchasedProducts,
+                        smcId: currentBooking.smcId,
+                    });
+
+                    if (syncResult && syncResult.smcId) {
+                        finalSMCId = syncResult.smcId;
+                        updateQuery.$set.smcId = syncResult.smcId;
+                    }
+<<<<<<< HEAD
+                    if (syncResult && syncResult.loyaltyCardId) {
+                        updateQuery.$set.loyaltyCardId = syncResult.loyaltyCardId;
+                    }
+=======
+>>>>>>> b1d1b6bc1ab4fe98040e5c50349f87e080246976
+                    if (syncResult && syncResult.customerId) {
+                        updateQuery.$set.customerId = syncResult.customerId;
+                    }
+                } catch (crmErr) {
+                    console.error('[CRM] Failed to upsert customer from booking:', crmErr.message);
+                }
+
+                // Auto-deduct inventory stock & record supply cost as expense
+                try {
+                    const { deductStockForBooking, getIngredientsForBooking } = require('./serviceRecipeController');
+
+                    const supplyCost = await deductStockForBooking({
+                        serviceTypes,
+                        vehicleType: newVehicle,
+                    });
+
+                    if (supplyCost > 0) {
+                        const Expense = require('../models/expenseModel');
+                        const shortId = currentBooking.batchId || id.toString().slice(-6);
+
+                        const ingredientsUsed = await getIngredientsForBooking({
+                            serviceTypes,
+                            vehicleType: newVehicle
+                        });
+
+                        await Expense.create({
+                            title: `Supplies used — Booking #${shortId}`,
+                            category: 'Supplies',
+                            amount: supplyCost,
+                            description: `Auto-deducted per service recipe for ${serviceTypes.join(', ')} (${newVehicle})`,
+                            ingredients: ingredientsUsed
+                        });
+                    }
+
+                    // Retail Products: Inventory Deduction & Expense Logging & POS Sync
+                    if (newPurchasedProducts && newPurchasedProducts.length > 0) {
+                        const { deductStockForProduct } = require('./serviceRecipeController');
+                        const { generateTransactionId } = require('./retailController');
+                        const RetailSale = require('../models/retailSaleModel');
+                        const Expense = require('../models/expenseModel');
+                        const Customer = require('../models/customerModel');
+
+                        const shortId = currentBooking.batchId || id.toString().slice(-6);
+
+                        // Find customer for linking if possible
+                        const customer = await Customer.findOne({ email: currentBooking.emailAddress });
+
+                        for (const product of newPurchasedProducts) {
+                            // 1. Deduct Stock
+                            const { totalCost, category } = await deductStockForProduct(product, product.quantity);
+
+                            // 2. Log COGS Expense
+                            if (totalCost > 0) {
+                                await Expense.create({
+                                    title: `Retail COGS — ${product.productName} (x${product.quantity})`,
+                                    category: category || 'Retail',
+                                    amount: totalCost,
+                                    description: `Cost of goods sold during Booking #${shortId}`
+                                });
+                            }
+
+                            // 3. AUTO-SYNC: Create POS Transaction record
+                            const txId = await generateTransactionId({ name: product.productName, category: category || 'Retail' });
+                            const isSMC = product.productName?.toLowerCase().includes('smc');
+
+                            await RetailSale.create({
+                                transactionId: txId,
+                                productId: product.productId || null,
+                                productName: product.productName,
+                                quantity: product.quantity,
+                                totalPrice: (Number(product.price) * Number(product.quantity)),
+                                paymentMethod: 'Cash', // Default for auto-sync
+                                isSMCBuy: isSMC,
+                                smcId: isSMC ? finalSMCId : null, // LINK THE SMC ID HERE!
+                                customerId: customer?._id || null,
+                                customerType: (currentBooking.emailAddress === 'walkin@example.com') ? 'Walk-in' : 'Regular'
+                            });
+                        }
+                    }
+                } catch (recipeErr) {
+                    console.error('[Recipe/POS Sync] Failed to process retail:', recipeErr.message);
+                }
+
+                // Auto-record Revenue in Finance ERP
+                try {
+                    const { recordRevenue } = require('./revenueController');
+                    const { resolveRevenueCategory } = require('./retailController');
+                    const finalBookingPrice = updateQuery.$set.totalPrice ?? currentBooking.totalPrice;
+                    const retailMeta = newPurchasedProducts.length > 0 ? ` + Retail (${newPurchasedProducts.map(p => p.productName).join(', ')})` : '';
+
+                    // Decide the base category logic: If it contains products, it's a "Mixed" transaction, else it's a "Service"
+                    let baseToResolve = (newPurchasedProducts && newPurchasedProducts.length > 0) ? "Mixed" : "Service";
+
+                    const revCategory = await resolveRevenueCategory(baseToResolve);
+
+                    await recordRevenue({
+                        title: `Car Wash — ${currentBooking.firstName} ${currentBooking.lastName}`,
+                        amount: finalBookingPrice,
+                        category: revCategory,
+                        source: 'Booking',
+                        referenceId: currentBooking.batchId || id,
+                        notes: `${serviceTypes.join(', ')} | ${newVehicle}${retailMeta}`,
+                        recordedBy: null,
+                    });
+                } catch (revErr) {
+                    console.error('[Revenue] Failed to auto-record booking revenue:', revErr.message);
+                }
+<<<<<<< HEAD
+
+                // ── Auto-stamp loyalty card on Car Wash completion ─────────────────
+                // Only for car wash (not rental), and only if a Loyalty card is linked
+                const finalLoyaltyCardId = updateQuery.$set?.loyaltyCardId ?? currentBooking.loyaltyCardId;
+                if (!currentBooking.isRental && finalLoyaltyCardId) {
+                    try {
+                        const { addStampToCard } = require('./loyaltyController');
+                        const stampResult = await addStampToCard(finalLoyaltyCardId, {
+                            bookingId: currentBooking._id,
+                            addedBy:   'System (Auto-stamp on Completion)',
+                            note:      `Auto-stamp for Booking #${currentBooking.batchId}`,
+                        });
+                        if (stampResult.rewardTriggered) {
+                            console.info(`[Loyalty] 🎉 Card ${finalLoyaltyCardId} earned a reward! (Booking #${currentBooking.batchId})`);
+                        }
+                    } catch (stampErr) {
+                        // Non-blocking: log but don't fail the status update
+                        console.warn('[Loyalty] Auto-stamp failed:', stampErr.message);
+                    }
+                }
+=======
+>>>>>>> b1d1b6bc1ab4fe98040e5c50349f87e080246976
+            }
+        }
+
+        const booking = await Booking.findByIdAndUpdate(id, updateQuery, { returnDocument: 'after' }).populate('bayId', 'name');
+
+        // Resolve actor from JWT
+        let actorName = 'Unknown Staff';
+        let actorId = null;
+        let actorRole = 'employee';
+        const jwt = require('jsonwebtoken');
+        let token = req.cookies?.token;
+        if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+            token = req.headers.authorization.split(' ')[1];
+        }
+
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                actorId = decoded.id || decoded._id;
+                actorRole = decoded.role || 'employee';
+                const Employee = require('../models/employeeModel');
+                const emp = await Employee.findById(actorId).lean();
+                if (emp) actorName = emp.fullName;
+            } catch (_) { }
+        }
+
+        // Log status change vs generic update
+        if (req.body.status && req.body.status !== currentBooking.status) {
+            const log = await createLog({
+                actorId, actorName, actorRole,
+                module: 'BOOKING',
+                action: 'booking_status_changed',
+                message: `${actorName} changed booking #${booking.batchId} status from ${currentBooking.status} → ${req.body.status}`,
+                bookingId: booking._id,
+                meta: { fromStatus: currentBooking.status, toStatus: req.body.status, customer: `${booking.firstName} ${booking.lastName}` }
+            });
+            const io = req.app.get('io');
+            if (io) {
+                io.emit('update_booking', booking);
+                if (log) io.emit('new_activity_log', log);
+            }
+            // ── Push Notification to Customer ──
+            try {
+                const customer = await Customer.findOne({ email: booking.emailAddress });
+                if (customer?.pushToken) {
+                    const msgMap = {
+                        'In-progress': { title: '🚗 Your car is being washed!', body: 'Our team has started working on your vehicle.' },
+                        'Completed': { title: '✅ Your car wash is done!', body: 'Your vehicle is ready for pickup. Thank you!' },
+                        'Cancelled': { title: '❌ Booking Cancelled', body: 'Your booking has been cancelled. Contact us for help.' },
+                        'Confirmed': { title: '📋 Booking Confirmed!', body: 'Your car wash booking has been confirmed.' },
+                    };
+                    const msg = msgMap[req.body.status];
+                    if (msg) await sendPushNotification(customer.pushToken, msg.title, msg.body, { bookingId: booking._id });
+                }
+            } catch (pushErr) { console.warn('[Push] booking update:', pushErr.message); }
+        } else {
+            const log = await createLog({
+                actorId, actorName, actorRole,
+                module: 'BOOKING',
+                action: 'booking_updated',
+                message: `${actorName} updated booking details for ${booking.firstName} ${booking.lastName}`,
+                bookingId: booking._id,
+                meta: { customer: `${booking.firstName} ${booking.lastName}` }
+            });
+            const io = req.app.get('io');
+            if (io) {
+                io.emit('update_booking', booking);
+                if (log) io.emit('new_activity_log', log);
+            }
+        }
+
+        res.status(200).json(booking);
+    }
+    catch (err) {
+        console.error("❌ Error updating booking:", err);
+        res.status(500).json({ error: "Error updating booking." });
+    }
+}
+
+
+// Helper function to generate the ID (keep this at the top or in a separate utils file)
+const generateBatchID = async (requestedHour, serviceLocationType = 'In-Store') => {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const todayStr = new Date();
+    const month = (todayStr.getMonth() + 1).toString();
+    const day = todayStr.getDate().toString();
+    const year = todayStr.getFullYear().toString().slice(-2);
+    const dateFormatted = `${month}${day}${year}`;
+
+    const isHome = serviceLocationType === 'Home Service';
+    const MAX_CAPACITY_PER_HOUR = isHome ? 99 : 3; // large capacity for home services
+
+    // Fetch active bookings based on location logic to find gaps
+    const activeBookings = await Booking.find({
+        bookingTime: requestedHour,
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        status: { $ne: 'Cancelled' }, // Don't count Cancelled slots against capacity
+        serviceLocationType: isHome ? 'Home Service' : { $ne: 'Home Service' }
+    }).select('batchId');
+
+    if (!isHome && activeBookings.length >= MAX_CAPACITY_PER_HOUR) {
+        throw new Error(`The ${requestedHour}:00 slot is full. Please pick another time.`);
+    }
+
+    // Find the missing sequence gap
+    const usedSequences = activeBookings.map(b => {
+        if (!b.batchId) return -1;
+        const parts = b.batchId.split('-');
+        const seqPart = parts[parts.length - 1]; // e.g. '1002' extracted from '41526-1002' OR 'HS-41526-1002'
+        if (seqPart && seqPart.length >= 2) {
+            const seqStr = seqPart.slice(-2); // Extract '02' sequence
+            return parseInt(seqStr, 10);
+        }
+        return -1;
+    });
+
+    let assignedSequence = null;
+    const limit = isHome ? Math.max(99, activeBookings.length + 5) : MAX_CAPACITY_PER_HOUR;
+    for (let i = 1; i <= limit; i++) {
+        if (!usedSequences.includes(i)) {
+            assignedSequence = i;
+            break; 
+        }
+    }
+    
+    if (!assignedSequence) assignedSequence = activeBookings.length + 1;
+
+    const sequenceStr = assignedSequence.toString().padStart(2, '0');
+    const finalSuffix = `${requestedHour}${sequenceStr}`;
+    
+    if (isHome) {
+        return `HS-${dateFormatted}-${finalSuffix}`;
+    } else {
+        return `${dateFormatted}-${finalSuffix}`;
+    }
+};
+
+const getAvailableTimeSlots = async (req, res) => {
+    try {
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Group non-cancelled in-store bookings by their 'bookingTime' for today
+        const bookings = await Booking.aggregate([
+            { $match: { createdAt: { $gte: startOfDay, $lte: endOfDay }, status: { $ne: 'Cancelled' }, serviceLocationType: { $ne: 'Home Service' } } },
+            { $group: { _id: "$bookingTime", count: { $sum: 1 } } }
+        ]);
+
+        // Format: { "08": 1, "10": 3 } (where "10" is full)
+        const availabilityMap = {};
+        bookings.forEach(b => {
+            availabilityMap[b._id] = b.count;
+        });
+
+        res.status(200).json(availabilityMap);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+};
+
+// ── EMPLOYEE PERFORMANCE LOGS ──
+const getEmployeeHistory = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Fetch all COMPLETED bookings where this employee is assigned
+        const bookings = await Booking.find({
+            assignedTo: id,
+            status: 'Completed'
+        })
+            .sort({ createdAt: -1 })
+            .select('batchId firstName lastName vehicleType serviceType totalPrice commission purchasedProducts createdAt');
+
+        const { getSettingValue } = require('./settingController');
+        const commissionRate = await getSettingValue('commission_rate', 0.30);
+
+        // 1. Total Completed
+        const bookingCount = bookings.length;
+
+        // 2. Total Revenue Generated (Gross Price)
+        const totalRevenue = bookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+
+        // 3. Total Earnings (Commission)
+        // We use the same calculation as getPayrollSummary for consistency
+        const totalEarnings = bookings.reduce((sum, b) => {
+            const retailTotal = (b.purchasedProducts || []).reduce((s, p) => s + (Number(p.price || 0) * Number(p.quantity || 0)), 0);
+            const commissionablePrice = Math.max(0, (b.totalPrice || 0) - retailTotal);
+            return sum + (commissionablePrice * commissionRate);
+        }, 0);
+
+        // Map to frontend expectations
+        const mappedHistory = bookings.map(b => {
+            const retailTotal = (b.purchasedProducts || []).reduce((s, p) => s + (Number(p.price || 0) * Number(p.quantity || 0)), 0);
+            const commissionablePrice = Math.max(0, (b.totalPrice || 0) - retailTotal);
+            const currentComm = commissionablePrice * commissionRate;
+
+            return {
+                _id: b._id,
+                createdAt: b.createdAt,
+                bookingId: b.batchId || b._id.toString().slice(-6).toUpperCase(),
+                customerName: `${b.firstName} ${b.lastName}`,
+                vehicleType: b.vehicleType,
+                commission: currentComm,
+                price: b.totalPrice || 0,
+                isAttendance: false
+            };
+        });
+
+        res.status(200).json({
+            summary: {
+                bookingCount,
+                totalRevenue,
+                totalEarnings
+            },
+            history: mappedHistory
+        });
+    } catch (err) {
+        console.error('Error fetching employee history:', err);
+        res.status(500).json({ error: 'Failed to fetch employee history.' });
+    }
+};
+
+// Customer can cancel their own booking (If Pending)
+const cancelBooking = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const booking = await Booking.findById(id);
+
+        if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+
+        // Security: Ensure user owns this booking (if logged in)
+        // Check email from token vs booking email
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            const customer = await Customer.findById(decoded._id);
+            if (customer && customer.email !== booking.emailAddress) {
+                return res.status(403).json({ error: 'Unauthorized to cancel this booking.' });
+            }
+        }
+
+        if (booking.status !== 'Pending') {
+            return res.status(400).json({ error: `Cannot cancel booking with status: ${booking.status}` });
+        }
+
+        // 1. Update status to Cancelled and free up the sequence ID
+        booking.status = 'Cancelled';
+        if (booking.batchId && !booking.batchId.includes('-CANCELLED')) {
+            booking.batchId = `${booking.batchId}-CANCELLED`;
+        }
+        await booking.save();
+
+        // 2. Return Voucher (If used)
+        if (booking.promoCode) {
+            const customer = await Customer.findOne({ email: booking.emailAddress });
+            if (customer) {
+                await Promotion.findOneAndUpdate(
+                    { code: booking.promoCode.trim().toUpperCase() },
+                    {
+                        $pull: { usedBy: customer._id },
+                        $inc: { usageCount: -1 }
+                    }
+                );
+            } else {
+                // Fallback for guest if no customer record attached
+                await Promotion.findOneAndUpdate(
+                    { code: booking.promoCode.trim().toUpperCase() },
+                    { $inc: { usageCount: -1 } }
+                );
+            }
+        }
+
+        // 3. Log Activity
+        await createLog({
+            actorId: null,
+            actorName: 'System (Customer Cancelled)',
+            actorRole: 'system',
+            module: 'BOOKING',
+            action: 'booking_status_changed',
+            message: `Customer cancelled booking #${booking.batchId || id}`,
+            bookingId: booking._id,
+            meta: { fromStatus: 'Pending', toStatus: 'Cancelled', customer: `${booking.firstName} ${booking.lastName}` }
+        });
+
+        const io = req.app.get('io');
+        if (io) io.emit('update_booking', booking);
+
+        res.json({ success: true, message: 'Booking cancelled successfully.' });
+    } catch (err) {
+        console.error('[CANCEL_BOOKING_ERR]', err);
+        res.status(500).json({ error: err.message });
+    }
+
+}
+
+// ── PATCH /booking/:id/location — Live GPS update from detailer's phone ──
+const updateDetailerLocation = async (req, res) => {
+    const { id } = req.params;
+    const { latitude, longitude } = req.body;
+
+    // Verify Bearer JWT from mobile
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    try {
+        jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
+    } catch {
+        return res.status(401).json({ error: 'Invalid token.' });
+    }
+
+    if (!latitude || !longitude) {
+        return res.status(400).json({ error: 'latitude and longitude are required.' });
+    }
+
+    try {
+        const booking = await Booking.findByIdAndUpdate(
+            id,
+            { 
+                'detailerLocation.latitude': latitude,
+                'detailerLocation.longitude': longitude,
+                'detailerLocation.updatedAt': new Date(),
+                isOnTheWay: true
+            },
+            { new: true }
+        );
+
+        if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+
+        // Emit to a room dedicated to that booking so ONLY the customer with this booking sees it
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`booking:${id}`).emit('detailer_location_update', {
+                bookingId: id,
+                latitude,
+                longitude,
+                updatedAt: new Date()
+            });
+        }
+
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('[GPS_UPDATE_ERR]', err);
+        res.status(500).json({ error: 'Failed to update location.' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  POST /api/booking/:id/payment-proof  — PUBLIC
+//  Customer submits their GCash/bank payment screenshot after booking.
+// ─────────────────────────────────────────────────────────────────────────────
+const submitBookingPaymentProof = async (req, res) => {
+    const { id } = req.params;
+    const { method, referenceNumber, proofImageBase64, amountPaid } = req.body;
+
+    if (!method) {
+        return res.status(400).json({ error: 'Payment method is required.' });
+    }
+
+    // Validate base64 size (~2MB limit: base64 is ~1.37x raw, so 2MB raw ≈ 2.7MB base64)
+    if (proofImageBase64 && proofImageBase64.length > 3 * 1024 * 1024) {
+        return res.status(400).json({ error: 'Screenshot is too large. Please upload an image under 2MB.' });
+    }
+
+    try {
+        const booking = await Booking.findById(id);
+        if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+
+        // Allow re-submission if previously rejected
+        if (booking.payment?.status === 'Verified') {
+            return res.status(400).json({ error: 'Payment has already been verified.' });
+        }
+
+        const isCounterPayment = method === 'Pay at Counter';
+
+        booking.payment = {
+            method,
+            status: isCounterPayment ? 'Pending Verification' : (proofImageBase64 ? 'Pending Verification' : 'Unpaid'),
+            referenceNumber: referenceNumber || null,
+            amountPaid: amountPaid || 0,
+            proofImageBase64: proofImageBase64 || null,
+            proofUploadedAt: proofImageBase64 ? new Date() : null,
+            verifiedBy: null,
+            verifiedAt: null,
+            rejectionReason: null,
+        };
+
+        await booking.save();
+
+        // Notify staff via Socket.IO
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('payment_proof_uploaded', {
+                bookingId: id,
+                batchId: booking.batchId,
+                method,
+                status: booking.payment.status,
+            });
+        }
+
+        console.log(`✅ [Payment] Proof submitted for booking ${booking.batchId} (${method})`);
+        res.status(200).json({ success: true, status: booking.payment.status });
+    } catch (err) {
+        console.error('[PAYMENT_PROOF_ERR]', err);
+        res.status(500).json({ error: 'Failed to save payment proof.' });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PATCH /api/booking/:id/payment-verify  — AUTH: Staff/Admin
+//  Staff verifies or rejects a customer's payment proof.
+// ─────────────────────────────────────────────────────────────────────────────
+const verifyBookingPayment = async (req, res) => {
+    const { id } = req.params;
+    const { action, rejectionReason } = req.body; // action: 'verify' | 'reject'
+
+    if (!['verify', 'reject'].includes(action)) {
+        return res.status(400).json({ error: 'Invalid action. Must be "verify" or "reject".' });
+    }
+
+    try {
+        const booking = await Booking.findById(id);
+        if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+
+        const staffName = req.user.fullName || `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Staff';
+
+        if (action === 'verify') {
+            booking.payment.status = 'Verified';
+            booking.payment.verifiedBy = req.user._id;
+            booking.payment.verifiedByName = staffName;
+            booking.payment.verifiedAt = new Date();
+            booking.payment.rejectionReason = null;
+        } else {
+            if (!rejectionReason?.trim()) {
+                return res.status(400).json({ error: 'A rejection reason is required.' });
+            }
+            booking.payment.status = 'Rejected';
+            booking.payment.rejectionReason = rejectionReason.trim();
+            booking.payment.verifiedBy = req.user._id;
+            booking.payment.verifiedByName = staffName;
+            booking.payment.verifiedAt = new Date();
+        }
+
+        await booking.save();
+
+        // Activity log
+        await createLog({
+            actorId: req.user._id,
+            actorName: req.user.fullName,
+            actorRole: req.user.role,
+            module: 'BOOKINGS',
+            action: `payment_${action}d`,
+            message: `Payment ${action === 'verify' ? 'verified' : 'rejected'} for booking ${booking.batchId}`,
+            meta: { bookingId: id, action, rejectionReason: rejectionReason || null }
+        });
+
+        // Emit to booking room for real-time UI updates
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`booking:${id}`).emit('payment_status_updated', {
+                bookingId: id,
+                status: booking.payment.status,
+            });
+            io.emit('payment_status_updated', {
+                bookingId: id,
+                batchId: booking.batchId,
+                status: booking.payment.status,
+            });
+        }
+
+        // Send email notification to customer
+        const { sendPaymentVerifiedEmail, sendPaymentRejectedEmail } = require('../utils/emailService');
+        if (action === 'verify') {
+            sendPaymentVerifiedEmail(booking); // fire-and-forget
+        } else {
+            sendPaymentRejectedEmail(booking, rejectionReason); // fire-and-forget
+        }
+
+        console.log(`✅ [Payment] Booking ${booking.batchId} payment ${action}d by ${req.user.fullName}`);
+        res.status(200).json({ success: true, status: booking.payment.status, payment: booking.payment, booking });
+    } catch (err) {
+        console.error('[PAYMENT_VERIFY_ERR]', err);
+        res.status(500).json({ error: 'Failed to process payment verification.' });
+    }
+};
+
+module.exports = {
+    getBookings,
+    getBooking,
+    createBooking,
+    deleteBooking,
+    updateBooking,
+    cancelBooking,
+    getAvailableTimeSlots,
+    getEmployeeHistory,
+    updateDetailerLocation,
+    submitBookingPaymentProof,
+    verifyBookingPayment,
+};

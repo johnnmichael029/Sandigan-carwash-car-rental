@@ -1,0 +1,319 @@
+# 🚗 Sandigan Carwash & Car Rental — Development Roadmap
+
+> A living document outlining full-stack development phases, security posture, database management, and production hardening.
+
+---
+
+## 📦 Current System Snapshot (What's Already Built)
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Public Landing Page | ✅ Done | Hero, services, footer, navbar |
+| Public Booking Form (Car Wash) | ✅ Done | Multi-step, reCAPTCHA, time slots, live pricing |
+| Employee Dashboard | ✅ Done | Booking table, status management, notifications |
+| Booking Modal (View / Edit) | ✅ Done | Status logs, timeline, price badge, service toggles |
+| JWT Authentication | ✅ Done | Employees log in via signed token |
+| CSRF Protection | ✅ Done | Double-submit cookie pattern |
+| Real-time Updates | ✅ Done | Socket.io for instant booking sync |
+| Price List System | ✅ Done | DB-driven pricing, auto-seeder, per-vehicle rates |
+| Notification System | ✅ Done | Bell icon, unread badge, per-booking alerts |
+| Status Lifecycle Logs | ✅ Done | Pending → Confirmed → Queued → Completed / Cancelled |
+
+---
+
+## 🗺️ Development Phases
+
+---
+
+### Phase 1 — Car Rental Module
+**Goal:** Give the business a complete car rental booking flow parallel to the car wash.
+> [!IMPORTANT]
+> This is the biggest next feature. Design the data model carefully before building.
+
+#### 1.1 Car Fleet Management (Backend)
+- [ ] Create `carModel.js` with fields: `name`, `brand`, `category`, `plateNumber`, `pricePerDay`, `pricePerHour`, `fuelType`, `transmission`, `seats`, `images[]`, `status` (Available / Rented / Maintenance)
+- [ ] Create `rentalBookingModel.js` with: `car`, `renterName`, `contactNumber`, `email`, `pickupDate`, `returnDate`, `totalDays`, `totalPrice`, `paymentStatus`, `status`
+- [ ] Create `carController.js` and `rentalBookingController.js` (CRUD)
+
+#### 1.2 Public Rental Booking Page (Frontend)
+- [ ] New page `/rent` showing the car fleet as a visual card grid
+- [ ] Date range picker (Pickup → Return date selector)
+- [ ] Live price calculator (`totalDays × pricePerDay`)
+- [ ] Confirm booking page with renter details form
+- [ ] reCAPTCHA protection (same as carwash form)
+
+#### 1.3 Employee: Rental Dashboard Tab
+- [ ] New tab in the Employee Dashboard sidebar: "Car Rentals"
+- [ ] Table showing all Rental Bookings (similar to the current car wash table)
+- [ ] Modal for viewing/editing rental details, including car assignment
+
+#### 1.4 Car Availability Calendar
+- [ ] Show a monthly calendar view per car
+- [ ] Block out dates that are already booked
+- [ ] Prevent double-booking the same vehicle
+
+---
+
+### Phase 2 — Admin Panel
+**Goal:** Give the shop owner full control over everything without needing a developer.
+
+> [!NOTE]
+> The Admin role should be a **separate account type** from regular employees. Add a `role` field to the employee model: `admin | employee`.
+
+#### 2.1 Role-Based Access Control (RBAC)
+- [ ] Add `role: { type: String, enum: ['admin', 'employee'], default: 'employee' }` to [employeeModel.js](file:///c:/Visual%20Studio%20Projects/Sandigan-Carwash-Web-app/Sandigan/backend/models/employeeModel.js)
+- [ ] Create `adminMiddleware.js` to protect admin-only routes
+- [ ] Add admin-only navigation links in the Dashboard sidebar
+
+#### 2.2 Price List Manager (Admin → Pricing)
+- [ ] Table UI showing all vehicle types with editable price fields for each service
+- [ ] An "Add New Vehicle" form to insert new rows into the [Pricing](file:///c:/Visual%20Studio%20Projects/Sandigan-Carwash-Web-app/Sandigan/backend/controllers/pricingController.js#29-50) collection
+- [ ] A "Delete Vehicle" option with a confirmation popup
+- [ ] All changes write directly to MongoDB, and all public pages automatically reflect the new prices
+
+#### 2.3 Employee Manager (Admin → Employees)
+- [ ] Table of all employee accounts
+- [ ] Ability to Create / Suspend / Delete employee accounts
+- [ ] Assign roles (`admin` or `employee`)
+- [ ] View last login timestamps
+
+#### 2.4 Car Fleet Manager (Admin → Cars)
+- [ ] Add, edit, or archive cars in the fleet
+- [ ] Upload car images
+- [ ] Mark a car as "Under Maintenance" to remove it from rental listings
+
+#### 2.5 Business Settings
+- [ ] Shop hours (start/end time) editable — dynamically updates the time-slot selector
+- [ ] Max capacity per time slot (currently hardcoded to 3) editable
+- [ ] Armor add-on flat price editable (currently hardcoded to ₱100)
+
+---
+
+### Phase 3 — Dashboard Analytics & Reporting
+**Goal:** Give management real-time visibility into business performance.
+
+#### 3.1 Overview Widgets (Top of Dashboard)
+- [ ] **Earnings Today** — Sum of `totalPrice` for `Completed` bookings with today's date
+- [ ] **Bookings Today** — Count of bookings for today
+- [ ] **Pending Approval** — Count of `Pending` status bookings
+- [ ] **Cars Available** — Count of cars with [Available](file:///c:/Visual%20Studio%20Projects/Sandigan-Carwash-Web-app/Sandigan/frontend/src/utils/priceList.js#24-36) status
+
+#### 3.2 Revenue Charts
+- [ ] Weekly earnings bar chart (using Chart.js or Recharts)
+- [ ] Monthly booking volume line chart
+- [ ] Top services by revenue (pie chart: Wash vs Wax vs Engine vs Armor)
+- [ ] Top vehicle categories by booking count
+
+#### 3.3 PDF Reporting
+- [ ] "Generate Report" button which exports a `.pdf` of the current month's earnings
+- [ ] Individual booking receipt/invoice (PDF) employee can print and hand to customer
+
+#### 3.4 Export to CSV
+- [ ] Export the filtered booking table to a `.csv` spreadsheet
+- [ ] Useful for manual bookkeeping in Excel / Google Sheets
+
+---
+
+### Phase 4 — Data Security Hardening
+**Goal:** Make the system production-grade and protect customer data.
+
+> [!CAUTION]
+> Never skip security steps before going live. A data breach in the Philippines is governed by the **Data Privacy Act (RA 10173)** and can result in heavy fines.
+
+#### 4.1 Authentication Improvements
+- [ ] **Refresh Token Rotation** — Add a `refreshToken` (long-lived, stored in `httpOnly` cookie) paired with a short-lived `accessToken` (15 minutes). This prevents token theft.
+- [ ] **Password complexity rules** — Minimum 8 chars, uppercase, number, symbol
+- [ ] **Account lockout** — Temporarily lock an account after 5 failed login attempts (using `loginAttempts` + `lockUntil` fields on the employee model)
+- [ ] **Password reset flow** — "Forgot Password" email link using `nodemailer` + a time-limited reset token stored in MongoDB
+
+#### 4.2 Data Sanitization
+- [ ] Install and use `express-validator` on ALL POST/PATCH endpoints to validate and sanitize incoming data
+- [ ] Add `mongo-sanitize` to prevent NoSQL injection attacks
+- [ ] Add `hpp` middleware to prevent HTTP Parameter Pollution
+
+#### 4.3 Rate Limiting
+- [ ] Install `express-rate-limit`
+- [ ] Apply strict limits on the booking and login endpoints (e.g., 10 requests per 15 minutes per IP)
+- [ ] Apply looser limits on public GET endpoints (e.g., pricing, availability)
+
+#### 4.4 Security Headers
+- [ ] Install `helmet` — sets secure HTTP headers automatically (X-Frame-Options, Content-Security-Policy, etc.)
+- [ ] Configure CORS precisely for production domain only
+
+#### 4.5 Customer Data Privacy
+- [ ] Add a **Data Retention Policy** — automatically delete booking records older than 2 years using a scheduled MongoDB TTL index or a cron job
+- [ ] Add a **Privacy Policy** page to the public site
+- [ ] Add a clear consent checkbox on the booking form
+
+#### 4.6 HTTPS & SSL
+- [ ] Ensure the production server forces HTTPS (handled by Azure App Service, but verify)
+- [ ] Verify all cookies have `secure: true` and `sameSite: 'strict'` in production
+
+---
+
+### Phase 5 — Database Management & Reliability
+**Goal:** Ensure data is safe, performant, and recoverable.
+
+> [!WARNING]
+> Do **not** rely on the free MongoDB Atlas tier for production. Upgrade to at least M10 for dedicated cluster resources and automatic backups.
+
+#### 5.1 Indexes
+- [ ] Add MongoDB indexes on frequently queried fields:
+  - [Booking](file:///c:/Visual%20Studio%20Projects/Sandigan-Carwash-Web-app/Sandigan/backend/controllers/bookingController.js#21-36): `bookingTime`, `status`, `createdAt`
+  - [Notification](file:///c:/Visual%20Studio%20Projects/Sandigan-Carwash-Web-app/Sandigan/backend/controllers/notificationController.js#3-12): `isRead`, `createdAt`
+  - [Employee](file:///c:/Visual%20Studio%20Projects/Sandigan-Carwash-Web-app/Sandigan/frontend/src/pages/employee/EmployeeDashboard.jsx#141-364): `email` (already unique, but ensure index exists)
+  - [Pricing](file:///c:/Visual%20Studio%20Projects/Sandigan-Carwash-Web-app/Sandigan/backend/controllers/pricingController.js#29-50): `vehicleType` (already unique)
+
+#### 5.2 Automated Backups
+- [ ] Enable **MongoDB Atlas Continuous Backup** (or configure nightly snapshots)
+- [ ] Set up a backup retention window of at least 7 days
+
+#### 5.3 Database Seeding & Migration Scripts
+- [ ] Create a `scripts/seed.js` file for re-seeding the Pricing collection on a fresh deployment
+- [ ] Create migration scripts for any future schema changes (e.g., adding a new field to `bookingModel`)
+
+#### 5.4 Soft Deletes
+- [ ] Instead of hard-deleting records, add `isArchived: Boolean` + `archivedAt: Date` to key models
+- [ ] This preserves historical data for reporting and compliance
+
+#### 5.5 Mongoose Connection Pooling
+- [ ] Set `maxPoolSize` in the Mongoose connection options to handle concurrent requests under load
+
+#### 5.6 Database Monitoring
+- [ ] Set up **MongoDB Atlas Alerts** for: high CPU, connection spikes, replica lag
+- [ ] Review slow query logs monthly using Atlas Performance Advisor
+
+---
+
+### Phase 6 — Production Infrastructure & Launch
+**Goal:** A stable, monitored, and maintainable production deployment.
+
+#### 6.1 Environment Management
+- [ ] Use separate [.env](file:///c:/Visual%20Studio%20Projects/Sandigan-Carwash-Web-app/Sandigan/backend/.env) files per environment: `.env.development`, `.env.staging`, `.env.production`
+- [ ] Never commit [.env](file:///c:/Visual%20Studio%20Projects/Sandigan-Carwash-Web-app/Sandigan/backend/.env) files to Git (enforce with [.gitignore](file:///c:/Visual%20Studio%20Projects/Sandigan-Carwash-Web-app/Sandigan/.gitignore))
+- [ ] Store all secrets in Azure App Service Environment Variables (not code)
+
+#### 6.2 CI/CD Pipeline (GitHub Actions)
+- [ ] Create `.github/workflows/deploy.yml` to automatically build and deploy on `git push` to `main`
+- [ ] Add a lint/test step before deployment to catch errors early
+
+#### 6.3 Error Monitoring
+- [ ] Integrate **Sentry** (free tier available) for automatic error capture in both frontend and backend
+- [ ] Set up email alerts for critical backend crashes
+
+#### 6.4 SMS / Email Notifications to Customers
+- [ ] When a booking status changes to `Confirmed`, automatically send the customer an SMS (via **Semaphore** — Philippine SMS gateway) or email (via **Resend** or **SendGrid**)
+- [ ] Include booking details: name, service, time, batch ID
+
+#### 6.5 Performance Optimization
+- [ ] Enable Vite's production build (`npm run build`) and serve the static bundle through Azure CDN
+- [ ] Enable gzip compression on the Express server (`compression` middleware)
+- [ ] Lazy-load heavy components in React (e.g., the Dashboard, the booking modal)
+
+#### 6.6 Accessibility & SEO
+- [ ] Run a Lighthouse audit and fix all critical issues
+- [ ] Add OpenGraph meta tags for social sharing previews
+- [ ] Ensure all images have `alt` attributes
+- [ ] Implement `sitemap.xml` and `robots.txt`
+
+---
+
+### Phase 7 — Enterprise Resource Planning (ERP) Integration
+**Goal:** Transform the Sandigan platform from a booking tool into a complete business management suite.
+
+> [!IMPORTANT]
+> Because ERP modules deal with highly sensitive data (payroll, taxes, customer details), this phase **requires** Phase 2 (Admin Panel) and Phase 4 (Security Hardening) to be 100% completed first.
+
+#### 7.1 Finance & Accounting Systems (Ledger)
+- [ ] **Expense Tracking:** Create an `expensesModel.js` to log daily shop purchases (soap, water bills, rent, equipment).
+- [ ] **Profit & Loss (P&L):** Deduct `expenses` from `booking.totalPrice` dynamically to show real-time Net Profit on the Admin Dashboard.
+- [ ] **Invoicing & Taxation:** Generate official BIR-compliant automated receipts and tax deduction reports.
+
+#### 7.2 Human Resource Information Systems (HRIS)
+- [ ] **Employee Portal (Detailers):** Expand [employeeModel.js](file:///c:/Visual%20Studio%20Projects/Sandigan-Carwash-Web-app/Sandigan/backend/models/employeeModel.js) to include `hourlyRate`, `schedule`, and `status`.
+- [ ] **Timesheets & Payroll:** Implement a Clock-In/Clock-Out system. Automatically calculate weekly payroll based on hours worked + commission per car washed.
+- [ ] **Performance Tracking:** Tie the `detailer` field on bookings to an employee's profile to track who washes the most cars fastest.
+
+#### 7.3 Inventory & Supply Chain Systems
+- [ ] **Stock Registry:** Create an `inventoryModel.js` mapping all physical assets (Car Shampoo, Armor All, Engine Degreaser, Microfibers).
+- [ ] **Automated Depletion:** Every time a "Wash + Armor" booking is completed, automatically deduct `0.5 Liters` of Armor All from the database.
+- [ ] **Low Stock Alerts:** Use the Notification system to alert the Admin when a supply drops below a minimum threshold strictly needing reorder.
+
+#### 7.4 Sales, CRM & Customer Data
+- [ ] **Customer Profiles:** Every time a new `phoneNumber` or `email` books a service, automatically create a `customerModel.js` record.
+- [ ] **Loyalty Program:** Track total visits per customer. Automatically apply a 10% discount on their 10th car wash.
+- [ ] **SMS Marketing:** Use the Semaphore integration to blast promo codes to customers who haven't booked in the last 60 days.
+
+#### 7.5 Project & Operations Management
+- [ ] **Bay Scheduling (Gantt Chart):** Visual timeline showing which physical Carwash Bay is occupied at what time, minimizing physical traffic jams.
+- [ ] **Maintenance Logs:** Track maintenance schedules for pressure washers, vacuums, and the Rental Fleet (Phase 1).
+
+---
+
+## 🧱 System Architecture (Current + Target)
+
+```mermaid
+graph TD
+    Customer["👤 Customer (Browser)"]
+    Employee["🧑‍💼 Employee (Browser)"]
+    Admin["👑 Admin (Browser)"]
+
+    subgraph Frontend["React Frontend (Vite)"]
+        PublicPages["Public Pages\n(Landing, Book, Rent)"]
+        EmployeeDash["Employee Dashboard"]
+        AdminPanel["Admin Panel (Phase 2)"]
+    end
+
+    subgraph Backend["Express.js API (Node.js)"]
+        AuthMiddleware["JWT + CSRF Middleware"]
+        BookingCtrl["Booking Controller"]
+        RentalCtrl["Rental Controller (Phase 1)"]
+        PricingCtrl["Pricing Controller"]
+        NotifCtrl["Notification Controller"]
+        EmpCtrl["Employee Controller"]
+        SocketIO["Socket.io (Real-time)"]
+    end
+
+    subgraph Database["MongoDB Atlas"]
+        BookingColl["bookings"]
+        RentalColl["rentalBookings (Phase 1)"]
+        PricingColl["pricing"]
+        NotifColl["notifications"]
+        EmpColl["employees (HRIS Phase 7)"]
+        CarColl["cars (Phase 1)"]
+        ERPColl["expenses, inventory, customers (Phase 7)"]
+    end
+
+    Customer --> PublicPages
+    Employee --> EmployeeDash
+    Admin --> AdminPanel
+
+    PublicPages -->|HTTPS + CSRF| Backend
+    EmployeeDash -->|HTTPS + JWT + CSRF| Backend
+    AdminPanel -->|HTTPS + JWT + Admin Role| Backend
+
+    Backend --> Database
+    SocketIO <-->|WebSocket| EmployeeDash
+```
+
+---
+
+## 📋 Recommended Build Order
+
+| Priority | Phase | Reason |
+|----------|-------|--------|
+| 🥇 First | **Phase 4.3 & 4.4** (Rate Limiting + Helmet) | Cheapest and fastest win for security. Do now. |
+| 🥈 Second | **Phase 2.1 & 2.2** (RBAC + Price Manager) | Releases the owner from needing a developer to update prices. |
+| 🥉 Third | **Phase 3.1** (Dashboard Widgets) | Fast to build, high business value for daily operations. |
+| 4th | **Phase 1** (Car Rental) | Largest feature, needs careful planning. |
+| 5th | **Phase 6.4** (SMS/Email Notifications) | Improves customer experience significantly. |
+| 6th | **Phase 5** (DB Management) | Needed before heavy scaling. |
+| 7th | **Phase 7** (Core ERP Modules) | The ultimate expansion. Requires all prior admin and security foundations to be solid. |
+
+---
+
+> [!TIP]
+> **Suggested next immediate action:** Install `helmet` and `express-rate-limit` in the backend. It takes less than 15 minutes and immediately hardens your production server.
+> ```bash
+> npm install helmet express-rate-limit
+> ```
