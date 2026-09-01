@@ -3,6 +3,10 @@ import Swal from 'sweetalert2';
 import { API_BASE, authHeaders } from '../../../api/config';
 import TopHeader from '../TopHeader';
 import { KPICardSkeleton } from '../../SkeletonLoaders';
+import SharedSearchBar from '../shared/SharedSearchBar';
+import getPaginationRange from '../getPaginationRange';
+import leftArrowIcon from '../../../assets/icon/left-arrow.png';
+import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 
 const DEPARTMENTS = ['Finance', 'Inventory', 'Operations', 'Workforce', 'Clientele'];
 const ACTIONS = ['read', 'create', 'update', 'delete'];
@@ -183,6 +187,8 @@ const UserManagement = ({ user, isDark }) => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [filterRole, setFilterRole] = useState('all');
+    const [page, setPage] = useState(1);
+    const PER_PAGE = 8;
     const [showModal, setShowModal] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState(null);
     const [saving, setSaving] = useState(false);
@@ -312,6 +318,10 @@ const UserManagement = ({ user, isDark }) => {
         return matchSearch && matchRole;
     });
 
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+    const safePage = Math.min(page, totalPages);
+    const paginatedEmployees = filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
+
     const roleCounts = ROLE_OPTIONS.reduce((acc, r) => {
         acc[r] = employees.filter(e => e.role === r).length;
         return acc;
@@ -390,31 +400,31 @@ const UserManagement = ({ user, isDark }) => {
 
             {/* ── Toolbar ── */}
             <div className="d-flex align-items-center justify-content-between gap-3 mb-3 flex-wrap">
-                <div className="d-flex gap-2 flex-wrap">
-                    <input
-                        className="form-control rounded-3"
-                        placeholder="🔍 Search name or email..."
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        style={{ maxWidth: 260, fontSize: '0.85rem', background: 'var(--theme-card-bg)', color: 'var(--theme-content-text)', border: '1px solid var(--theme-input-border)' }}
-                    />
-                    <select
-                        className="form-select rounded-3"
-                        value={filterRole}
-                        onChange={e => setFilterRole(e.target.value)}
-                        style={{ maxWidth: 180, fontSize: '0.85rem', background: 'var(--theme-card-bg)', color: 'var(--theme-content-text)', border: '1px solid var(--theme-input-border)' }}
-                    >
-                        <option value="all">All Roles</option>
-                        {ROLE_OPTIONS.map(r => <option key={r} value={r}>{ROLE_BADGE[r]?.label || r}</option>)}
-                    </select>
-                </div>
-                <button
-                    className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
-                    style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600, background: '#23A0CE' }}
-                    onClick={openCreate}
+                <select
+                    className="form-select rounded-3"
+                    value={filterRole}
+                    onChange={e => { setFilterRole(e.target.value); setPage(1); }}
+                    style={{ maxWidth: 180, fontSize: '0.85rem', background: 'var(--theme-card-bg)', color: 'var(--theme-content-text)', border: '1px solid var(--theme-input-border)' }}
                 >
-                    <span style={{ fontSize: '1rem', lineHeight: 1 }}>+</span> Create Account
-                </button>
+                    <option value="all">All Roles</option>
+                    {ROLE_OPTIONS.map(r => <option key={r} value={r}>{ROLE_BADGE[r]?.label || r}</option>)}
+                </select>
+                <div className="d-flex gap-2 flex-wrap align-items-center">
+                    <SharedSearchBar
+                        searchTerm={search}
+                        onDebouncedSearch={val => { setSearch(val); setPage(1); }}
+                        placeholder="Search name or email..."
+                        width="260px"
+                        debounceDelay={350}
+                    />
+                    <button
+                        className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
+                        style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600, background: '#23A0CE' }}
+                        onClick={openCreate}
+                    >
+                        <span style={{ fontSize: '1rem', lineHeight: 1 }}>+</span> Create Account
+                    </button>
+                </div>
             </div>
 
             {/* ── User Table ── */}
@@ -436,7 +446,7 @@ const UserManagement = ({ user, isDark }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map(emp => {
+                                {paginatedEmployees.map(emp => {
                                     const depts = emp.departments || [];
                                     const perms = emp.permissions || {};
                                     return (
@@ -509,7 +519,48 @@ const UserManagement = ({ user, isDark }) => {
                         </table>
                     </div>
                 )}
+                {/* Standard Pagination Footer */}
+                {filtered.length > PER_PAGE && (
+                    <div className="card-footer border-top py-3 d-flex justify-content-between align-items-center" style={{ background: 'var(--theme-card-bg)', borderTop: '1px solid var(--theme-content-border)' }}>
+                        <div className="text-muted" style={{ fontSize: '0.8rem' }}>
+                            Showing {(safePage - 1) * PER_PAGE + 1}–{Math.min(safePage * PER_PAGE, filtered.length)} of {filtered.length}
+                        </div>
+                        <div className="d-flex align-items-center gap-1">
+                            <button
+                                className="btn btn-sm p-0 rounded-circle border-0"
+                                disabled={safePage === 1}
+                                onClick={() => setPage(safePage - 1)}
+                                style={{ width: '30px', height: '30px', background: safePage === 1 ? 'transparent' : 'var(--theme-badge-muted-bg)', opacity: safePage === 1 ? 0.3 : 1 }}
+                            >
+                                <img src={leftArrowIcon} style={{ width: '9px' }} alt="prev" />
+                            </button>
+                            {getPaginationRange(safePage, totalPages).map((p, idx) => (
+                                p === '...' ? (
+                                    <span key={`dot-${idx}`} className="px-1 text-muted" style={{ fontSize: '0.8rem' }}>...</span>
+                                ) : (
+                                    <button
+                                        key={`p-${p}`}
+                                        onClick={() => setPage(p)}
+                                        className={`btn btn-sm p-0 rounded-circle border-0 fw-bold transition-all ${safePage === p ? 'btn-save text-white shadow-sm' : 'text-muted'}`}
+                                        style={{ width: '30px', height: '30px', fontSize: '0.78rem', background: safePage === p ? '' : 'transparent' }}
+                                    >
+                                        {p}
+                                    </button>
+                                )
+                            ))}
+                            <button
+                                className="btn btn-sm p-0 rounded-circle border-0"
+                                disabled={safePage >= totalPages}
+                                onClick={() => setPage(safePage + 1)}
+                                style={{ width: '30px', height: '30px', background: safePage >= totalPages ? 'transparent' : 'var(--theme-badge-muted-bg)', opacity: safePage >= totalPages ? 0.3 : 1 }}
+                            >
+                                <img src={rightArrowIcon} style={{ width: '9px' }} alt="next" />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
+
 
             {/* ── Create/Edit Modal ── */}
             {showModal && (
