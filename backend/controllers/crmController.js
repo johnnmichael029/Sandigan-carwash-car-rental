@@ -136,7 +136,22 @@ const getCustomerStats = async (req, res) => {
             await customer.save();
         }
 
-        res.json({ customer, history });
+        let loyaltyCard = null;
+        let loyaltyConfig = null;
+        if (customer.smcId) {
+            const Membership = require('../models/membershipModel');
+            loyaltyCard = await Membership.findOne({ cardId: customer.smcId });
+            
+            const Setting = require('../models/settingModel');
+            const requiredSetting = await Setting.findOne({ key: 'loyalty_stamps_required' });
+            const nameSetting = await Setting.findOne({ key: 'loyalty_reward_name' });
+            loyaltyConfig = {
+                stampsRequired: requiredSetting ? Number(requiredSetting.value) : 9,
+                rewardName: nameSetting ? nameSetting.value : 'Free Armor Treatment'
+            };
+        }
+
+        res.json({ customer, history, loyaltyCard, loyaltyConfig });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -495,6 +510,77 @@ const issueSMC = async (req, res) => {
     }
 };
 
+// 6.5. Issue a Loyalty Card (Stamp Card) — Free of charge
+const issueLoyaltyCard = async (req, res) => {
+    try {
+        const customer = await Customer.findById(req.params.id);
+        if (!customer) return res.status(404).json({ error: 'Customer not found.' });
+
+        // BLOCK: Shared Walk-in Profile cannot have a membership/loyalty
+        if (customer.email === 'walkin@example.com') {
+            return res.status(403).json({ error: 'Cannot issue a loyalty card to the shared Walk-in account. Please create a unique profile for this customer.' });
+        }
+
+        if (customer.hasLoyaltyCard) return res.status(400).json({ error: 'Customer already has an active Loyalty Card.' });
+
+        // Generate a 6-character alphanumeric ID with LOY- prefix
+        const generateLoyaltyId = () => {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let id = 'LOY-';
+            for (let i = 0; i < 6; i++) id += chars.charAt(Math.floor(Math.random() * chars.length));
+            return id;
+        };
+
+        let isUnique = false;
+        let newLoyaltyId = '';
+        while (!isUnique) {
+            newLoyaltyId = generateLoyaltyId();
+            const existing = await Customer.findOne({ loyaltyCardId: newLoyaltyId });
+            if (!existing) isUnique = true;
+        }
+
+        customer.hasLoyaltyCard = true;
+        customer.loyaltyCardId = newLoyaltyId;
+        customer.loyaltyCardIssuedDate = new Date();
+
+        // Add Loyalty tag automatically if not present
+        if (!customer.tags.includes('Loyalty')) {
+            customer.tags.push('Loyalty');
+        }
+
+        await customer.save();
+
+        // Create the Membership document (cardType = 'Loyalty')
+        const Membership = require('../models/membershipModel');
+        await Membership.create({
+            cardId: newLoyaltyId,
+            cardType: 'Loyalty',
+            customerId: customer._id,
+            customerName: `${customer.firstName} ${customer.lastName}`,
+            status: 'Active',
+            isAssigned: true,
+            expiryDate: null // Stamp cards do not expire by default
+        });
+
+        // Audit Log
+        if (req.user) {
+            await createLog({
+                actorId: req.user.id,
+                actorName: req.user.fullName || 'Admin',
+                actorRole: req.user.role || 'admin',
+                module: 'CRM',
+                action: 'loyalty_issued',
+                message: `Issued free Loyalty Card (${newLoyaltyId}) to ${customer.firstName} ${customer.lastName}`,
+                meta: { id: customer._id, loyaltyCardId: newLoyaltyId }
+            });
+        }
+
+        res.json({ message: 'Loyalty Card issued successfully.', customer });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 // 7. Validate SMC (Used by Checkout / Booking Form)
 const validateSMC = async (req, res) => {
     try {
@@ -703,7 +789,7 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
         if (normalizedPhone && normalizedPhone !== '00000000000' && (!existing.phone || existing.phone === '00000000000')) existing.phone = normalizedPhone;
 
         await existing.save();
-        return { smcId: finalSMCId, customerId: existing._id };
+        return { smcId: finalSMCId, loyaltyCardId: existing.loyaltyCardId || null, customerId: existing._id };
     } else {
         // Create new profile for REAL customers ONLY
         if (!isGenericWalkIn) {
@@ -747,7 +833,7 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
             }
 
             const created = await Customer.create(newProfileData);
-            return { smcId: finalSMCId, customerId: created._id };
+            return { smcId: finalSMCId, loyaltyCardId: created.loyaltyCardId || null, customerId: created._id };
         } else {
             // Purchases SMC with a completely generic walk-in name
             if (purchasedProducts.some(p => p.productName?.toLowerCase().includes('smc'))) {
@@ -772,7 +858,7 @@ const upsertCustomerFromBooking = async ({ firstName, lastName, email, phone, ve
         }
     }
 
-    return { smcId: finalSMCId, customerId: null };
+    return { smcId: finalSMCId, loyaltyCardId: null, customerId: null };
 };
 
 const getSMCByCardId = async (req, res) => {
@@ -1026,6 +1112,7 @@ module.exports = {
     updateTag,
     deleteTag,
     issueSMC,
+    issueLoyaltyCard,
     validateSMC,
     upsertCustomerFromBooking,
     getSMCByCardId,

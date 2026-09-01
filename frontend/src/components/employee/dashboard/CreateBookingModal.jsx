@@ -27,10 +27,12 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
     const [promoInfo, setPromoInfo] = useState({ isValid: false, discount: 0, type: 'Flat', error: '', code: '' });
     const [isVerifyingSMC, setIsVerifyingSMC] = useState(false);
     const [isVerifyingPromo, setIsVerifyingPromo] = useState(false);
+    const [loyaltyCardData, setLoyaltyCardData] = useState(null); // loyalty preview after SMC verify
 
     const handleSMCVerification = async () => {
         if (!formData.smcId || formData.smcId.length < 5) {
             setSmcDiscountInfo({ isValid: false, percentage: 0, error: 'Enter a valid ID' });
+            setLoyaltyCardData(null);
             return;
         }
         setIsVerifyingSMC(true);
@@ -40,11 +42,18 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
             if (res.data.isValid) {
                 setSmcDiscountInfo({ isValid: true, percentage: res.data.discountPercentage, error: '' });
                 showToast(`SMC Applied: ${res.data.discountPercentage}% Discount Active!`);
+                // Also fetch loyalty card data for inline preview
+                try {
+                    const loyaltyRes = await axios.get(`${API_BASE}/loyalty/card/${cleanSmcId}`, { headers: authHeaders(), withCredentials: true });
+                    setLoyaltyCardData(loyaltyRes.data);
+                } catch (_) { setLoyaltyCardData(null); }
             } else {
                 setSmcDiscountInfo({ isValid: false, percentage: 0, error: res.data.message || 'Invalid Card' });
+                setLoyaltyCardData(null);
             }
         } catch (err) {
             setSmcDiscountInfo({ isValid: false, percentage: 0, error: 'Validation failed' });
+            setLoyaltyCardData(null);
         } finally {
             setIsVerifyingSMC(false);
         }
@@ -362,6 +371,38 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
                                     </div>
                                     {smcDiscountInfo.isValid && <small className="text-success d-block mt-1 fw-medium" style={{ fontSize: '0.75rem' }}>Valid SMC — {smcDiscountInfo.percentage}% Discount Applied</small>}
                                     {smcDiscountInfo.error && <small className="text-danger d-block mt-1" style={{ fontSize: '0.75rem' }}>{smcDiscountInfo.error}</small>}
+
+                                    {/* 🎴 Inline Loyalty Card Preview */}
+                                    {loyaltyCardData && (() => {
+                                        const { card, config } = loyaltyCardData;
+                                        const required = config?.stampsRequired || 9;
+                                        const current = card?.stampCount || 0;
+                                        return (
+                                            <div className="mt-2 p-2 rounded-3" style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.25)', fontSize: '0.75rem' }}>
+                                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                                    <span style={{ color: '#94a3b8' }}>Loyalty Stamps</span>
+                                                    {card.pendingReward
+                                                        ? <span style={{ color: '#4ade80', fontWeight: 700 }}>🎁 Reward Ready!</span>
+                                                        : <span style={{ color: '#a5b4fc', fontWeight: 600 }}>{current}/{required}</span>
+                                                    }
+                                                </div>
+                                                <div className="d-flex flex-wrap gap-1">
+                                                    {Array.from({ length: required }).map((_, i) => (
+                                                        <div key={i} style={{
+                                                            width: '20px', height: '20px', borderRadius: '50%',
+                                                            background: i < current ? '#6366f1' : 'rgba(99,102,241,0.12)',
+                                                            border: i < current ? '1.5px solid #818cf8' : '1.5px solid rgba(99,102,241,0.25)',
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            fontSize: '0.5rem', color: i < current ? '#fff' : 'rgba(99,102,241,0.4)', fontWeight: 700
+                                                        }}>{i < current ? '✓' : ''}</div>
+                                                    ))}
+                                                </div>
+                                                {card.pendingReward && (
+                                                    <div className="mt-1" style={{ color: '#86efac', fontSize: '0.7rem' }}>Customer has a <strong>{config?.rewardName}</strong> to redeem today!</div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                                 <div className="col-12 col-sm-6 text-start">
                                     <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Promo Code</label>

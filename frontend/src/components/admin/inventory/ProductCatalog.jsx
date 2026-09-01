@@ -5,8 +5,9 @@ import { API_BASE, authHeaders } from '../../../api/config';
 import editIcon from '../../../assets/icon/edit.png';
 import deleteIcon from '../../../assets/icon/delete.png';
 import AdminModalWrapper from '../shared/AdminModalWrapper';
+import PermissionGate from '../../PermissionGate';
 
-const ProductCatalog = ({ onUpdate, categories = [] }) => {
+const ProductCatalog = ({ onUpdate, categories = [], user }) => {
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -64,7 +65,9 @@ const ProductCatalog = ({ onUpdate, categories = [] }) => {
         <div className="card border-0 shadow-sm rounded-4 overflow-hidden animate-fade-in">
             <div className="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                 <h6 className="mb-0 fw-bold text-dark-secondary">Inventory Products</h6>
-                <button onClick={() => { setEditingProduct(null); setShowModal(true); }} className="btn btn-save btn-sm px-4 rounded-pill shadow-sm">+ Add Product</button>
+                <PermissionGate user={user} department="Inventory" action="create">
+                    <button onClick={() => { setEditingProduct(null); setShowModal(true); }} className="btn btn-save btn-sm px-4 rounded-pill shadow-sm">+ Add Product</button>
+                </PermissionGate>
             </div>
             <div className="card-body p-0">
                 <table className="table table-hover align-middle mb-0">
@@ -101,18 +104,23 @@ const ProductCatalog = ({ onUpdate, categories = [] }) => {
                                 <td className="fw-bold text-dark-secondary">₱{p.basePrice.toLocaleString()}</td>
                                 <td className="pe-4 text-end">
                                     <div className="d-flex gap-2 justify-content-end">
-                                        <button onClick={() => { setEditingProduct(p); setNewProduct({ name: p.name, basePrice: p.basePrice, category: p.category || '', description: p.description || '' }); setShowModal(true); }} className="btn btn-sm border-0 p-1">
-                                            <img src={editIcon} style={{ width: 16 }} alt="Edit" title='Edit Product' />
-                                        </button>
-                                        <button onClick={() => deleteProduct(p._id)} className="btn btn-sm border-0 p-1">
-                                            <img src={deleteIcon} style={{ width: 16 }} alt="Delete" title='Delete Product' />
-                                        </button>
+                                        <PermissionGate user={user} department="Inventory" action="update">
+                                            <button onClick={() => { setEditingProduct(p); setNewProduct({ name: p.name, basePrice: p.basePrice, category: p.category || '', description: p.description || '' }); setShowModal(true); }} className="btn btn-sm border-0 p-1">
+                                                <img src={editIcon} style={{ width: 16 }} alt="Edit" title='Edit Product' />
+                                            </button>
+                                        </PermissionGate>
+                                        <PermissionGate user={user} department="Inventory" action="delete">
+                                            <button onClick={() => deleteProduct(p._id)} className="btn btn-sm border-0 p-1">
+                                                <img src={deleteIcon} style={{ width: 16 }} alt="Delete" title='Delete Product' />
+                                            </button>
+                                        </PermissionGate>
                                     </div>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
+
             </div>
             {showModal && (
                 <AdminModalWrapper show={showModal} onClose={() => setShowModal(false)}>

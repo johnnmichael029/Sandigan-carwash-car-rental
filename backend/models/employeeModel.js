@@ -26,8 +26,15 @@ const employeeSchema = new Schema({
     },
     role: {
         type: String,
-        enum: ['admin', 'employee', 'detailer'],
+        enum: ['super_admin', 'admin', 'department_staff', 'employee', 'detailer'],
         default: 'employee'
+    },
+    // Department-based access control (for department_staff role)
+    departments: [{ type: String }], // e.g. ['Finance', 'Workforce']
+    permissions: {
+        type: Map,
+        of: [String], // e.g. { Finance: ['read', 'create'], Workforce: ['read'] }
+        default: {}
     },
     shiftType: {
         type: String,

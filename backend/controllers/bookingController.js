@@ -492,6 +492,9 @@ const updateBooking = async (req, res) => {
                         finalSMCId = syncResult.smcId;
                         updateQuery.$set.smcId = syncResult.smcId;
                     }
+                    if (syncResult && syncResult.loyaltyCardId) {
+                        updateQuery.$set.loyaltyCardId = syncResult.loyaltyCardId;
+                    }
                     if (syncResult && syncResult.customerId) {
                         updateQuery.$set.customerId = syncResult.customerId;
                     }
@@ -598,6 +601,26 @@ const updateBooking = async (req, res) => {
                     });
                 } catch (revErr) {
                     console.error('[Revenue] Failed to auto-record booking revenue:', revErr.message);
+                }
+
+                // ── Auto-stamp loyalty card on Car Wash completion ─────────────────
+                // Only for car wash (not rental), and only if a Loyalty card is linked
+                const finalLoyaltyCardId = updateQuery.$set?.loyaltyCardId ?? currentBooking.loyaltyCardId;
+                if (!currentBooking.isRental && finalLoyaltyCardId) {
+                    try {
+                        const { addStampToCard } = require('./loyaltyController');
+                        const stampResult = await addStampToCard(finalLoyaltyCardId, {
+                            bookingId: currentBooking._id,
+                            addedBy:   'System (Auto-stamp on Completion)',
+                            note:      `Auto-stamp for Booking #${currentBooking.batchId}`,
+                        });
+                        if (stampResult.rewardTriggered) {
+                            console.info(`[Loyalty] 🎉 Card ${finalLoyaltyCardId} earned a reward! (Booking #${currentBooking.batchId})`);
+                        }
+                    } catch (stampErr) {
+                        // Non-blocking: log but don't fail the status update
+                        console.warn('[Loyalty] Auto-stamp failed:', stampErr.message);
+                    }
                 }
             }
         }

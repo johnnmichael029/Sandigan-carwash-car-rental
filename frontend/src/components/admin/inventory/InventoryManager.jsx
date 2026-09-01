@@ -22,6 +22,7 @@ import getPaginationRange from '../getPaginationRange';
 import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 import productOrderIcon from '../../../assets/icon/product-order.png';
+import PermissionGate from '../../PermissionGate';
 
 const InventoryPage = ({ user, isDark }) => {
     // ── SWR Data Fetching ──────────────────────────────────────────────────────
@@ -140,9 +141,11 @@ const InventoryPage = ({ user, isDark }) => {
                 </div>
 
                 <div className="d-flex gap-3 align-items-center">
-                    <button onClick={() => setShowCategoryManager(true)} className="btn btn-sm btn-outline-secondary px-3 rounded-pill shadow-sm category-tags">
-                        <i className="bi bi-tags"></i> Tag Library
-                    </button>
+                    <PermissionGate user={user} department="Inventory" action="update">
+                        <button onClick={() => setShowCategoryManager(true)} className="btn btn-sm btn-outline-secondary px-3 rounded-pill shadow-sm category-tags">
+                            <i className="bi bi-tags"></i> Tag Library
+                        </button>
+                    </PermissionGate>
 
                     {/* Ghost Style Tabs (Right-Aligned) */}
                     <div className="d-flex gap-2 p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
@@ -235,7 +238,7 @@ const InventoryPage = ({ user, isDark }) => {
                                 </div>
                                 <div>
                                     <h6 className="mb-1 fw-bold text-dark">Stock Attention Required</h6>
-                                    <p className="mb-0 small text-muted">
+                                    <p className="mb-0 small text-dark" style={{ color: 'var(--text-muted)' }}>
                                         {lowStockItems.length} items are running below reorder points: <b>{lowStockItems.map(i => i.name).join(', ')}</b>.
                                     </p>
                                 </div>
@@ -248,10 +251,12 @@ const InventoryPage = ({ user, isDark }) => {
                             <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
                                 <div className="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                                     <h6 className="mb-0 fw-bold text-dark-secondary">Supply Inventory List</h6>
-                                    <button onClick={() => setShowAddModal(true)} className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
-                                        style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600 }}>
-                                        + New Item
-                                    </button>
+                                    <PermissionGate user={user} department="Inventory" action="create">
+                                        <button onClick={() => setShowAddModal(true)} className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
+                                            style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600 }}>
+                                            + New Item
+                                        </button>
+                                    </PermissionGate>
                                 </div>
                                 <div className="card-body p-0">
                                     <div className="table-responsive">
@@ -337,12 +342,16 @@ const InventoryPage = ({ user, isDark }) => {
                                                                 <td className="text-dark-secondary fw-semibold">₱{item.costPerUnit}/{item.unit}</td>
                                                                 <td className="text-muted small">{new Date(item.lastRestocked).toLocaleDateString()}</td>
                                                                 <td className="pe-4 text-end">
-                                                                    <button onClick={(e) => { e.stopPropagation(); setEditingItem({ ...item, supplier: item.supplier && typeof item.supplier === 'object' ? item.supplier._id : item.supplier || '' }); }} className="btn btn-sm border-0 bg-transparent me-1">
-                                                                        <img src={editIcon} alt="Edit" style={{ width: '18px', height: '18px' }} title='Edit Item' />
-                                                                    </button>
-                                                                    <button onClick={(e) => { e.stopPropagation(); deleteItem(item._id); }} className="btn btn-sm text-danger-hover border-0 bg-transparent">
-                                                                        <img src={deleteIcon} alt="Delete" style={{ width: '18px', height: '18px' }} title='Delete Item' />
-                                                                    </button>
+                                                                    <PermissionGate user={user} department="Inventory" action="update">
+                                                                        <button onClick={(e) => { e.stopPropagation(); setEditingItem({ ...item, supplier: item.supplier && typeof item.supplier === 'object' ? item.supplier._id : item.supplier || '' }); }} className="btn btn-sm border-0 bg-transparent me-1">
+                                                                            <img src={editIcon} alt="Edit" style={{ width: '18px', height: '18px' }} title='Edit Item' />
+                                                                        </button>
+                                                                    </PermissionGate>
+                                                                    <PermissionGate user={user} department="Inventory" action="delete">
+                                                                        <button onClick={(e) => { e.stopPropagation(); deleteItem(item._id); }} className="btn btn-sm text-danger-hover border-0 bg-transparent">
+                                                                            <img src={deleteIcon} alt="Delete" style={{ width: '18px', height: '18px' }} title='Delete Item' />
+                                                                        </button>
+                                                                    </PermissionGate>
                                                                 </td>
                                                             </tr>
                                                         );
@@ -357,12 +366,13 @@ const InventoryPage = ({ user, isDark }) => {
                     </div>
                 </>
             ) : activeTab === 'catalog' ? (
-                <ProductCatalog onUpdate={mutateProducts} categories={categories} />
+                <ProductCatalog user={user} onUpdate={mutateProducts} categories={categories} />
             ) : activeTab === 'orders' ? (
-                <PurchaseOrderManager vendors={vendors} inventoryItems={items} onUpdate={fetchData} />
+                <PurchaseOrderManager user={user} vendors={vendors} inventoryItems={items} onUpdate={fetchData} />
             ) : (
-                <RecipeBuilder inventoryItems={items} products={products} onUpdate={fetchData} categories={categories} />
+                <RecipeBuilder user={user} inventoryItems={items} products={products} onUpdate={fetchData} categories={categories} />
             )}
+
 
             {/* Add Item Modal */}
             {showAddModal && (

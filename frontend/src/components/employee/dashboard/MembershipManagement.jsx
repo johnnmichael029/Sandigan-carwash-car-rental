@@ -13,6 +13,7 @@ import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 const MembershipManagement = ({ employee, onSMCRequest, isDark }) => {
     const [memberships, setMemberships] = useState([]);
     const [config, setConfig] = useState(null);
+    const [loyaltyConfig, setLoyaltyConfig] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -31,12 +32,16 @@ const MembershipManagement = ({ employee, onSMCRequest, isDark }) => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [memRes, confRes] = await Promise.all([
+            const [memRes, confRes, loyaltyConfRes] = await Promise.all([
                 axios.get(`${API_BASE}/crm/memberships/all`, { headers: authHeaders(), withCredentials: true }),
-                axios.get(`${API_BASE}/crm/config/smc`, { headers: authHeaders(), withCredentials: true })
+                axios.get(`${API_BASE}/crm/config/smc`, { headers: authHeaders(), withCredentials: true }),
+                axios.get(`${API_BASE}/loyalty/config`, { headers: authHeaders(), withCredentials: true }).catch(() => null)
             ]);
             setMemberships(memRes.data);
             setConfig(confRes.data);
+            if (loyaltyConfRes && loyaltyConfRes.data) {
+                setLoyaltyConfig(loyaltyConfRes.data);
+            }
         } catch (err) {
             console.error('Failed to fetch membership data', err);
         } finally {
@@ -108,8 +113,8 @@ const MembershipManagement = ({ employee, onSMCRequest, isDark }) => {
         const search = searchTerm.toLowerCase();
         const cid = m.cardId?.toLowerCase() || '';
         const name = m.customerName?.toLowerCase() || '';
-        const dateStr = new Date(m.expiryDate).toLocaleDateString().toLowerCase();
-        const status = new Date(m.expiryDate) < new Date() ? 'expired' : 'active';
+        const dateStr = m.expiryDate ? new Date(m.expiryDate).toLocaleDateString().toLowerCase() : 'never';
+        const status = m.expiryDate ? (new Date(m.expiryDate) < new Date() ? 'expired' : 'active') : 'active';
 
         return cid.includes(search) ||
             name.includes(search) ||
@@ -241,21 +246,47 @@ const MembershipManagement = ({ employee, onSMCRequest, isDark }) => {
                                                     <th>Member Name</th>
                                                     <th>Expiry Date</th>
                                                     <th>Status</th>
+                                                    <th>Stamps Progress</th>
                                                     <th className="text-end pe-4">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {currentItems.length > 0 ? currentItems.map(m => {
-                                                    const isExpired = new Date(m.expiryDate) < new Date();
+                                                    const isExpired = m.expiryDate ? new Date(m.expiryDate) < new Date() : false;
+                                                    const stampsRequired = loyaltyConfig?.stampsRequired || 9;
+                                                    const currentStamps = m.stampCount || 0;
+                                                    const pct = Math.min(100, (currentStamps / stampsRequired) * 100);
                                                     return (
                                                         <tr key={m._id} style={{ fontSize: '0.85rem' }}>
                                                             <td className="ps-4 font-monospace fw-bold text-dark-secondary">{m.cardId}</td>
                                                             <td>{m.customerName || <span className="text-muted italic">No Profile Linked</span>}</td>
-                                                            <td>{new Date(m.expiryDate).toLocaleDateString()}</td>
+                                                            <td>{m.expiryDate ? new Date(m.expiryDate).toLocaleDateString() : <span className="text-muted italic">Never (Stamp Card)</span>}</td>
                                                             <td>
                                                                 <span className={`badge rounded-pill ${isExpired ? 'bg-danger-subtle text-danger border border-danger' : 'bg-success-subtle text-success border border-success'}`}>
                                                                     {isExpired ? 'Expired' : 'Active'}
                                                                 </span>
+                                                            </td>
+                                                            <td>
+                                                                {m.pendingReward ? (
+                                                                    <span className="badge bg-success-subtle text-success border border-success rounded-pill fw-bold" style={{ fontSize: '0.72rem' }}>
+                                                                        🎁 Reward Ready!
+                                                                    </span>
+                                                                ) : (
+                                                                    <div className="d-flex align-items-center gap-2">
+                                                                        <div className="progress rounded-pill" style={{ width: '65px', height: '6px', backgroundColor: 'rgba(99,102,241,0.1)' }}>
+                                                                            <div
+                                                                                className="progress-bar rounded-pill"
+                                                                                style={{
+                                                                                    width: `${pct}%`,
+                                                                                    backgroundColor: '#6366f1'
+                                                                                }}
+                                                                            />
+                                                                        </div>
+                                                                        <span className="text-muted" style={{ fontSize: '0.72rem', fontWeight: 600 }}>
+                                                                            {currentStamps}/{stampsRequired}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
                                                             </td>
                                                             <td className="text-end pe-4">
                                                                 <button className="btn btn-sm btn-smc-card rounded-pill px-3" onClick={() => onSMCRequest(m.cardId)}>
@@ -266,7 +297,7 @@ const MembershipManagement = ({ employee, onSMCRequest, isDark }) => {
                                                     );
                                                 }) : (
                                                     <tr>
-                                                        <td colSpan="5" className="text-center py-5 text-muted">No matching records found.</td>
+                                                        <td colSpan="6" className="text-center py-5 text-muted">No matching records found.</td>
                                                     </tr>
                                                 )}
                                             </tbody>

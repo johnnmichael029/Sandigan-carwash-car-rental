@@ -1,14 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const requireAuth = require('../middleware/requireAuth');
-const adminOnly = require('../middleware/adminOnly');
+const requirePermission = require('../middleware/requirePermission');
 const { getForecast } = require('../controllers/forecastController');
 const cache = require('../middleware/cacheMiddleware');
 
-// All forecasting operations require Admin access
-router.use(requireAuth, adminOnly);
-
 // GET financial forecasts — cached 5 min (expensive calculation)
-router.get('/', cache('forecast', 300), getForecast);
+router.get('/', requireAuth, requirePermission('Finance', 'read'), cache('forecast', 300), getForecast);
 
 module.exports = router;

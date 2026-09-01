@@ -57,8 +57,40 @@ const Book = () => {
     const [rentalDownPaymentPct, setRentalDownPaymentPct] = useState(30);
     const [copySuccess, setCopySuccess] = useState(false);
     const copyTimeoutRef = useRef(null);
+    // Remembers what step each category was on before the user toggled away
+    const savedStepsRef = useRef({ wash: 1, rental: 1 });
 
     const [activeCategory, setActiveCategory] = useState(queryParams.get('type') === 'rental' ? 'rental' : 'wash');
+
+    // ── Category switch: save current step, reset to saved step of new category ──
+    const handleCategorySwitch = (newCategory) => {
+        if (newCategory === activeCategory) return;
+        // If on step 4 (payment already started) — warn before switching
+        if (step >= 3) {
+            Swal.fire({
+                title: 'Switch Category?',
+                text: 'Switching will take you back to Step 1 for the other category. Your progress here is saved.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#6366f1',
+                confirmButtonText: 'Yes, Switch',
+                background: 'var(--theme-modal-bg, #1a1a24)',
+                color: '#f1f5f9',
+            }).then(({ isConfirmed }) => {
+                if (!isConfirmed) return;
+                savedStepsRef.current[activeCategory] = step;
+                setActiveCategory(newCategory);
+                setStep(1); // always start at step 1 when switching categories
+                setError(null);
+            });
+        } else {
+            savedStepsRef.current[activeCategory] = step;
+            setActiveCategory(newCategory);
+            setStep(1); // always start at step 1 when switching categories
+            setError(null);
+        }
+    };
+
     const [rentalFleet, setRentalFleet] = useState([]);
     const [destination, setDestination] = useState('');
     const [address, setAddress] = useState('');
@@ -517,14 +549,14 @@ const Book = () => {
                                                     <button
                                                         type="button"
                                                         className={`toggle-btn  ${activeCategory === 'wash' ? 'active' : ''}`}
-                                                        onClick={() => setActiveCategory('wash')}
+                                                        onClick={() => handleCategorySwitch('wash')}
                                                     >
                                                         <img src={carwashIcon} alt="Car Wash" /> Car Wash
                                                     </button>
                                                     <button
                                                         type="button"
                                                         className={`toggle-btn ${activeCategory === 'rental' ? 'active' : ''}`}
-                                                        onClick={() => setActiveCategory('rental')}
+                                                        onClick={() => handleCategorySwitch('rental')}
                                                     >
                                                         <img src={carRentalIcon} alt="Car Rental" /> Car Rental
                                                     </button>
@@ -985,7 +1017,7 @@ const Book = () => {
                                                                         ? `${rentalDurationDays} Day(s) · ${rentalDownPaymentPct}% Down Payment`
                                                                         : (Array.isArray(serviceType) ? serviceType.join(', ') : serviceType)}
                                                                 </span>
-                                                                <span className="fw-bold fs-5" style={{ color: '#4ade80' }}>
+                                                                <span className="fw-bold fs-5" style={{ color: 'var(--brand-accent)' }}>
                                                                     ₱{activeCategory === 'rental'
                                                                         ? Math.round((selectedRentalVehicle?.pricePerDay || 0) * parseInt(rentalDurationDays || 1) * (rentalDownPaymentPct / 100)).toLocaleString()
                                                                         : totalPrice.toLocaleString()}
@@ -1002,37 +1034,37 @@ const Book = () => {
                                                             {paymentMethods
                                                                 .filter(method => activeCategory !== 'rental' || method.type !== 'counter')
                                                                 .map((method) => (
-                                                                <button
-                                                                    key={method.id}
-                                                                    type="button"
-                                                                    onClick={() => { setSelectedPaymentMethod(method); setReferenceNumber(''); setProofFile(null); setProofPreview(null); setError(null); }}
-                                                                    style={{
-                                                                        padding: '10px 18px',
-                                                                        borderRadius: '12px',
-                                                                        border: selectedPaymentMethod?.id === method.id ? '2px solid #6366f1' : '1px solid rgba(255,255,255,0.12)',
-                                                                        background: selectedPaymentMethod?.id === method.id ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.04)',
-                                                                        color: selectedPaymentMethod?.id === method.id ? '#a5b4fc' : '#cbd5e1',
-                                                                        fontSize: '0.85rem',
-                                                                        fontWeight: '600',
-                                                                        cursor: 'pointer',
-                                                                        transition: 'all 0.2s ease',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '8px',
-                                                                    }}
-                                                                >
-                                                                    {method.type === 'qr' && ''}
-                                                                    {method.type === 'bank' && ''}
-                                                                    {method.type === 'counter' && ''}
-                                                                    {method.label}
-                                                                </button>
-                                                            ))}
+                                                                    <button
+                                                                        key={method.id}
+                                                                        type="button"
+                                                                        onClick={() => { setSelectedPaymentMethod(method); setReferenceNumber(''); setProofFile(null); setProofPreview(null); setError(null); }}
+                                                                        style={{
+                                                                            padding: '10px 18px',
+                                                                            borderRadius: '12px',
+                                                                            border: selectedPaymentMethod?.id === method.id ? '2px var(--brand-primary)' : '1px solid rgba(255,255,255,0.12)',
+                                                                            background: selectedPaymentMethod?.id === method.id ? 'var(--brand-primary)' : 'rgba(255,255,255,0.04)',
+                                                                            color: selectedPaymentMethod?.id === method.id ? 'var(--text-primary)' : '#cbd5e1',
+                                                                            fontSize: '0.85rem',
+                                                                            fontWeight: '600',
+                                                                            cursor: 'pointer',
+                                                                            transition: 'all 0.2s ease',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '8px',
+                                                                        }}
+                                                                    >
+                                                                        {method.type === 'qr' && ''}
+                                                                        {method.type === 'bank' && ''}
+                                                                        {method.type === 'counter' && ''}
+                                                                        {method.label}
+                                                                    </button>
+                                                                ))}
                                                         </div>
 
                                                         {/* ── QR Method Panel ── */}
                                                         {selectedPaymentMethod?.type === 'qr' && (
-                                                            <div className="p-4 rounded-3 mb-3" style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                                                                <p className="small fw-semibold mb-3" style={{ color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                                            <div className="p-4 rounded-3 mb-3" style={{ background: 'rgba(35,160,206,0.08)', border: '1px solid rgba(35,160,206,0.25)' }}>
+                                                                <p className="small fw-semibold mb-3" style={{ color: 'var(--brand-accent)', textTransform: 'uppercase', letterSpacing: '1px' }}>
                                                                     Scan {selectedPaymentMethod.label} QR Code
                                                                 </p>
                                                                 {/* QR Image */}
@@ -1048,12 +1080,12 @@ const Book = () => {
                                                                             onClick={() => handleDownloadQR(selectedPaymentMethod.qrImageBase64 || gcashQrFallback, `${selectedPaymentMethod.label.toLowerCase()}-qr.png`)}
                                                                             className="btn btn-sm d-inline-flex align-items-center gap-1"
                                                                             style={{
-                                                                                background: 'rgba(99,102,241,0.15)',
-                                                                                border: '1px solid rgba(99,102,241,0.4)',
+                                                                                background: 'rgba(35,160,206,0.15)',
+                                                                                border: '1px solid rgba(35,160,206,0.4)',
                                                                                 borderRadius: '8px',
                                                                                 padding: '5px 14px',
                                                                                 fontSize: '0.78rem',
-                                                                                color: '#a5b4fc',
+                                                                                color: 'var(--text-light-gray300)',
                                                                                 cursor: 'pointer',
                                                                                 fontWeight: '600',
                                                                                 transition: 'all 0.2s'
@@ -1065,11 +1097,11 @@ const Book = () => {
                                                                 </div>
                                                                 {/* Account Info with Copy Button */}
                                                                 <div className="mb-3 p-3 rounded-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                                                    <div className="small mb-1" style={{ color: '#64748b' }}>Account Name</div>
-                                                                    <div className="fw-semibold mb-2" style={{ color: '#e2e8f0' }}>{selectedPaymentMethod.accountName}</div>
-                                                                    <div className="small mb-1" style={{ color: '#64748b' }}>Mobile Number</div>
+                                                                    <div className="small mb-1" style={{ color: 'var(--text-light-gray300)' }}>Account Name</div>
+                                                                    <div className="fw-semibold mb-2" style={{ color: 'var(--text-secondary' }}>{selectedPaymentMethod.accountName}</div>
+                                                                    <div className="small mb-1" style={{ color: 'var(--text-light-gray300)' }}>Mobile Number</div>
                                                                     <div className="d-flex align-items-center gap-2">
-                                                                        <span className="fw-bold" style={{ color: '#a5b4fc', letterSpacing: '1px', fontFamily: 'monospace', fontSize: '1rem' }}>
+                                                                        <span className="fw-bold" style={{ color: 'var(--brand-accent)', letterSpacing: '1px', fontFamily: 'monospace', fontSize: '1rem' }}>
                                                                             {selectedPaymentMethod.accountNumber}
                                                                         </span>
                                                                         <button
@@ -1077,12 +1109,12 @@ const Book = () => {
                                                                             onClick={() => handleCopyNumber(selectedPaymentMethod.accountNumber)}
                                                                             title="Copy number"
                                                                             style={{
-                                                                                background: copySuccess ? 'rgba(74,222,128,0.15)' : 'rgba(99,102,241,0.15)',
-                                                                                border: copySuccess ? '1px solid #4ade80' : '1px solid rgba(99,102,241,0.4)',
+                                                                                background: copySuccess ? 'rgba(74,222,128,0.15)' : 'rgba(35,160,206,0.06)',
+                                                                                border: copySuccess ? '1px solid #4ade80' : '1px solid rgba(35,160,206,0.4)',
                                                                                 borderRadius: '8px',
                                                                                 padding: '3px 10px',
                                                                                 fontSize: '0.75rem',
-                                                                                color: copySuccess ? '#4ade80' : '#a5b4fc',
+                                                                                color: copySuccess ? '#4ade80' : 'var(--brand-accent)',
                                                                                 cursor: 'pointer',
                                                                                 transition: 'all 0.2s',
                                                                                 whiteSpace: 'nowrap',
@@ -1093,9 +1125,9 @@ const Book = () => {
                                                                     </div>
                                                                 </div>
                                                                 {/* Amount to Pay */}
-                                                                <div className="mb-3 p-3 rounded-2 d-flex justify-content-between align-items-center" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)' }}>
+                                                                <div className="mb-3 p-3 rounded-2 d-flex justify-content-between align-items-center" style={{ background: 'rgba(35,160,206,0.06)', border: '1px solid rgba(35,160,206,0.2)' }}>
                                                                     <div>
-                                                                        <div className="small" style={{ color: '#94a3b8' }}>
+                                                                        <div className="small" style={{ color: 'var(--text-light-gray300)' }}>
                                                                             {activeCategory === 'rental' ? `Amount Due (${rentalDownPaymentPct}% Down Payment)` : 'Amount to Pay (Full)'}
                                                                         </div>
                                                                         {activeCategory === 'rental' && (
@@ -1112,7 +1144,7 @@ const Book = () => {
                                                                 </div>
                                                                 {/* Reference No Input */}
                                                                 <div className="mb-3">
-                                                                    <label className="small fw-semibold mb-1 d-block" style={{ color: '#94a3b8' }}>Gcash Reference Number</label>
+                                                                    <label className="small fw-semibold mb-1 d-block" style={{ color: 'var(--text-light-gray300)' }}>Gcash Reference Number</label>
                                                                     <input
                                                                         type="text"
                                                                         className="form-control"
@@ -1124,7 +1156,7 @@ const Book = () => {
                                                                 </div>
                                                                 {/* Screenshot Upload */}
                                                                 <div className="mb-3">
-                                                                    <label className="small fw-semibold mb-1 d-block" style={{ color: '#94a3b8' }}>Upload Payment Screenshot</label>
+                                                                    <label className="small fw-semibold mb-1 d-block" style={{ color: 'var(--text-light-gray300)' }}>Upload Payment Screenshot</label>
                                                                     <input
                                                                         type="file"
                                                                         accept="image/*"
@@ -1132,7 +1164,7 @@ const Book = () => {
                                                                         onChange={handleProofFileChange}
                                                                         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#e2e8f0' }}
                                                                     />
-                                                                    <div className="small mt-1" style={{ color: '#64748b' }}>Max 2MB · JPG, PNG, WebP</div>
+                                                                    <div className="small mt-1" style={{ color: 'var(--text-light-gray300)' }}>Max 2MB · JPG, PNG, WebP</div>
                                                                     {proofPreview && (
                                                                         <div className="mt-2">
                                                                             <img src={proofPreview} alt="Proof preview" style={{ maxHeight: '120px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.3)' }} />
@@ -1144,7 +1176,7 @@ const Book = () => {
                                                                     className="btn w-100"
                                                                     onClick={handleSubmitProof}
                                                                     disabled={isUploadingProof}
-                                                                    style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff', fontWeight: '700', borderRadius: '10px', padding: '12px' }}
+                                                                    style={{ background: 'linear-gradient(135deg,#23a0ce,#00e8e9)', color: '#fff', fontWeight: '700', borderRadius: '10px', padding: '12px' }}
                                                                 >
                                                                     {isUploadingProof ? (
                                                                         <><span className="spinner-border spinner-border-sm me-2" />Submitting...</>
@@ -1155,16 +1187,16 @@ const Book = () => {
 
                                                         {/* ── Bank Transfer Panel ── */}
                                                         {selectedPaymentMethod?.type === 'bank' && (
-                                                            <div className="p-4 rounded-3 mb-3" style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                                                                <p className="small fw-semibold mb-3" style={{ color: '#818cf8', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                                            <div className="p-4 rounded-3 mb-3" style={{ background: 'rgba(35,160,206,0.06)', border: '1px solid rgba(35,160,206,0.2)' }}>
+                                                                <p className="small fw-semibold mb-3" style={{ color: 'var(--brand-accent)', textTransform: 'uppercase', letterSpacing: '1px' }}>
                                                                     {selectedPaymentMethod.label} — Transfer Details
                                                                 </p>
                                                                 <div className="mb-3 p-3 rounded-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                                                    <div className="small mb-1" style={{ color: '#64748b' }}>Account Name</div>
-                                                                    <div className="fw-semibold mb-2" style={{ color: '#e2e8f0' }}>{selectedPaymentMethod.accountName}</div>
-                                                                    <div className="small mb-1" style={{ color: '#64748b' }}>Account Number</div>
+                                                                    <div className="small mb-1" style={{ color: 'var(--text-light-gray300)' }}>Account Name</div>
+                                                                    <div className="fw-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>{selectedPaymentMethod.accountName}</div>
+                                                                    <div className="small mb-1" style={{ color: 'var(--text-light-gray300)' }}>Account Number</div>
                                                                     <div className="d-flex align-items-center gap-2">
-                                                                        <span className="fw-bold" style={{ color: '#a5b4fc', letterSpacing: '2px', fontFamily: 'monospace', fontSize: '1rem' }}>
+                                                                        <span className="fw-bold" style={{ color: 'var(--brand-accent)', letterSpacing: '2px', fontFamily: 'monospace', fontSize: '1rem' }}>
                                                                             {selectedPaymentMethod.accountNumber}
                                                                         </span>
                                                                         <button
@@ -1172,12 +1204,12 @@ const Book = () => {
                                                                             onClick={() => handleCopyNumber(selectedPaymentMethod.accountNumber)}
                                                                             title="Copy account number"
                                                                             style={{
-                                                                                background: copySuccess ? 'rgba(74,222,128,0.15)' : 'rgba(99,102,241,0.15)',
-                                                                                border: copySuccess ? '1px solid #4ade80' : '1px solid rgba(99,102,241,0.4)',
+                                                                                background: copySuccess ? 'rgba(74,222,128,0.15)' : 'rgba(35,160,206,0.06)',
+                                                                                border: copySuccess ? '1px solid #4ade80' : '1px solid rgba(35,160,206,0.4)',
                                                                                 borderRadius: '8px',
                                                                                 padding: '3px 10px',
                                                                                 fontSize: '0.75rem',
-                                                                                color: copySuccess ? '#4ade80' : '#a5b4fc',
+                                                                                color: copySuccess ? '#4ade80' : 'var(--brand-accent)',
                                                                                 cursor: 'pointer',
                                                                                 transition: 'all 0.2s',
                                                                             }}
@@ -1187,8 +1219,8 @@ const Book = () => {
                                                                     </div>
                                                                 </div>
                                                                 {/* Amount */}
-                                                                <div className="mb-3 p-3 rounded-2 d-flex justify-content-between align-items-center" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)' }}>
-                                                                    <div className="small" style={{ color: '#94a3b8' }}>
+                                                                <div className="mb-3 p-3 rounded-2 d-flex justify-content-between align-items-center" style={{ background: 'rgba(35,160,206,0.06)', border: '1px solid rgba(35,160,206,0.2)' }}>
+                                                                    <div className="small" style={{ color: 'var(--text-light-gray300)' }}>
                                                                         {activeCategory === 'rental' ? `Amount Due (${rentalDownPaymentPct}% Down Payment)` : 'Amount to Pay (Full)'}
                                                                     </div>
                                                                     <span className="fw-bold" style={{ fontSize: '1.25rem', color: '#4ade80' }}>
@@ -1199,7 +1231,7 @@ const Book = () => {
                                                                 </div>
                                                                 {/* Reference No */}
                                                                 <div className="mb-3">
-                                                                    <label className="small fw-semibold mb-1 d-block" style={{ color: '#94a3b8' }}>Bank Reference / Transaction No.</label>
+                                                                    <label className="small fw-semibold mb-1 d-block" style={{ color: 'var(--text-light-gray300)' }}>Bank Reference / Transaction No.</label>
                                                                     <input
                                                                         type="text"
                                                                         className="form-control"
@@ -1211,7 +1243,7 @@ const Book = () => {
                                                                 </div>
                                                                 {/* Screenshot Upload */}
                                                                 <div className="mb-3">
-                                                                    <label className="small fw-semibold mb-1 d-block" style={{ color: '#94a3b8' }}>Upload Transfer Screenshot</label>
+                                                                    <label className="small fw-semibold mb-1 d-block" style={{ color: 'var(--text-light-gray300)' }}>Upload Transfer Screenshot</label>
                                                                     <input
                                                                         type="file"
                                                                         accept="image/*"
@@ -1219,7 +1251,7 @@ const Book = () => {
                                                                         onChange={handleProofFileChange}
                                                                         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#e2e8f0' }}
                                                                     />
-                                                                    <div className="small mt-1" style={{ color: '#64748b' }}>Max 2MB · JPG, PNG, WebP</div>
+                                                                    <div className="small mt-1" style={{ color: 'var(--text-light-gray300)' }}>Max 2MB · JPG, PNG, WebP</div>
                                                                     {proofPreview && (
                                                                         <div className="mt-2">
                                                                             <img src={proofPreview} alt="Proof preview" style={{ maxHeight: '120px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.3)' }} />
@@ -1231,28 +1263,26 @@ const Book = () => {
                                                                     className="btn w-100"
                                                                     onClick={handleSubmitProof}
                                                                     disabled={isUploadingProof}
-                                                                    style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff', fontWeight: '700', borderRadius: '10px', padding: '12px' }}
+                                                                    style={{ background: 'linear-gradient(135deg,#23a0ce,#00e8e9)', color: '#fff', fontWeight: '700', borderRadius: '10px', padding: '12px' }}
                                                                 >
                                                                     {isUploadingProof ? (
                                                                         <><span className="spinner-border spinner-border-sm me-2" />Submitting...</>
-                                                                    ) : '📤 Submit Payment Proof'}
+                                                                    ) : 'Submit Payment Proof'}
                                                                 </button>
                                                             </div>
                                                         )}
 
                                                         {/* ── Pay at Counter Panel ── */}
                                                         {selectedPaymentMethod?.type === 'counter' && (
-                                                            <div className="p-4 rounded-3 mb-3 text-center" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)' }}>
-                                                                <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>🏪</div>
-                                                                <p className="fw-semibold mb-1" style={{ color: '#fbbf24' }}>Pay at the Counter</p>
+                                                            <div className="p-4 rounded-3 mb-3 text-center" style={{ background: 'rgba(35,160,206,0.06)', border: '1px solid rgba(35,160,206,0.2)' }}>
                                                                 <p className="small mb-3" style={{ color: '#94a3b8' }}>
                                                                     You can pay in cash or via our in-store POS terminal upon arrival. Click the button below to confirm your booking and get your Reference ID.
                                                                 </p>
-                                                                <div className="mb-3 p-3 rounded-2 d-flex justify-content-between align-items-center" style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)' }}>
-                                                                    <div className="small" style={{ color: '#94a3b8' }}>
+                                                                <div className="mb-3 p-3 rounded-2 d-flex justify-content-between align-items-center" style={{ background: 'rgba(35,160,206,0.08)', border: '1px solid rgba(35,160,206,0.25)' }}>
+                                                                    <div className="small" style={{ color: 'var(--text-light-gray300)' }}>
                                                                         {activeCategory === 'rental' ? `Amount to Pay (${rentalDownPaymentPct}% Down Payment)` : 'Amount to Pay at Counter'}
                                                                     </div>
-                                                                    <span className="fw-bold" style={{ fontSize: '1.25rem', color: '#fbbf24' }}>
+                                                                    <span className="fw-bold" style={{ fontSize: '1.25rem', color: '#4ade80' }}>
                                                                         ₱{activeCategory === 'rental'
                                                                             ? Math.round((selectedRentalVehicle?.pricePerDay || 0) * parseInt(rentalDurationDays || 1) * (rentalDownPaymentPct / 100)).toLocaleString()
                                                                             : totalPrice.toLocaleString()}
@@ -1263,11 +1293,11 @@ const Book = () => {
                                                                     className="btn w-100"
                                                                     onClick={handleSubmitProof}
                                                                     disabled={isUploadingProof}
-                                                                    style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff', borderRadius: '10px', padding: '12px', fontWeight: '700' }}
+                                                                    style={{ background: 'linear-gradient(135deg,#23a0ce,#00e8e9)', color: '#fff', borderRadius: '10px', padding: '12px', fontWeight: '700' }}
                                                                 >
                                                                     {isUploadingProof ? (
                                                                         <><span className="spinner-border spinner-border-sm me-2" />Creating Booking...</>
-                                                                    ) : '🏪 Confirm Booking (Pay at Counter)'}
+                                                                    ) : 'Confirm Booking (Pay at Counter)'}
                                                                 </button>
                                                             </div>
                                                         )}

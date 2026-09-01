@@ -2,15 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { getRevenues, createRevenue, deleteRevenue } = require('../controllers/revenueController');
 const requireAuth = require('../middleware/requireAuth');
-const adminOnly = require('../middleware/adminOnly');
+const requirePermission = require('../middleware/requirePermission');
 const cache = require('../middleware/cacheMiddleware');
 const { invalidatePrefixes } = require('../utils/cache');
 
-// All revenue ledger routes are Admin-restricted
-router.use(requireAuth, adminOnly);
+const invalidateRevenue = (req, res, next) => { invalidatePrefixes('revenue', 'forecast', 'finance', 'sandi'); next(); };
 
-router.get('/', cache('revenue', 90), getRevenues);
-router.post('/', (req, res, next) => { invalidatePrefixes('revenue', 'forecast', 'finance', 'sandi'); next(); }, createRevenue);
-router.delete('/:id', (req, res, next) => { invalidatePrefixes('revenue', 'forecast', 'finance', 'sandi'); next(); }, deleteRevenue);
+router.get('/', requireAuth, requirePermission('Finance', 'read'), cache('revenue', 90), getRevenues);
+router.post('/', requireAuth, requirePermission('Finance', 'create'), invalidateRevenue, createRevenue);
+router.delete('/:id', requireAuth, requirePermission('Finance', 'delete'), invalidateRevenue, deleteRevenue);
 
 module.exports = router;

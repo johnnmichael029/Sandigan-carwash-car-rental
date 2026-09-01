@@ -126,6 +126,10 @@ const bookingSchema = new Schema({
         type: String,
         default: null
     },
+    loyaltyCardId: {
+        type: String,
+        default: null
+    },
     discountAmount: {
         type: Number,
         default: 0

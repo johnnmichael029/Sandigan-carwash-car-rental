@@ -81,7 +81,7 @@ app.use(cors({
 // 1. Login limiter
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // 10 attempts
+    max: 100, // 10 attempts
     message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
     standardHeaders: true, legacyHeaders: false,
     validate: { xForwardedForHeader: false },
@@ -90,7 +90,7 @@ const loginLimiter = rateLimit({
 // 2. Booking creation limiter
 const bookingLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 3, // 20 requests
+    max: 5, // 5 requests
     message: { error: 'Too many booking requests. Please try again later.' },
     standardHeaders: true, legacyHeaders: false,
     validate: { xForwardedForHeader: false },
@@ -99,7 +99,7 @@ const bookingLimiter = rateLimit({
 // 2b. Rental submission limiter
 const rentalLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 3, // 10 rental requests per IP per hour
+    max: 30, // 10 rental requests per IP per hour
     message: { error: 'Too many rental requests. Please try again later.' },
     standardHeaders: true, legacyHeaders: false,
     validate: { xForwardedForHeader: false },
@@ -261,6 +261,7 @@ app.post('/api/car-rentals', rentalLimiter);
 app.use('/api/car-rentals', carRentalRoutes);
 app.use('/api/vehicle-types', vehicleTypeRoutes);
 app.use('/api/sandi', require('./routes/sandiRoutes'));
+app.use('/api/loyalty', require('./routes/loyaltyRoutes'));
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {
     if (err.code === 'EBADCSRFTOKEN') {
@@ -295,10 +296,20 @@ mongoose.connect(dbURI)
             if (result.modifiedCount > 0) {
                 console.log(`🔧 [STARTUP FIX] Converted ${result.modifiedCount} empty-string email(s) to null for sparse index compatibility.`);
             }
+
+            // ── RBAC Auto-Migration: Ensure initial Admin account on live server gets Super Admin role ──
+            const superAdminCount = await Employee.countDocuments({ role: 'super_admin' });
+            if (superAdminCount === 0) {
+                const rbacRes = await Employee.updateMany({ role: 'admin' }, { role: 'super_admin' });
+                if (rbacRes.modifiedCount > 0) {
+                    console.log(`[RBAC MIGRATION] Promoted ${rbacRes.modifiedCount} existing admin account(s) to super_admin.`);
+                }
+            }
         } catch (cleanupErr) {
-            console.warn('[STARTUP FIX] Email cleanup skipped:', cleanupErr.message);
+            console.warn('[STARTUP FIX] Migration skipped:', cleanupErr.message);
         }
     })
+
     .catch(err => {
         console.error('❌ Database connection error:', err);
         process.exit(1); // This stops the "infinite loading" if the database fails

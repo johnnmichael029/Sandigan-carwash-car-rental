@@ -50,36 +50,35 @@ const generateEmployeeId = async () => {
 
 // Create employee
 const createEmployee = async (req, res) => {
-    let {
-        fullName, email, password, role, age, address, phone,
-        baseSalary, salaryFrequency, status,
-        hasAccount = true, shiftType = 'None', shiftStartTime,
-        hiredDate, restDay
-    } = req.body;
+        let {
+            fullName, email, password, role, age, address, phone,
+            baseSalary, salaryFrequency, status,
+            hasAccount = true, shiftType = 'None', shiftStartTime,
+            hiredDate, restDay, departments, permissions
+        } = req.body;
 
-    // Default shift times if not provided
-    if (shiftType === 'Morning' && !shiftStartTime) shiftStartTime = "08:00 AM";
-    if (shiftType === 'Night' && !shiftStartTime) shiftStartTime = "05:00 PM";
+        // Default shift times if not provided
+        if (shiftType === 'Morning' && !shiftStartTime) shiftStartTime = "08:00 AM";
+        if (shiftType === 'Night' && !shiftStartTime) shiftStartTime = "05:00 PM";
 
-    // ── Explicit boolean coercion ──
-    // The frontend may send hasAccount as the string "false", which JS treats as truthy.
-    if (typeof hasAccount === 'string') hasAccount = hasAccount === 'true';
+        // ── Explicit boolean coercion ──
+        if (typeof hasAccount === 'string') hasAccount = hasAccount === 'true';
 
-    // Fallback unique identity for directory-only staff (Satisfies DB uniqueness without requiring a real email)
-    // Fallback unique identity for directory-only staff
-    if (!hasAccount) {
-        if (!email || email.trim() === '') {
-            email = `noaccount_${Date.now()}_${Math.random().toString(36).slice(2, 6)}@sandigan.local`;
+        // Fallback unique identity for directory-only staff
+        if (!hasAccount) {
+            if (!email || email.trim() === '') {
+                email = `noaccount_${Date.now()}_${Math.random().toString(36).slice(2, 6)}@sandigan.local`;
+            }
+            if (!password || password.trim() === '') {
+                password = `noaccount_${Date.now()}!`;
+            }
         }
-        if (!password || password.trim() === '') {
-            password = `noaccount_${Date.now()}!`;
-        }
-    }
 
-    console.log(`[EMPLOYEE_CREATE] Attempting → name: "${fullName}", email: "${email}", hasAccount: ${hasAccount}, role: ${role}`);
+        console.log(`[EMPLOYEE_CREATE] Attempting → name: "${fullName}", email: "${email}", hasAccount: ${hasAccount}, role: ${role}`);
 
-    try {
-        let hashedPassword = null;
+        try {
+            let hashedPassword = null;
+
         if (hasAccount) {
             if (!email || !password) {
                 return res.status(400).json({ error: 'Email and password are required for accounts.' });
@@ -103,6 +102,8 @@ const createEmployee = async (req, res) => {
             password: hashedPassword,
             hasAccount,
             role: role || 'employee',
+            departments: Array.isArray(departments) ? departments : [],
+            permissions: permissions || {},
             shiftType,
             shiftStartTime,
             age: age ? Number(age) : undefined,
@@ -114,6 +115,7 @@ const createEmployee = async (req, res) => {
             hiredDate: hiredDate ? new Date(hiredDate) : undefined,
             restDay: restDay || 'Sunday'
         });
+
 
         console.log(`[EMPLOYEE_CREATE] ✅ SUCCESS — "${fullName}" saved as ${newEmployeeId} (email: ${newEmployee.email || 'none'})`);
 
@@ -159,7 +161,7 @@ const updateEmployee = async (req, res) => {
         hiredDate,
         nonTaxableAllowance,
         sssNo, tinNo, philhealthNo, pagibigNo,
-        restDay
+        restDay, departments, permissions
     } = req.body;
 
     // // Safety: prevent admin from demoting their own account
@@ -181,7 +183,10 @@ const updateEmployee = async (req, res) => {
             }
         }
         if (role) updateFields.role = role;
+        if (departments !== undefined) updateFields.departments = Array.isArray(departments) ? departments : [];
+        if (permissions !== undefined) updateFields.permissions = permissions;
         if (password && password.trim().length > 0) {
+
             const salt = await bcrypt.genSalt(10);
             updateFields.password = await bcrypt.hash(password, salt);
         }
@@ -314,11 +319,16 @@ const loginEmployee = async (req, res) => {
             token,
             employee: {
                 id: employee._id,
+                _id: employee._id,
                 fullName: employee.fullName,
+                email: employee.email,
                 role: employee.role,
+                departments: employee.departments || [],
+                permissions: employee.permissions || {},
                 isEmployee: true
             }
         });
+
 
         // Log the login (non-blocking — after response sent)
         createLog({

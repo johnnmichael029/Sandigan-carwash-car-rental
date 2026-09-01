@@ -11,6 +11,8 @@ import getPaginationRange from '../getPaginationRange';
 import AdminModalWrapper from '../shared/AdminModalWrapper';
 import SharedSearchBar from '../shared/SharedSearchBar';
 import { filterDataBySearch } from '../shared/searchUtils';
+import PermissionGate from '../../PermissionGate';
+import { hasPermission } from '../../../utils/permissions';
 
 import netProfitIcon from '../../../assets/icon/net-profit.png';
 import operationCostIcon from '../../../assets/icon/operation-cost.png';
@@ -29,7 +31,9 @@ import {
 const RevenueCategoryManager = RevenueCategorySettings;
 
 const FinancePage = ({ user, onNavigate, isDark }) => {
+    const canUpdate = hasPermission(user, 'Finance', 'update');
     const [summary, setSummary] = useState({ totalRevenue: 0, totalCommissionOwed: 0, totalExpenses: 0, totalPayables: 0, netProfit: 0 });
+
     const [financePeriod, setFinancePeriod] = useState('all');
     const [expenses, setExpenses] = useState([]);
     const [recipes, setRecipes] = useState([]);
@@ -45,6 +49,17 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
 
     const [commissionRate, setCommissionRate] = useState(0.30);
     const [isSavingRate, setIsSavingRate] = useState(false);
+
+    // ── Loyalty Card Settings ─────────────────────────────────────────────
+    const [loyaltySettings, setLoyaltySettings] = useState({
+        stampsRequired: 9,
+        rewardName: 'Free Armor Treatment',
+        rewardValue: 150,
+        expiryEnabled: false,
+        expiryDays: 365,
+        isActive: true
+    });
+    const [isSavingLoyaltySettings, setIsSavingLoyaltySettings] = useState(false);
 
     const [recurringBills, setRecurringBills] = useState([]);
     const [pendingBills, setPendingBills] = useState([]);
@@ -95,6 +110,7 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
 
     // Expense Pagination & Search State
     const [expSearchTerm, setExpSearchTerm] = useState('');
+    const [expCategoryFilter, setExpCategoryFilter] = useState('All');
     const [expCurrentPage, setExpCurrentPage] = useState(1);
     const expItemsPerPage = 4;
 
@@ -121,6 +137,10 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
         setExpCurrentPage(1);
     }, [expSearchTerm]);
 
+    useEffect(() => {
+        setExpCurrentPage(1);
+    }, [expCategoryFilter]);
+
 
     const fetchData = async () => {
         try {
@@ -143,6 +163,13 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                 const mapSetting = res.data.find(s => s.key === 'erp_mapping');
                 if (mapSetting && mapSetting.value?.mappings) setErpMapping(mapSetting.value.mappings);
             }).catch(err => console.warn("Failed to fetch settings:", err));
+
+            // Fetch loyalty config
+            axios.get(`${API_BASE}/loyalty/config`, { headers: authHeaders(), withCredentials: true }).then(res => {
+                if (res.data) {
+                    setLoyaltySettings(res.data);
+                }
+            }).catch(err => console.warn("Failed to fetch loyalty config:", err));
 
             // Fetch categories in parallel
             Promise.allSettled([
@@ -294,6 +321,27 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
             fetchFinanceData();
         } catch (err) { Swal.fire('Error', 'Failed to update rate', 'error'); }
         finally { setIsSavingRate(false); }
+    };
+
+    const handleSaveLoyaltySettings = async () => {
+        setIsSavingLoyaltySettings(true);
+        try {
+            await axios.put(`${API_BASE}/loyalty/config`, loyaltySettings, { headers: authHeaders(), withCredentials: true });
+            Swal.fire({
+                title: 'Loyalty Settings Saved!',
+                icon: 'success',
+                toast: true,
+                position: 'top-end',
+                timer: 3000,
+                showConfirmButton: false,
+                background: '#002525',
+                color: '#FAFAFA'
+            });
+        } catch (err) {
+            Swal.fire('Error', 'Failed to update loyalty settings', 'error');
+        } finally {
+            setIsSavingLoyaltySettings(false);
+        }
     };
 
     const handleUpdateMapping = async () => {
@@ -521,8 +569,19 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
         finally { setIsApplying(false); }
     };
 
+    // Unique categories derived from actual expense records (dynamic — always up to date)
+    const expenseCategories = useMemo(() => {
+        const cats = [...new Set(expenses.map(e => e.category).filter(Boolean))].sort();
+        return ['All', ...cats];
+    }, [expenses]);
+
     // Client-side filtered expenses & ledger
-    const filteredExpenses = filterDataBySearch(expenses, expSearchTerm, ['title', 'category', 'reference', 'amount', 'description'], ['createdAt', 'date']);
+    const filteredExpenses = filterDataBySearch(
+        expCategoryFilter !== 'All' ? expenses.filter(e => e.category === expCategoryFilter) : expenses,
+        expSearchTerm,
+        ['title', 'category', 'reference', 'amount', 'description'],
+        ['createdAt', 'date']
+    );
     const filteredLedger = filterDataBySearch(ledger, ledgerSearch, ['title', 'category', 'reference', 'amount', 'type'], ['createdAt', 'date']);
 
     const paginatedExpenses = useMemo(() => {
@@ -570,8 +629,6 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                             Overview</button>
                         <button onClick={() => setActiveTab('revenues')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${activeTab === 'revenues' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`} style={{ background: activeTab === 'revenues' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'revenues' ? 'var(--theme-content-text)' : 'inherit' }}>
                             Income & Receivables</button>
-                        <button onClick={() => onNavigate('accounts-payable')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 text-muted`}>
-                            Accounts Payable</button>
                         <button onClick={() => setActiveTab('recurring')} className={`btn btn-sm px-3 border-0 position-relative d-flex align-items-center gap-1 ${activeTab === 'recurring' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`} style={{ background: activeTab === 'recurring' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'recurring' ? 'var(--theme-content-text)' : 'inherit' }}>
                             Recurring Bills
                             {pendingBills.length > 0 && (
@@ -588,9 +645,11 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                             Settings</button>
                     </div>
                     {activeTab === 'overview' && (
-                        <button onClick={() => setShowExpenseModal(true)} className="btn btn-record-expenses brand-primary btn-sm px-3 shadow-sm rounded-3">
-                            + Record Expense
-                        </button>
+                        <PermissionGate user={user} department="Finance" action="create">
+                            <button onClick={() => setShowExpenseModal(true)} className="btn btn-record-expenses brand-primary btn-sm px-3 shadow-sm rounded-3">
+                                + Record Expense
+                            </button>
+                        </PermissionGate>
                     )}
                 </div>
             </div>
@@ -876,6 +935,7 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                             step="0.01"
                                             className="form-control rounded-start-3"
                                             value={commissionRate}
+                                            disabled={!canUpdate || isSavingRate}
                                             onChange={(e) => setCommissionRate(e.target.value)}
                                         />
                                         <span className="input-group-text bg-light">
@@ -889,11 +949,102 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                 <button
                                     onClick={handleUpdateRate}
                                     className="btn btn-save btn-primary px-4 py-2 rounded-3 shadow-sm"
-                                    disabled={isSavingRate}
+                                    disabled={!canUpdate || isSavingRate}
                                 >
                                     {isSavingRate ? 'Saving...' : 'Save Configuration'}
                                 </button>
                             </div>
+
+                            {/* Loyalty Settings Panel */}
+                            <div className="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                                <h6 className="fw-bold text-dark-secondary mb-4">Loyalty Card Settings</h6>
+                                <div className="mb-3 text-start">
+                                    <label className="form-label text-muted small fw-bold mb-1">Stamps Required for Reward</label>
+                                    <input
+                                        type="number"
+                                        className="form-control form-control-sm rounded-3 shadow-none"
+                                        value={loyaltySettings.stampsRequired}
+                                        disabled={!canUpdate}
+                                        onChange={e => setLoyaltySettings({ ...loyaltySettings, stampsRequired: Number(e.target.value) })}
+                                    />
+                                </div>
+                                <div className="mb-3 text-start">
+                                    <label className="form-label text-muted small fw-bold mb-1">Reward Name / Label</label>
+                                    <input
+                                        type="text"
+                                        className="form-control form-control-sm rounded-3 shadow-none"
+                                        value={loyaltySettings.rewardName}
+                                        disabled={!canUpdate}
+                                        onChange={e => setLoyaltySettings({ ...loyaltySettings, rewardName: e.target.value })}
+                                        placeholder="e.g. 1 Free Armor Treatment"
+                                    />
+                                </div>
+                                <div className="mb-3 text-start">
+                                    <label className="form-label text-muted small fw-bold mb-1">Reward Peso Value (₱)</label>
+                                    <input
+                                        type="number"
+                                        className="form-control form-control-sm rounded-3 shadow-none"
+                                        value={loyaltySettings.rewardValue}
+                                        disabled={!canUpdate}
+                                        onChange={e => setLoyaltySettings({ ...loyaltySettings, rewardValue: Number(e.target.value) })}
+                                    />
+                                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                                        Used for CRM lifetime value tracking and business expense logs.
+                                    </small>
+                                </div>
+
+                                <div className="form-check form-switch mb-3 d-flex align-items-center gap-2">
+                                    <input
+                                        className="form-check-input mt-0"
+                                        type="checkbox"
+                                        role="switch"
+                                        id="loyaltyExpiryToggle"
+                                        checked={loyaltySettings.expiryEnabled}
+                                        disabled={!canUpdate}
+                                        onChange={e => setLoyaltySettings({ ...loyaltySettings, expiryEnabled: e.target.checked })}
+                                    />
+                                    <label className="form-check-label text-muted small fw-bold mb-0" htmlFor="loyaltyExpiryToggle" style={{ cursor: 'pointer' }}>
+                                        Enable Stamp Expiry
+                                    </label>
+                                </div>
+
+                                {loyaltySettings.expiryEnabled && (
+                                    <div className="mb-3 text-start">
+                                        <label className="form-label text-muted small fw-bold mb-1">Stamps Expire After (Days)</label>
+                                        <input
+                                            type="number"
+                                            className="form-control form-control-sm rounded-3 shadow-none"
+                                            value={loyaltySettings.expiryDays}
+                                            disabled={!canUpdate}
+                                            onChange={e => setLoyaltySettings({ ...loyaltySettings, expiryDays: Number(e.target.value) })}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="form-check form-switch mb-4 d-flex align-items-center gap-2">
+                                    <input
+                                        className="form-check-input mt-0"
+                                        type="checkbox"
+                                        role="switch"
+                                        id="loyaltyActiveToggle"
+                                        checked={loyaltySettings.isActive}
+                                        disabled={!canUpdate}
+                                        onChange={e => setLoyaltySettings({ ...loyaltySettings, isActive: e.target.checked })}
+                                    />
+                                    <label className="form-check-label text-muted small fw-bold mb-0" htmlFor="loyaltyActiveToggle" style={{ cursor: 'pointer' }}>
+                                        Loyalty Program Active
+                                    </label>
+                                </div>
+
+                                <button
+                                    onClick={handleSaveLoyaltySettings}
+                                    className="btn btn-save btn-primary px-4 py-2 rounded-3 shadow-sm w-100 fw-bold"
+                                    disabled={!canUpdate || isSavingLoyaltySettings}
+                                >
+                                    {isSavingLoyaltySettings ? 'Saving...' : 'Save Loyalty Settings'}
+                                </button>
+                            </div>
+
                             {/* Revenue Tag Manager Modal */}
                             <RevenueCategoryManager
                                 show={showRevCategoryManager}
@@ -909,7 +1060,7 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                     <h6 className="mb-0 fw-bold text-dark-secondary">Revenue Category Mapping</h6>
                                     <small className="text-muted" style={{ fontSize: '0.75rem' }}>Map inventory items to specific accounting groups</small>
                                 </div>
-                                <button onClick={() => setShowRevCategoryManager(true)} className="btn btn-sm btn-outline-secondary category-tags rounded-pill px-3">
+                                <button onClick={() => setShowRevCategoryManager(true)} disabled={!canUpdate} className="btn btn-sm btn-outline-secondary category-tags rounded-pill px-3">
                                     Tag Library
                                 </button>
                             </div>
@@ -947,6 +1098,7 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                                         <select
                                                                             className="form-select form-select-sm rounded-3 shadow-none border-light flex-grow-1"
                                                                             value={current}
+                                                                            disabled={!canUpdate}
                                                                             onChange={(e) => updateMappingItem(cat.name, e.target.value)}
                                                                         >
                                                                             <option value="">-- Choose Account Tag --</option>
@@ -973,11 +1125,12 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                         </table>
                                         <button
                                             onClick={handleUpdateMapping}
-                                            disabled={isSavingMapping}
+                                            disabled={!canUpdate || isSavingMapping}
                                             className="btn btn-save btn-primary w-100 rounded-3 shadow-sm py-2 fw-bold"
                                         >
                                             {isSavingMapping ? 'Saving Mappings...' : 'Update Mapping Rules'}
                                         </button>
+
                                         <p className="text-muted mt-3 mb-0" style={{ fontSize: '0.68rem', fontStyle: 'italic' }}>
                                             * Hint: Use the Tag Library button above to create accounting groups like "Food & Beverage", "Retail Store", or "Services".
                                         </p>
@@ -1116,7 +1269,21 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                         <h6 className="mb-0 fw-bold text-dark-secondary">Business Expenses</h6>
                                                         <p className="mb-0 text-muted" style={{ fontSize: '0.7rem' }}>Log of all operational costs and supplies</p>
                                                     </div>
-                                                    <div className="d-flex gap-2 align-items-center">
+                                                    <div className="d-flex gap-2 align-items-center flex-wrap">
+                                                        {/* Category Filter — dynamic from actual expense data */}
+                                                        <select
+                                                            className="form-select form-select-m rounded-pill shadow-none"
+                                                            style={{ fontSize: '0.78rem', width: 'auto', minWidth: '130px', cursor: 'pointer', border: '1px solid #dee2e6' }}
+                                                            value={expCategoryFilter}
+                                                            onChange={e => setExpCategoryFilter(e.target.value)}
+                                                            title="Filter by category"
+                                                        >
+                                                            {expenseCategories.map(cat => (
+                                                                <option key={cat} value={cat}>
+                                                                    {cat === 'All' ? 'All Categories' : cat}
+                                                                </option>
+                                                            ))}
+                                                        </select>
                                                         <SharedSearchBar
                                                             searchTerm={expSearchTerm}
                                                             onDebouncedSearch={setExpSearchTerm}
@@ -1165,9 +1332,11 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                                         <td className="text-dark-gray200" style={{ color: 'var(--theme-content-text-secondary)' }}>{new Date(exp.date).toLocaleDateString()}</td>
                                                                         <td className="fw-bold text-danger">- ₱{exp.amount.toLocaleString()}</td>
                                                                         <td className="pe-4 text-end">
-                                                                            <button onClick={() => deleteExpense(exp._id)} className="btn btn-sm text-danger-hover p-0 border-0 bg-transparent">
-                                                                                <img src={deleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
-                                                                            </button>
+                                                                            <PermissionGate user={user} department="Finance" action="delete">
+                                                                                <button onClick={() => deleteExpense(exp._id)} className="btn btn-sm text-danger-hover p-0 border-0 bg-transparent">
+                                                                                    <img src={deleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
+                                                                                </button>
+                                                                            </PermissionGate>
                                                                         </td>
                                                                     </tr>
                                                                 ))
@@ -1354,9 +1523,11 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                                     <td className="text-dark-gray200">{new Date(rev.date).toLocaleString('en-PH')}</td>
                                                                     <td className="pe-4 fw-bold brand-primary">+ ₱{rev.amount.toLocaleString()}</td>
                                                                     <td className="pe-4 text-end">
-                                                                        <button onClick={() => deleteRevenue(rev._id)} className="btn btn-sm text-danger-hover p-0 border-0 bg-transparent">
-                                                                            <img src={deleteIcon} alt="Delete" style={{ width: '18px' }} />
-                                                                        </button>
+                                                                        <PermissionGate user={user} department="Finance" action="delete">
+                                                                            <button onClick={() => deleteRevenue(rev._id)} className="btn btn-sm text-danger-hover p-0 border-0 bg-transparent">
+                                                                                <img src={deleteIcon} alt="Delete" style={{ width: '18px' }} />
+                                                                            </button>
+                                                                        </PermissionGate>
                                                                     </td>
                                                                 </tr>
                                                             ))
@@ -1421,7 +1592,9 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                             onChange={(e) => setBudgetMonth(e.target.value)}
                                         />
                                     </div>
-                                    <button onClick={() => setShowBudgetForm(!showBudgetForm)} className="btn btn-save btn-primary btn-sm rounded-pill px-3">+ Set Category Budget</button>
+                                    <PermissionGate user={user} department="Finance" action="create">
+                                        <button onClick={() => setShowBudgetForm(!showBudgetForm)} className="btn btn-save btn-primary btn-sm rounded-pill px-3">+ Set Category Budget</button>
+                                    </PermissionGate>
                                 </div>
 
                                 {showBudgetForm && (
@@ -1484,13 +1657,18 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                                 <span className="text-muted fw-medium" style={{ fontSize: '0.85rem' }}>spent of ₱{b.allocatedAmount.toLocaleString()} Limit</span>
                                                             </div>
                                                             <div className="d-flex gap-2">
-                                                                <button onClick={() => handleEditBudget(b)} className="btn btn-link text-primary p-0 border-0" title="Edit Limit">
-                                                                    <img src={editIcon} style={{ width: '18px' }} alt="edit" />
-                                                                </button>
-                                                                <button onClick={() => handleDeleteBudget(b._id)} className="btn btn-link text-danger p-0 border-0" title="Delete Limit">
-                                                                    <img src={deleteIcon} style={{ width: '18px' }} alt="delete" />
-                                                                </button>
+                                                                <PermissionGate user={user} department="Finance" action="update">
+                                                                    <button onClick={() => handleEditBudget(b)} className="btn btn-link text-primary p-0 border-0" title="Edit Limit">
+                                                                        <img src={editIcon} style={{ width: '18px' }} alt="edit" />
+                                                                    </button>
+                                                                </PermissionGate>
+                                                                <PermissionGate user={user} department="Finance" action="delete">
+                                                                    <button onClick={() => handleDeleteBudget(b._id)} className="btn btn-link text-danger p-0 border-0" title="Delete Limit">
+                                                                        <img src={deleteIcon} style={{ width: '18px' }} alt="delete" />
+                                                                    </button>
+                                                                </PermissionGate>
                                                             </div>
+
                                                         </div>
 
                                                         <div className="d-flex justify-content-between mb-1 mt-4">
@@ -1520,9 +1698,11 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                     <p className="mb-0 fw-bold" style={{ fontSize: '0.85rem' }}>🔔 {pendingBills.length} Bill{pendingBills.length > 1 ? 's' : ''} Pending This Period</p>
                                                     <small className="text-muted">{pendingBills.map(b => b.name).join(', ')}</small>
                                                 </div>
-                                                <button onClick={handleApplyPending} disabled={isApplying} className="btn btn-warning btn-sm px-3 rounded-pill fw-bold shadow-sm" style={{ whiteSpace: 'nowrap' }}>
-                                                    {isApplying ? 'Applying...' : 'Apply All Now'}
-                                                </button>
+                                                <PermissionGate user={user} department="Finance" action="update">
+                                                    <button onClick={handleApplyPending} disabled={isApplying} className="btn btn-warning btn-sm px-3 rounded-pill fw-bold shadow-sm" style={{ whiteSpace: 'nowrap' }}>
+                                                        {isApplying ? 'Applying...' : 'Apply All Now'}
+                                                    </button>
+                                                </PermissionGate>
                                             </div>
                                         )}
                                         <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
@@ -1532,8 +1712,12 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                     <small className="text-muted" style={{ fontSize: '0.72rem' }}>Fixed monthly/weekly/yearly costs (Internet, Rent, Utilities)</small>
                                                 </div>
                                                 <div className="d-flex gap-2">
-                                                    <button onClick={() => setShowBillCategoryManager(true)} className="btn btn-sm btn-outline-secondary rounded-pill px-3">Types Library</button>
-                                                    <button onClick={() => setShowBillForm(!showBillForm)} className="btn btn-save btn-sm rounded-pill px-3">+ Add Bill</button>
+                                                    <PermissionGate user={user} department="Finance" action="update">
+                                                        <button onClick={() => setShowBillCategoryManager(true)} className="btn btn-sm btn-outline-secondary rounded-pill px-3">Types Library</button>
+                                                    </PermissionGate>
+                                                    <PermissionGate user={user} department="Finance" action="create">
+                                                        <button onClick={() => setShowBillForm(!showBillForm)} className="btn btn-save btn-sm rounded-pill px-3">+ Add Bill</button>
+                                                    </PermissionGate>
                                                 </div>
                                             </div>
                                             {showBillForm && (
@@ -1640,13 +1824,18 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                                                                                 )}
                                                                             </div>
                                                                             <div className="d-flex gap-1">
-                                                                                <button onClick={() => setEditingBill({ _id: bill._id, name: bill.name, amount: bill.amount, category: bill.category, frequency: bill.frequency })} className="btn btn-sm border-0 bg-transparent p-1">
-                                                                                    <img src={editIcon} style={{ width: 18 }} alt="Edit" />
-                                                                                </button>
-                                                                                <button onClick={() => handleDeleteBill(bill._id)} className="btn btn-sm border-0 bg-transparent p-1">
-                                                                                    <img src={deleteIcon} style={{ width: 18 }} alt="Delete" />
-                                                                                </button>
+                                                                                <PermissionGate user={user} department="Finance" action="update">
+                                                                                    <button onClick={() => setEditingBill({ _id: bill._id, name: bill.name, amount: bill.amount, category: bill.category, frequency: bill.frequency })} className="btn btn-sm border-0 bg-transparent p-1">
+                                                                                        <img src={editIcon} style={{ width: 18 }} alt="Edit" />
+                                                                                    </button>
+                                                                                </PermissionGate>
+                                                                                <PermissionGate user={user} department="Finance" action="delete">
+                                                                                    <button onClick={() => handleDeleteBill(bill._id)} className="btn btn-sm border-0 bg-transparent p-1">
+                                                                                        <img src={deleteIcon} style={{ width: 18 }} alt="Delete" />
+                                                                                    </button>
+                                                                                </PermissionGate>
                                                                             </div>
+
                                                                         </div>
                                                                     </div>
                                                                 )}

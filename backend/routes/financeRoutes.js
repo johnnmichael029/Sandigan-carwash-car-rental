@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const requireAuth = require('../middleware/requireAuth');
-const adminOnly = require('../middleware/adminOnly');
+const requirePermission = require('../middleware/requirePermission');
 const { getExpenses, createExpense, deleteExpense } = require('../controllers/expenseController');
 const { getSettings, updateSetting } = require('../controllers/settingController');
 const Booking = require('../models/bookingModel');
@@ -11,16 +11,17 @@ const { invalidatePrefixes } = require('../utils/cache');
 const invalidateFinance = (req, res, next) => { invalidatePrefixes('finance', 'forecast', 'sandi'); next(); };
 
 // Expenses — cached 60s
-router.get('/expenses', requireAuth, adminOnly, cache('finance', 60), getExpenses);
-router.post('/expenses', requireAuth, adminOnly, invalidateFinance, createExpense);
-router.delete('/expenses/:id', requireAuth, adminOnly, invalidateFinance, deleteExpense);
+router.get('/expenses', requireAuth, requirePermission('Finance', 'read'), cache('finance', 60), getExpenses);
+router.post('/expenses', requireAuth, requirePermission('Finance', 'create'), invalidateFinance, createExpense);
+router.delete('/expenses/:id', requireAuth, requirePermission('Finance', 'delete'), invalidateFinance, deleteExpense);
 
-// Finance settings — cached 5 min (commission rate rarely changes)
-router.get('/settings', requireAuth, adminOnly, cache('finance', 300), getSettings);
-router.post('/settings', requireAuth, adminOnly, invalidateFinance, updateSetting);
+// Finance settings
+router.get('/settings', requireAuth, requirePermission('Finance', 'read'), cache('finance', 300), getSettings);
+router.post('/settings', requireAuth, requirePermission('Finance', 'update'), invalidateFinance, updateSetting);
+
 
 // Financial summary — cached 60s (runs 4 DB queries; most-hit endpoint in Finance tab)
-router.get('/summary', requireAuth, adminOnly, cache('finance', 60), async (req, res) => {
+router.get('/summary', requireAuth, requirePermission('Finance', 'read'), cache('finance', 60), async (req, res) => {
     try {
         const { period = 'all', from, to } = req.query;
 

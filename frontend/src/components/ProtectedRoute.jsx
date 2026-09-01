@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 
 /**
- * ProtectedRoute: guards employee-only pages.
+ * ProtectedRoute: guards employee-only and admin pages.
  * Checks that employee data exists in localStorage (set on login).
  * The JWT itself is held in an httpOnly cookie (not readable from JS).
  * Real security is enforced by the JWT middleware on every protected backend API call.
@@ -17,9 +17,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
     // If allowedRoles is provided, check if the employee role matches
     if (allowedRoles && !allowedRoles.includes(employee.role)) {
-        // If they are admin but trying to access staff page, redirect to admin
-        if (employee.role === 'admin') return <Navigate to="/admin" replace />;
-        // If they are staff but trying to access admin page, redirect to employee
+        // Super Admin, Admin, and Department Staff all belong in the admin portal
+        if (['super_admin', 'admin', 'department_staff'].includes(employee.role)) {
+            return <Navigate to="/admin" replace />;
+        }
+        // Floor staff fall back to employee dashboard
         return <Navigate to="/employee" replace />;
     }
 

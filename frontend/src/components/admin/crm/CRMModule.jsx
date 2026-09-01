@@ -17,22 +17,27 @@ import { filterDataBySearch } from '../shared/searchUtils';
 import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 import getPaginationRange from '../getPaginationRange';
+import PermissionGate from '../../PermissionGate';
+import { hasPermission } from '../../../utils/permissions';
 import sandiganLogo from '../../../assets/logo/sandigan-logo.png';
 
 const getStatusColor = (status) => {
     switch ((status || '').toLowerCase()) {
-        case 'completed':   return { bg: '#22c55e20', text: '#22c55e', border: '#22c55e50' };
-        case 'pending':     return { bg: '#f59e0b20', text: '#f59e0b', border: '#f59e0b50' };
-        case 'confirmed':   return { bg: '#3b82f620', text: '#3b82f6', border: '#3b82f650' };
-        case 'active':      return { bg: '#22c55e20', text: '#22c55e', border: '#22c55e50' };
-        case 'returned':    return { bg: '#9ca3af20', text: '#9ca3af', border: '#9ca3af50' };
-        case 'cancelled':   return { bg: '#ef444420', text: '#ef4444', border: '#ef444450' };
+        case 'completed': return { bg: '#22c55e20', text: '#22c55e', border: '#22c55e50' };
+        case 'pending': return { bg: '#f59e0b20', text: '#f59e0b', border: '#f59e0b50' };
+        case 'confirmed': return { bg: '#3b82f620', text: '#3b82f6', border: '#3b82f650' };
+        case 'active': return { bg: '#22c55e20', text: '#22c55e', border: '#22c55e50' };
+        case 'returned': return { bg: '#9ca3af20', text: '#9ca3af', border: '#9ca3af50' };
+        case 'cancelled': return { bg: '#ef444420', text: '#ef4444', border: '#ef444450' };
         case 'in progress': return { bg: '#23A0CE20', text: '#23A0CE', border: '#23A0CE50' };
-        default:            return { bg: 'var(--theme-badge-muted-bg)', text: 'var(--theme-content-text-secondary)', border: 'transparent' };
+        default: return { bg: 'var(--theme-badge-muted-bg)', text: 'var(--theme-content-text-secondary)', border: 'transparent' };
     }
 };
 
 const CRMPage = ({ user, isDark }) => {
+    const canUpdate = hasPermission(user, 'Clientele', 'update');
+    const canCreate = hasPermission(user, 'Clientele', 'create');
+
 
     // ── SWR Data Fetching ──────────────────────────────────────────────────────
     const { data: customersData, isLoading, mutate: mutateCustomers } = useSWR('/crm', swrFetcher, SWR_CONFIG);
@@ -66,7 +71,7 @@ const CRMPage = ({ user, isDark }) => {
     // Tag Manager State (saved on change)
     const [clientTags, setClientTags] = useState([]);
     const [isSavingTags, setIsSavingTags] = useState(false);
-    
+
     // Timeline Pagination State
     const [visibleTimelineCount, setVisibleTimelineCount] = useState(15);
 
@@ -243,6 +248,8 @@ const CRMPage = ({ user, isDark }) => {
             title: 'Issue Membership Card?',
             text: `This will assign a unique SMC to ${selectedClient.firstName} ${selectedClient.lastName}.`,
             icon: 'question',
+            color: 'var(--theme-content-text)',
+            background: 'var(--theme-card-bg)',
             showCancelButton: true,
             confirmButtonColor: '#f59e0b',
             confirmButtonText: 'Yes, Issue Card'
@@ -256,6 +263,30 @@ const CRMPage = ({ user, isDark }) => {
             setShowSMCPrint(true);
         } catch (err) {
             Swal.fire('Error', err.response?.data?.error || 'Failed to issue SMC.', 'error');
+        }
+    };
+
+    const handleIssueLoyalty = async () => {
+        const result = await Swal.fire({
+            title: 'Issue Loyalty Card?',
+            text: `This will assign a free Digital Loyalty stamp card to ${selectedClient.firstName} ${selectedClient.lastName}.`,
+            icon: 'question',
+            color: 'var(--theme-content-text)',
+            background: 'var(--theme-card-bg)',
+            showCancelButton: true,
+            confirmButtonColor: '#6366f1',
+            confirmButtonText: 'Yes, Issue Loyalty'
+        });
+        if (!result.isConfirmed) return;
+        try {
+            const res = await axios.post(`${API_BASE}/crm/${selectedClient._id}/loyalty`, {}, { headers: authHeaders(), withCredentials: true });
+            Swal.fire({ title: 'Loyalty Card Issued!', text: `Card ID ${res.data.customer.loyaltyCardId}`, icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#002525', color: '#FAFAFA' });
+            setSelectedClient(prev => ({ ...prev, ...res.data.customer }));
+            // Trigger stats reload
+            handleOpen360(res.data.customer);
+            mutateCustomers();
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'Failed to issue Loyalty card.', 'error');
         }
     };
 
@@ -383,34 +414,43 @@ const CRMPage = ({ user, isDark }) => {
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Track client loyalty, lifetime value, and retention</p>
                 </div>
                 <div className="d-flex gap-2">
-                    <button
-                        onClick={handleSync}
-                        className="btn btn-sm btn-outline-secondary px-3 rounded-pill d-flex align-items-center gap-2 shadow-sm"
-                        disabled={isSyncing}
-                    >
-                        {isSyncing ? 'Syncing...' : '↻ Backfill from Bookings'}
-                    </button>
-                    <button
-                        className="btn btn-sm btn-smc-card px-3 rounded-pill shadow-sm text-primary fw-bold"
-                        onClick={() => setShowSMCConfig(true)}
-                        title="Configure Membership Program (SMC) Pricing & Discounts"
-                    >
-                        <i className="bi bi-star-fill text-warning me-1"></i> Membership Config
-                    </button>
-                    <button
-                        className="btn btn-sm btn-outline-secondary px-3 rounded-pill shadow-sm category-tags"
-                        onClick={() => setShowTagManager(true)}
-                        title="Manage segment tag library"
-                    >
-                        Tag Library
-                    </button>
-                    <button
-                        className="btn btn-record-expenses brand-primary btn-sm px-3 shadow-sm rounded-3"
-                        onClick={() => setShowAddClientModal(true)}
-                    >
-                        + Add Client manually
-                    </button>
+                    <PermissionGate user={user} department="Clientele" action="create">
+                        <button
+                            onClick={handleSync}
+                            className="btn btn-sm btn-outline-secondary px-3 rounded-pill d-flex align-items-center gap-2 shadow-sm"
+                            disabled={isSyncing}
+                        >
+                            {isSyncing ? 'Syncing...' : '↻ Backfill from Bookings'}
+                        </button>
+                    </PermissionGate>
+                    <PermissionGate user={user} department="Clientele" action="update">
+                        <button
+                            className="btn btn-sm btn-smc-card px-3 rounded-pill shadow-sm text-primary fw-bold"
+                            onClick={() => setShowSMCConfig(true)}
+                            title="Configure Membership Program (SMC) Pricing & Discounts"
+                        >
+                            <i className="bi bi-star-fill text-warning me-1"></i> Membership Config
+                        </button>
+                    </PermissionGate>
+                    <PermissionGate user={user} department="Clientele" action="update">
+                        <button
+                            className="btn btn-sm btn-outline-secondary px-3 rounded-pill shadow-sm category-tags"
+                            onClick={() => setShowTagManager(true)}
+                            title="Manage segment tag library"
+                        >
+                            Tag Library
+                        </button>
+                    </PermissionGate>
+                    <PermissionGate user={user} department="Clientele" action="create">
+                        <button
+                            className="btn btn-record-expenses brand-primary btn-sm px-3 shadow-sm rounded-3"
+                            onClick={() => setShowAddClientModal(true)}
+                        >
+                            + Add Client manually
+                        </button>
+                    </PermissionGate>
                 </div>
+
             </div>
 
             {/* CRM KPI Cards */}
@@ -590,16 +630,34 @@ const CRMPage = ({ user, isDark }) => {
                                     {/* Edit & Delete action row - Hidden for Walk-in profile */}
                                     {selectedClient.email !== 'walkin@example.com' && (
                                         <div className="d-flex gap-2">
+                                            <PermissionGate user={user} department="Clientele" action="update">
                                             <button onClick={handleOpenEdit} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
                                                 <img src={editIcon} style={{ width: '16px' }} alt="Edit Icon" /></button>
+                                            </PermissionGate>
+                                            <PermissionGate user={user} department="Clientele" action="delete">
                                             <button onClick={handleDeleteClient} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
                                                 <img src={deleteIcon} style={{ width: '16px' }} alt="Delete Icon" /></button>
+                                            </PermissionGate>
                                         </div>
                                     )}
                                 </div>
-                                <div className="text-end pe-2">
-                                    <p className="mb-1 text-light opacity-75 small text-uppercase">Lifetime Value</p>
-                                    <h3 className="mb-0 text-success fw-bold">₱{(clientStats?.customer?.lifetimeSpend ?? selectedClient.lifetimeSpend).toLocaleString()}</h3>
+                                <div className="text-end pe-2 d-flex gap-4 align-items-center">
+                                    {clientStats?.loyaltyCard && (
+                                        <>
+                                            <div className="border-end pe-4" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
+                                                <p className="mb-0 text-light opacity-75 small text-uppercase text-nowrap" style={{ fontSize: '0.68rem', letterSpacing: '0.5px' }}>Cards Completed</p>
+                                                <h3 className="mb-0 text-warning fw-bold text-end">{clientStats.loyaltyCard.rewardCount || 0}×</h3>
+                                            </div>
+                                            <div className="border-end pe-4" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
+                                                <p className="mb-0 text-light opacity-75 small text-uppercase text-nowrap" style={{ fontSize: '0.68rem', letterSpacing: '0.5px' }}>Free Services Value</p>
+                                                <h3 className="mb-0 text-info fw-bold text-end">₱{((clientStats.loyaltyCard.rewardHistory || []).reduce((sum, r) => sum + (r.rewardValue || 0), 0)).toLocaleString()}</h3>
+                                            </div>
+                                        </>
+                                    )}
+                                    <div>
+                                        <p className="mb-1 text-light opacity-75 small text-uppercase text-nowrap" style={{ fontSize: '0.68rem', letterSpacing: '0.5px' }}>Lifetime Value</p>
+                                        <h3 className="mb-0 text-success fw-bold text-end">₱{(clientStats?.customer?.lifetimeSpend ?? selectedClient.lifetimeSpend).toLocaleString()}</h3>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -626,7 +684,7 @@ const CRMPage = ({ user, isDark }) => {
 
                                     {/* SMC Membership Area */}
                                     <h6 className="fw-bold text-dark-secondary mb-2">Membership</h6>
-                                    <div className="mb-4">
+                                    <div className="mb-3">
                                         {selectedClient.hasSMC ? (
                                             <div className="d-flex align-items-center gap-2 p-2 px-3 border rounded-3" style={{ borderColor: '#22c55e', borderLeft: '4px solid #22c55e', background: 'var(--theme-card-bg)' }}>
                                                 <div className="flex-grow-1">
@@ -641,29 +699,101 @@ const CRMPage = ({ user, isDark }) => {
                                                 )}
                                             </div>
                                         ) : (
-                                            <button onClick={handleIssueSMC} className="btn w-100 rounded-3 text-white shadow-sm d-flex justify-content-center align-items-center gap-2 border-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', fontSize: '0.85rem', fontWeight: 600, padding: '10px' }}>
+                                            <button
+                                                onClick={handleIssueSMC}
+                                                disabled={!canCreate}
+                                                className="btn w-100 rounded-3 text-white shadow-sm d-flex justify-content-center align-items-center gap-2 border-0"
+                                                style={{
+                                                    background: canCreate ? 'linear-gradient(135deg, #f59e0b, #d97706)' : '#94a3b8',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: 600,
+                                                    padding: '10px',
+                                                    opacity: canCreate ? 1 : 0.6,
+                                                    cursor: canCreate ? 'pointer' : 'not-allowed'
+                                                }}
+                                            >
                                                 Issue Membership Card
                                             </button>
                                         )}
                                     </div>
 
+                                    {/* 🎴 Loyalty Program Info Panel */}
+                                    {clientStats?.loyaltyCard ? (() => {
+                                        const card = clientStats.loyaltyCard;
+                                        const config = clientStats.loyaltyConfig || { stampsRequired: 9, rewardName: 'Free Armor Treatment' };
+                                        const stampsRequired = config.stampsRequired || 9;
+                                        const current = card.stampCount || 0;
+                                        const hasPendingReward = card.pendingReward;
+                                        return (
+                                            <div className="mb-4">
+                                                <h6 className="fw-bold text-dark-secondary mb-2">Loyalty Program</h6>
+                                                <div className="p-3 rounded-3" style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.22)' }}>
+                                                    {hasPendingReward ? (
+                                                        <div className="text-center py-2 rounded-3" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }}>
+                                                             <div style={{ fontSize: '1.2rem' }}>🎁</div>
+                                                            <div className="fw-bold text-success" style={{ fontSize: '0.82rem' }}>Reward Ready to Claim!</div>
+                                                            <div className="small text-muted" style={{ fontSize: '0.72rem' }}>{config.rewardName}</div>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="d-flex flex-wrap gap-1 justify-content-center mb-2">
+                                                                {Array.from({ length: stampsRequired }).map((_, i) => (
+                                                                    <div key={i} style={{
+                                                                        width: '24px', height: '24px', borderRadius: '50%',
+                                                                        background: i < current ? '#6366f1' : 'rgba(99,102,241,0.12)',
+                                                                        border: i < current ? '1.5px solid #818cf8' : '1.5px solid rgba(99,102,241,0.25)',
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                        fontSize: '0.55rem', color: i < current ? '#fff' : 'rgba(99,102,241,0.4)', fontWeight: 700
+                                                                    }}>{i < current ? '✓' : i + 1}</div>
+                                                                ))}
+                                                            </div>
+                                                            <div className="text-center text-muted" style={{ fontSize: '0.74rem' }}>
+                                                                <strong style={{ color: '#a5b4fc' }}>{current}/{stampsRequired}</strong> stamps accumulated
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })() : (
+                                        <div className="mb-4">
+                                            <h6 className="fw-bold text-dark-secondary mb-2">Loyalty Program</h6>
+                                            <button
+                                                onClick={handleIssueLoyalty}
+                                                disabled={!canCreate}
+                                                className="btn w-100 rounded-3 text-white shadow-sm d-flex justify-content-center align-items-center gap-2 border-0"
+                                                style={{
+                                                    background: canCreate ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : '#94a3b8',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: 600,
+                                                    padding: '10px',
+                                                    opacity: canCreate ? 1 : 0.6,
+                                                    cursor: canCreate ? 'pointer' : 'not-allowed'
+                                                }}
+                                            >
+                                                Issue Loyalty Card (Free)
+                                            </button>
+                                        </div>
+                                    )}
+
                                     {/* Tag Manager — DB driven */}
                                     <h6 className="fw-bold text-dark-secondary mb-2">Segment Tags</h6>
-                                    <p className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>Click to toggle. Save when done.</p>
+                                    <p className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>{canUpdate ? 'Click to toggle. Save when done.' : 'Assigned segment tags (Read-only).'}</p>
                                     <div className="d-flex flex-wrap gap-2 mb-3">
                                         {availableTags.map(tag => {
                                             const isActive = clientTags.includes(tag.name);
                                             return (
                                                 <button
                                                     key={tag._id}
-                                                    onClick={() => handleToggleTag(tag.name)}
+                                                    disabled={!canUpdate}
+                                                    onClick={() => canUpdate && handleToggleTag(tag.name)}
                                                     className="badge rounded-pill border-0"
                                                     style={{
-                                                        fontSize: '0.72rem', cursor: 'pointer', padding: '6px 12px', fontWeight: 600,
+                                                        fontSize: '0.72rem', cursor: canUpdate ? 'pointer' : 'default', padding: '6px 12px', fontWeight: 600,
                                                         background: isActive ? tag.color : 'var(--theme-badge-muted-bg)',
                                                         color: isActive ? tag.textColor : 'var(--theme-content-text-secondary)',
                                                         border: `1.5px solid ${isActive ? tag.color : 'var(--theme-content-border)'}`,
-                                                        opacity: isActive ? 1 : 0.75,
+                                                        opacity: isActive ? 1 : (canUpdate ? 0.75 : 0.4),
                                                     }}
                                                     title={tag.description || ''}
                                                 >
@@ -675,7 +805,7 @@ const CRMPage = ({ user, isDark }) => {
                                     <button
                                         onClick={handleSaveTags}
                                         className="btn btn-save btn-sm w-100 rounded-3 mb-4"
-                                        disabled={isSavingTags || selectedClient.email === 'walkin@example.com'}
+                                        disabled={!canUpdate || isSavingTags || selectedClient.email === 'walkin@example.com'}
                                     >
                                         {isSavingTags ? 'Saving...' : 'Save Tags'}
                                     </button>
@@ -685,18 +815,20 @@ const CRMPage = ({ user, isDark }) => {
                                     <textarea
                                         className="form-control rounded-3 border-0 shadow-sm mb-3"
                                         rows="4"
-                                        placeholder="Add instructions or preferences..."
+                                        placeholder={canUpdate ? "Add instructions or preferences..." : "Read-only staff notes."}
                                         value={notesText}
+                                        disabled={!canUpdate}
                                         onChange={(e) => setNotesText(e.target.value)}
                                         style={{ fontSize: '0.85rem', resize: 'none', background: 'var(--theme-card-bg)', color: 'var(--theme-content-text)' }}
                                     />
                                     <button
                                         onClick={handleSaveNotes}
                                         className="btn btn-save btn-success btn-sm w-100 rounded-3"
-                                        disabled={isSavingNotes || notesText === selectedClient.notes || selectedClient.email === 'walkin@example.com'}
+                                        disabled={!canUpdate || isSavingNotes || notesText === selectedClient.notes || selectedClient.email === 'walkin@example.com'}
                                     >
                                         {isSavingNotes ? 'Saving...' : 'Save CRM Notes'}
                                     </button>
+
 
                                     {selectedClient.vehicles?.length > 0 && (
                                         <div className="mt-4">
@@ -718,8 +850,8 @@ const CRMPage = ({ user, isDark }) => {
                                     ) : clientStats.history?.length === 0 ? (
                                         <p className="text-muted small">No past transactions found.</p>
                                     ) : (
-                                        <div 
-                                            style={{ maxHeight: '680px', overflowY: 'auto' }} 
+                                        <div
+                                            style={{ maxHeight: '680px', overflowY: 'auto' }}
                                             className="pe-2 custom-scrollbar"
                                             onScroll={handleTimelineScroll}
                                         >

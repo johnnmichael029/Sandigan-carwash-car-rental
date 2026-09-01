@@ -4,9 +4,14 @@ import Swal from 'sweetalert2';
 import { API_BASE, authHeaders } from '../../../api/config';
 import editIcon from '../../../assets/icon/edit.png';
 import deleteIcon from '../../../assets/icon/delete.png';
+import PermissionGate from '../../PermissionGate';
+import { hasPermission } from '../../../utils/permissions';
 
-const RecipeBuilder = ({ inventoryItems, products, onUpdate, categories = [] }) => {
+const RecipeBuilder = ({ inventoryItems, products, onUpdate, categories = [], user }) => {
+    const canCreate = hasPermission(user, 'Inventory', 'create');
+    const canUpdate = hasPermission(user, 'Inventory', 'update');
     const [recipes, setRecipes] = useState([]);
+
     const [dynamicPricing, setDynamicPricing] = useState([]);
     const [category, setCategory] = useState('Service');
     const [serviceType, setServiceType] = useState('');
@@ -84,60 +89,62 @@ const RecipeBuilder = ({ inventoryItems, products, onUpdate, categories = [] }) 
 
     return (
         <div className="row g-4 animate-fade-in">
-            <div className="col-lg-5">
-                <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
-                    <form onSubmit={handleSaveRecipe}>
-                        <div className="card-header bg-white py-3 border-bottom">
-                            <h6 className="mb-0 fw-bold text-dark-secondary">{editingId ? 'Edit Recipe' : 'New Recipe'}</h6>
-                        </div>
-                        <div className="card-body p-4">
-                            <div className="mb-3">
-                                <label className="form-label small fw-bold text-muted">Category</label>
-                                <select className="form-select" value={category} onChange={e => setCategory(e.target.value)}><option value="Service">Service</option><option value="Product">Product</option></select>
+            {(canCreate || canUpdate) && (
+                <div className="col-lg-5">
+                    <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+                        <form onSubmit={handleSaveRecipe}>
+                            <div className="card-header bg-white py-3 border-bottom">
+                                <h6 className="mb-0 fw-bold text-dark-secondary">{editingId ? 'Edit Recipe' : 'New Recipe'}</h6>
                             </div>
-                            <div className="mb-4">
-                                <label className="form-label small fw-bold text-muted">Item Selection</label>
-                                <select className="form-select" value={serviceType} onChange={e => setServiceType(e.target.value)} required><option value="">-- Choose --</option>{dynamicServiceTypes.map(s => <option key={s} value={s}>{s}</option>)}</select>
-                            </div>
-                            <p className="small fw-bold text-muted mb-2">Ingredients</p>
-                            {ingredients.map((ing, i) => (
-                                <div key={i} className="d-flex gap-2 mb-2 align-items-center">
-                                    <select className="form-select" value={ing.inventoryItem} onChange={e => { const copy = [...ingredients]; copy[i].inventoryItem = e.target.value; setIngredients(copy); }} required>
-                                        <option value="">-- Chemical --</option>
-                                        {inventoryItems.map(it => <option key={it._id} value={it._id}>{it.name}</option>)}
-                                    </select>
-                                    <input className="form-control" placeholder="Qty" value={ing.quantityUsed} onChange={e => { const copy = [...ingredients]; copy[i].quantityUsed = e.target.value; setIngredients(copy); }} style={{ width: 80 }} required />
-                                    {ingredients.length > 1 && (
-                                        <button type="button" onClick={() => setIngredients(ingredients.filter((_, idx) => idx !== i))} className="btn btn-sm text-danger p-1 border-0 bg-transparent" title="Remove Ingredient">
+                            <div className="card-body p-4">
+                                <div className="mb-3">
+                                    <label className="form-label small fw-bold text-muted">Category</label>
+                                    <select className="form-select" value={category} onChange={e => setCategory(e.target.value)}><option value="Service">Service</option><option value="Product">Product</option></select>
+                                </div>
+                                <div className="mb-4">
+                                    <label className="form-label small fw-bold text-muted">Item Selection</label>
+                                    <select className="form-select" value={serviceType} onChange={e => setServiceType(e.target.value)} required><option value="">-- Choose --</option>{dynamicServiceTypes.map(s => <option key={s} value={s}>{s}</option>)}</select>
+                                </div>
+                                <p className="small fw-bold text-muted mb-2">Ingredients</p>
+                                {ingredients.map((ing, i) => (
+                                    <div key={i} className="d-flex gap-2 mb-2 align-items-center">
+                                        <select className="form-select" value={ing.inventoryItem} onChange={e => { const copy = [...ingredients]; copy[i].inventoryItem = e.target.value; setIngredients(copy); }} required>
+                                            <option value="">-- Chemical --</option>
+                                            {inventoryItems.map(it => <option key={it._id} value={it._id}>{it.name}</option>)}
+                                        </select>
+                                        <input className="form-control" placeholder="Qty" value={ing.quantityUsed} onChange={e => { const copy = [...ingredients]; copy[i].quantityUsed = e.target.value; setIngredients(copy); }} style={{ width: 80 }} required />
+                                        {ingredients.length > 1 && (
+                                            <button type="button" onClick={() => setIngredients(ingredients.filter((_, idx) => idx !== i))} className="btn btn-sm text-danger p-1 border-0 bg-transparent" title="Remove Ingredient">
+                                                ✕
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                                <button type="button" onClick={() => setIngredients([...ingredients, { inventoryItem: '', quantityUsed: '' }])} className="btn btn-sm btn-link brand-primary text-decoration-none fw-bold" style={{ fontSize: '0.8rem' }}>+ Add Ingredient</button>
+                                {equipmentUsed.map((assetId, i) => (
+                                    <div key={i} className="d-flex gap-2 mb-2 align-items-center">
+                                        <select className="form-select" value={assetId} onChange={e => { const copy = [...equipmentUsed]; copy[i] = e.target.value; setEquipmentUsed(copy); }}>
+                                            <option value="">-- Equipment --</option>
+                                            {assets.map(a => <option key={a._id} value={a._id}>{a.name}</option>)}
+                                        </select>
+                                        <button type="button" onClick={() => setEquipmentUsed(equipmentUsed.filter((_, idx) => idx !== i))} className="btn btn-sm text-danger p-1 border-0 bg-transparent" title="Remove Equipment">
                                             ✕
                                         </button>
-                                    )}
-                                </div>
-                            ))}
-                            <button type="button" onClick={() => setIngredients([...ingredients, { inventoryItem: '', quantityUsed: '' }])} className="btn btn-sm btn-link brand-primary text-decoration-none fw-bold" style={{ fontSize: '0.8rem' }}>+ Add Ingredient</button>
-                            {equipmentUsed.map((assetId, i) => (
-                                <div key={i} className="d-flex gap-2 mb-2 align-items-center">
-                                    <select className="form-select" value={assetId} onChange={e => { const copy = [...equipmentUsed]; copy[i] = e.target.value; setEquipmentUsed(copy); }}>
-                                        <option value="">-- Equipment --</option>
-                                        {assets.map(a => <option key={a._id} value={a._id}>{a.name}</option>)}
-                                    </select>
-                                    <button type="button" onClick={() => setEquipmentUsed(equipmentUsed.filter((_, idx) => idx !== i))} className="btn btn-sm text-danger p-1 border-0 bg-transparent" title="Remove Equipment">
-                                        ✕
-                                    </button>
-                                </div>
-                            ))}
-                            <button type="button" onClick={() => setEquipmentUsed([...equipmentUsed, ''])} className="btn btn-sm btn-link brand-primary text-decoration-none fw-bold d-block" style={{ fontSize: '0.8rem' }}>+ Add Equipment <span className="small text-muted">(Optional)</span></button>
-                        </div>
-                        <div className="card-footer bg-white border-top d-flex gap-2 py-3">
-                            {editingId && (
-                                <button type="button" onClick={() => { setEditingId(null); setCategory('Service'); setVehicleType('All'); setServiceType(''); setIngredients([{ inventoryItem: '', quantityUsed: '' }]); setEquipmentUsed([]); }} className="btn btn-light w-50 rounded-3">Cancel</button>
-                            )}
-                            <button type="submit" className={`btn btn-save ${editingId ? 'w-50' : 'w-100'} rounded-3 shadow-sm`}>{editingId ? 'Update Recipe' : 'Save Recipe'}</button>
-                        </div>
-                    </form>
+                                    </div>
+                                ))}
+                                <button type="button" onClick={() => setEquipmentUsed([...equipmentUsed, ''])} className="btn btn-sm btn-link brand-primary text-decoration-none fw-bold d-block" style={{ fontSize: '0.8rem' }}>+ Add Equipment <span className="small text-muted">(Optional)</span></button>
+                            </div>
+                            <div className="card-footer bg-white border-top d-flex gap-2 py-3">
+                                {editingId && (
+                                    <button type="button" onClick={() => { setEditingId(null); setCategory('Service'); setVehicleType('All'); setServiceType(''); setIngredients([{ inventoryItem: '', quantityUsed: '' }]); setEquipmentUsed([]); }} className="btn btn-light w-50 rounded-3">Cancel</button>
+                                )}
+                                <button type="submit" className={`btn btn-save ${editingId ? 'w-50' : 'w-100'} rounded-3 shadow-sm`}>{editingId ? 'Update Recipe' : 'Save Recipe'}</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-            </div>
-            <div className="col-lg-7">
+            )}
+            <div className={(canCreate || canUpdate) ? "col-lg-7" : "col-lg-12"}>
                 <div className="card border-0 shadow-sm rounded-4 h-100">
                     <div className="card-header bg-white py-3 border-bottom"><h6 className="mb-0 fw-bold text-dark-secondary">Active Rules</h6></div>
                     <div className="card-body p-0">
@@ -168,19 +175,23 @@ const RecipeBuilder = ({ inventoryItems, products, onUpdate, categories = [] }) 
                                     </div>
                                 </div>
                                 <div className="d-flex gap-1">
-                                    <button onClick={() => {
-                                        setEditingId(r._id);
-                                        setCategory(r.category);
-                                        setVehicleType(r.vehicleType || 'All');
-                                        setServiceType(r.serviceType);
-                                        setIngredients(r.ingredients.map(ing => ({ inventoryItem: ing.inventoryItem?._id || ing.inventoryItem, quantityUsed: ing.quantityUsed })));
-                                        setEquipmentUsed(r.equipmentUsed ? r.equipmentUsed.map(e => e._id || e) : []);
-                                    }} className="btn btn-sm border-0 p-1">
-                                        <img src={editIcon} style={{ width: 14 }} alt="Edit" title='Edit Recipe' />
-                                    </button>
-                                    <button onClick={() => handleDeleteRecipe(r._id)} className="btn btn-sm border-0 p-1">
-                                        <img src={deleteIcon} style={{ width: 14 }} alt="Delete" title='Delete Recipe' />
-                                    </button>
+                                    <PermissionGate user={user} department="Inventory" action="update">
+                                        <button onClick={() => {
+                                            setEditingId(r._id);
+                                            setCategory(r.category);
+                                            setVehicleType(r.vehicleType || 'All');
+                                            setServiceType(r.serviceType);
+                                            setIngredients(r.ingredients.map(ing => ({ inventoryItem: ing.inventoryItem?._id || ing.inventoryItem, quantityUsed: ing.quantityUsed })));
+                                            setEquipmentUsed(r.equipmentUsed ? r.equipmentUsed.map(e => e._id || e) : []);
+                                        }} className="btn btn-sm border-0 p-1">
+                                            <img src={editIcon} style={{ width: 14 }} alt="Edit" title='Edit Recipe' />
+                                        </button>
+                                    </PermissionGate>
+                                    <PermissionGate user={user} department="Inventory" action="delete">
+                                        <button onClick={() => handleDeleteRecipe(r._id)} className="btn btn-sm border-0 p-1">
+                                            <img src={deleteIcon} style={{ width: 14 }} alt="Delete" title='Delete Recipe' />
+                                        </button>
+                                    </PermissionGate>
                                 </div>
                             </div>
                         ))}
@@ -190,6 +201,5 @@ const RecipeBuilder = ({ inventoryItems, products, onUpdate, categories = [] }) 
         </div>
     );
 };
-
 
 export default RecipeBuilder;

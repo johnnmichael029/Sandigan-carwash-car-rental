@@ -28,14 +28,35 @@ import PromotionsPage from '../../components/admin/crm/PromotionManager';
 import MobileCustomersPage from '../../components/admin/crm/MobileCustomersModule';
 import OperationsPage from '../../components/admin/operations/OperationsModule';
 import ServiceSettingsPage from '../../components/admin/inventory/ServiceManager';
+import UserManagementPage from '../../components/admin/overview/UserManagement';
+import AccessDenied from '../../components/AccessDenied';
+import { hasPermission } from '../../utils/permissions';
 import adminLogoutIcon from '../../assets/icon/employee-logout.png'
 import collapseIcon from '../../assets/icon/collapse.png'
 import logoIcon from '../../assets/logo/logo.png'
 import darkTheme from '../../assets/icon/dark-theme.png'
 import lightTheme from '../../assets/icon/light-theme.png'
 import mobileIcon from '../../assets/icon/mobile.png'
+import userManagement from '../../assets/icon/user-management.png'
 
 const ERP_ITEMS = ['finance', 'hris', 'inventory', 'crm', 'promotions', 'operations', 'accounts-payable', 'mobile-customers'];
+
+// Dept key → sidebar label mapping
+const DEPT_TAB_MAP = {
+    Finance: 'finance',
+    Inventory: 'inventory',
+    Workforce: 'hris',
+    Clientele: 'crm',
+    Operations: 'operations',
+};
+
+const ROLE_LABELS = {
+    super_admin: 'Super Admin',
+    admin: 'Administrator',
+    department_staff: 'Department Staff',
+    employee: 'Employee',
+    detailer: 'Detailer',
+};
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
@@ -68,10 +89,25 @@ const AdminDashboard = () => {
     useEffect(() => {
         if (!user) {
             navigate('/login', { replace: true });
-        } else if (user.role !== 'admin') {
+        } else if (!['super_admin', 'admin', 'department_staff'].includes(user.role)) {
             navigate('/employee', { replace: true });
+        } else if (user.role === 'department_staff') {
+            const deptToTab = {
+                Finance: 'finance',
+                Workforce: 'hris',
+                Inventory: 'inventory',
+                Clientele: 'crm',
+                Operations: 'operations',
+            };
+            const firstDept = (user.departments || [])[0];
+            const firstTab = deptToTab[firstDept];
+            if (firstTab && toggleActive === 'dashboard') {
+                setToggleActive(firstTab);
+                setIsERPOpen(true);
+            }
         }
     }, [user, navigate]);
+
 
     const [prevToggle, setPrevToggle] = useState(toggleActive);
     if (toggleActive !== prevToggle) {
@@ -143,19 +179,40 @@ const AdminDashboard = () => {
         };
     }, []);
 
+    // Map tab key -> { department, label }
+    const TAB_DEPT_MAP = {
+        finance: { dept: 'Finance', label: 'Finance' },
+        hris: { dept: 'Workforce', label: 'Workforce' },
+        inventory: { dept: 'Inventory', label: 'Inventory' },
+        crm: { dept: 'Clientele', label: 'Clientele' },
+        operations: { dept: 'Operations', label: 'Operations' },
+    };
+
+    // Guard helper: returns AccessDenied if dept_staff lacks read permission
+    const guardedRender = (tabKey, content) => {
+        const tabInfo = TAB_DEPT_MAP[tabKey];
+        if (tabInfo && user?.role === 'department_staff') {
+            if (!hasPermission(user, tabInfo.dept, 'read')) {
+                return <AccessDenied department={tabInfo.label} onGoBack={() => setToggleActive('dashboard')} />;
+            }
+        }
+        return content;
+    };
+
     const renderContent = () => {
         switch (toggleActive) {
             case 'dashboard': return <AdminOverview user={user} onNavigate={setToggleActive} isDark={isDark} />;
             case 'activity-log': return <ActivityLogPage isDark={isDark} />;
-            case 'finance': return <FinancePage user={user} onNavigate={setToggleActive} isDark={isDark} />;
-            case 'hris': return <HRISPage user={user} isDark={isDark} />;
-            case 'inventory': return <InventoryPage user={user} isDark={isDark} />;
-            case 'crm': return <CRMPage user={user} isDark={isDark} />;
+            case 'finance': return guardedRender('finance', <FinancePage user={user} onNavigate={setToggleActive} isDark={isDark} />);
+            case 'hris': return guardedRender('hris', <HRISPage user={user} isDark={isDark} />);
+            case 'inventory': return guardedRender('inventory', <InventoryPage user={user} isDark={isDark} />);
+            case 'crm': return guardedRender('crm', <CRMPage user={user} isDark={isDark} />);
             case 'promotions': return <PromotionsPage user={user} isDark={isDark} />;
-            case 'operations': return <OperationsPage user={user} isDark={isDark} />;
+            case 'operations': return guardedRender('operations', <OperationsPage user={user} isDark={isDark} />);
             case 'accounts-payable': return <VendorPayables isDark={isDark} />;
             case 'mobile-customers': return <MobileCustomersPage isDark={isDark} />;
             case 'settings': return <ServiceSettingsPage user={user} isDark={isDark} />;
+            case 'user-management': return <UserManagementPage user={user} isDark={isDark} />;
             default: return <AdminOverview user={user} onNavigate={setToggleActive} isDark={isDark} />;
         }
     };
@@ -314,43 +371,71 @@ const AdminDashboard = () => {
                             <li className="w-100 animate-fade-in" >
                                 <ul className="ps-3 w-100 list-unstyled border-start ms-4 border-secondary-subtle">
                                     {[
-                                        { key: 'finance', icon: <img src={financeIcon} style={{ width: '18px' }} alt="" />, label: 'Finance' },
-                                        { key: 'accounts-payable', icon: <img src={accountPayableIcon} style={{ width: '18px' }} alt="" />, label: 'Payables' },
-                                        { key: 'hris', icon: <img src={humanResourcIcon} style={{ width: '18px' }} alt="" />, label: 'HRIS' },
-                                        { key: 'inventory', icon: <img src={inventoryIcon} style={{ width: '18px' }} alt="" />, label: 'Inventory' },
-                                        { key: 'crm', icon: <img src={salesIcon} style={{ width: '18px' }} alt="" />, label: 'CRM' },
-                                        { key: 'mobile-customers', icon: <img src={mobileIcon} style={{ width: '18px' }} alt="" />, label: 'App Registry' },
-                                        { key: 'promotions', icon: <img src={promotionIcon} style={{ width: '18px' }} alt="" />, label: 'Promotions' },
-                                        { key: 'operations', icon: <img src={operationIcon} style={{ width: '18px' }} alt="" />, label: 'Operations' },
-                                    ].map(item => (
-                                        <li key={item.key} className="mb-1">
-                                            <button
-                                                className={`nav-link w-100 d-flex align-items-center gap-3 rounded-2 ${toggleActive === item.key ? 'active' : ''}`}
-                                                onClick={() => setToggleActive(item.key)}
-                                                style={{ fontSize: '0.85rem', padding: '8px 16px' }}
-                                            >
-                                                {item.icon} <span className="text-nowrap">{item.label}</span>
-                                            </button>
-                                        </li>
-                                    ))}
+                                        { key: 'finance', dept: 'Finance', icon: <img src={financeIcon} style={{ width: '18px' }} alt="" />, label: 'Finance' },
+                                        { key: 'accounts-payable', dept: null, icon: <img src={accountPayableIcon} style={{ width: '18px' }} alt="" />, label: 'Payables' },
+                                        { key: 'hris', dept: 'Workforce', icon: <img src={humanResourcIcon} style={{ width: '18px' }} alt="" />, label: 'Workforce' },
+                                        { key: 'inventory', dept: 'Inventory', icon: <img src={inventoryIcon} style={{ width: '18px' }} alt="" />, label: 'Inventory' },
+                                        { key: 'crm', dept: 'Clientele', icon: <img src={salesIcon} style={{ width: '18px' }} alt="" />, label: 'Clientele' },
+                                        { key: 'mobile-customers', dept: null, icon: <img src={mobileIcon} style={{ width: '18px' }} alt="" />, label: 'App Registry' },
+                                        { key: 'promotions', dept: null, icon: <img src={promotionIcon} style={{ width: '18px' }} alt="" />, label: 'Promotions' },
+                                        { key: 'operations', dept: 'Operations', icon: <img src={operationIcon} style={{ width: '18px' }} alt="" />, label: 'Operations' },
+                                    ]
+                                        // For department_staff: only show tabs matching their departments
+                                        .filter(item => {
+                                            if (user?.role === 'department_staff') {
+                                                if (!item.dept) return false; // hide non-dept items
+                                                return (user.departments || []).includes(item.dept);
+                                            }
+                                            return true; // admin + super_admin see all
+                                        })
+                                        .map(item => (
+                                            <li key={item.key} className="mb-1">
+                                                <button
+                                                    className={`nav-link w-100 d-flex align-items-center gap-3 rounded-2 ${toggleActive === item.key ? 'active' : ''}`}
+                                                    onClick={() => setToggleActive(item.key)}
+                                                    style={{ fontSize: '0.85rem', padding: '8px 16px' }}
+                                                >
+                                                    {item.icon} <span className="text-nowrap">{item.label}</span>
+                                                </button>
+                                            </li>
+                                        ))}
                                 </ul>
                             </li>
                         )}
 
-                        {/* Service Settings */}
-                        <li className="nav-item w-100 mb-2">
-                            <button
-                                className={`nav-link w-100 d-flex align-items-center transition-all rounded-3 ${toggleActive === 'settings' ? 'active shadow-sm' : ''}`}
-                                onClick={() => setToggleActive('settings')}
-                                style={{
-                                    padding: '12px 16px',
-                                    justifyContent: isCollapsed ? 'center' : 'flex-start'
-                                }}
-                            >
-                                <img src={settingsIcon} style={{ width: 22, minWidth: 22 }} alt="Settings" />
-                                {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">Service Settings</span>}
-                            </button>
-                        </li>
+                        {/* Service Settings (admin + super_admin only) */}
+                        {['admin', 'super_admin'].includes(user?.role) && (
+                            <li className="nav-item w-100 mb-2">
+                                <button
+                                    className={`nav-link w-100 d-flex align-items-center transition-all rounded-3 ${toggleActive === 'settings' ? 'active shadow-sm' : ''}`}
+                                    onClick={() => setToggleActive('settings')}
+                                    style={{
+                                        padding: '12px 16px',
+                                        justifyContent: isCollapsed ? 'center' : 'flex-start'
+                                    }}
+                                >
+                                    <img src={settingsIcon} style={{ width: 22, minWidth: 22 }} alt="Settings" />
+                                    {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">Service Settings</span>}
+                                </button>
+                            </li>
+                        )}
+
+                        {/* User Management — Super Admin only */}
+                        {user?.role === 'super_admin' && (
+                            <li className="nav-item w-100 mb-2">
+                                <button
+                                    className={`nav-link w-100 d-flex align-items-center transition-all rounded-3 ${toggleActive === 'user-management' ? 'active shadow-sm' : ''}`}
+                                    onClick={() => setToggleActive('user-management')}
+                                    style={{
+                                        padding: '12px 16px',
+                                        justifyContent: isCollapsed ? 'center' : 'flex-start'
+                                    }}
+                                >
+                                    <img src={userManagement} style={{ width: 22, minWidth: 22 }} alt="User Management" />
+                                    {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">User Management</span>}
+                                </button>
+                            </li>
+                        )}
 
                     </ul>
 
@@ -371,7 +456,7 @@ const AdminDashboard = () => {
                                     <p className="mb-0 text-white text-nowrap" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
                                         {user?.fullName ?? 'Administrator'}
                                     </p>
-                                    <p className="mb-0 text-info opacity-75" style={{ fontSize: '0.7rem' }}>Full Access</p>
+                                    <p className="mb-0 text-info opacity-75" style={{ fontSize: '0.7rem' }}>{ROLE_LABELS[user?.role] || 'Staff'}</p>
                                 </div>
                             )}
                         </div>

@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import facebookIcon from '../assets/icon/facebook.png';
 import linkedinIcon from '../assets/icon/linkedin.png';
 import instagramIcon from '../assets/icon/instagram.png';
+const MAPS_URL = 'https://maps.google.com/?q=68+Ruhale+St+Taguig+Metro+Manila';
 
 const Footer = () => {
     return (
@@ -85,11 +86,14 @@ const Footer = () => {
                                 </div>
                             </div>
                             <div className="footer-map-container flex-shrink-0">
-                                <img
-                                    src={locationMap}
-                                    alt="Sandigan Carwash Location Map"
-                                    className="footer-map-img"
-                                />
+                                <a href={MAPS_URL} target="_blank" rel="noopener noreferrer" title="View on Google Maps">
+                                    <img
+                                        src={locationMap}
+                                        alt="Sandigan Carwash Location Map"
+                                        className="footer-map-img"
+                                        style={{ cursor: 'pointer' }}
+                                    />
+                                </a>
                             </div>
                         </div>
                     </div>

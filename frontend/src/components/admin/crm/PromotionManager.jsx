@@ -14,6 +14,7 @@ import getPaginationRange from '../getPaginationRange';
 import searchIcon from '../../../assets/icon/search.png';
 import AdminModalWrapper from '../shared/AdminModalWrapper';
 import SharedSearchBar from '../shared/SharedSearchBar';
+import PermissionGate from '../../PermissionGate';
 
 const getStatusColor = (status) => {
     switch ((status || '').toLowerCase()) {
@@ -35,7 +36,8 @@ const getStatusColor = (status) => {
     }
 };
 
-const PromotionsPage = ({ isDark }) => {
+const PromotionsPage = ({ isDark, user }) => {
+
     const [activeTab, setActiveTab] = useState('manage'); // 'manage' | 'smc-history' | 'promo-history'
     const [promos, setPromos] = useState([]);
     const [smcLogs, setSmcLogs] = useState([]);
@@ -162,9 +164,11 @@ const PromotionsPage = ({ isDark }) => {
                     <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>Promotions & Vouchers</h4>
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Coupons, Discounts & Membership Records</p>
                 </div>
-                <button onClick={() => { setEditingPromo(null); setShowModal(true); }} className="btn btn-save rounded-3 text-white fw-bold shadow-sm">
-                    + Create New Promo
-                </button>
+                <PermissionGate user={user} department="Clientele" action="create">
+                    <button onClick={() => { setEditingPromo(null); setShowModal(true); }} className="btn btn-save rounded-3 text-white fw-bold shadow-sm">
+                        + Create New Promo
+                    </button>
+                </PermissionGate>
             </div>
 
             {/* Sub Nav */}
@@ -209,14 +213,19 @@ const PromotionsPage = ({ isDark }) => {
                                                 {p.code}
                                             </span>
                                             <div className="d-flex gap-2">
-                                                <button onClick={() => { setEditingPromo(p); setPromoForm({ ...p, validFrom: p.validFrom.split('T')[0], validUntil: p.validUntil.split('T')[0], maxUsage: p.maxUsage || 0 }); setShowModal(true); }} className="btn btn-sm border-0 p-1">
-                                                    <img src={editIcon} style={{ width: 16 }} alt="Edit" title='Edit Promo' />
-                                                </button>
-                                                <button onClick={() => handleDelete(p._id)} className="btn btn-sm border-0 p-1">
-                                                    <img src={deleteIcon} style={{ width: 16 }} alt="Delete" title='Delete Promo' />
-                                                </button>
+                                                <PermissionGate user={user} department="Clientele" action="update">
+                                                    <button onClick={() => { setEditingPromo(p); setPromoForm({ ...p, validFrom: p.validFrom.split('T')[0], validUntil: p.validUntil.split('T')[0], maxUsage: p.maxUsage || 0 }); setShowModal(true); }} className="btn btn-sm border-0 p-1">
+                                                        <img src={editIcon} style={{ width: 16 }} alt="Edit" title='Edit Promo' />
+                                                    </button>
+                                                </PermissionGate>
+                                                <PermissionGate user={user} department="Clientele" action="delete">
+                                                    <button onClick={() => handleDelete(p._id)} className="btn btn-sm border-0 p-1">
+                                                        <img src={deleteIcon} style={{ width: 16 }} alt="Delete" title='Delete Promo' />
+                                                    </button>
+                                                </PermissionGate>
                                             </div>
                                         </div>
+
                                         <h6 className="fw-bold text-dark-secondary mb-1">
                                             {p.discountType === 'Percentage' ? `${p.discountValue}% Off` : `₱${p.discountValue.toLocaleString()} Off`}
                                         </h6>

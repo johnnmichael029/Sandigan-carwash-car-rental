@@ -28,9 +28,13 @@ import SharedSearchBar from '../shared/SharedSearchBar';
 import { filterDataBySearch } from '../shared/searchUtils';
 import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import AdminModalWrapper from '../shared/AdminModalWrapper';
+import PermissionGate from '../../PermissionGate';
+import { hasPermission } from '../../../utils/permissions';
 
 const HRISPage = ({ user, isDark }) => {
+    const canUpdate = hasPermission(user, 'Workforce', 'update');
     const getEmpName = (emp) => emp?.fullName || emp?.fullname || 'Unknown Staff';
+
     const getEmpId = (emp) => emp?.employeeId || 'No ID';
     const formatToAMPM = (timeStr) => {
         if (!timeStr || !timeStr.includes(':')) return timeStr;
@@ -1179,16 +1183,21 @@ const HRISPage = ({ user, isDark }) => {
                             >
                                 Fix Missing IDs
                             </button>
+                            <PermissionGate user={user} department="Workforce" action="create">
                             <button onClick={() => openAdd()} className="btn btn-record-expenses brand-primary btn-sm px-3 shadow-sm rounded-3">
                                 + Add Employee
                             </button>
+                            </PermissionGate>
                         </div>
                     )}
                     {hrTab === 'leaves' && (
-                        <button onClick={() => setShowLeaveModal(true)} className="btn btn-record-expenses brand-primary btn-sm px-3 shadow-sm rounded-3">
-                            + File Leave
-                        </button>
+                        <PermissionGate user={user} department="Workforce" action="create">
+                            <button onClick={() => setShowLeaveModal(true)} className="btn btn-record-expenses brand-primary btn-sm px-3 shadow-sm rounded-3">
+                                + File Leave
+                            </button>
+                        </PermissionGate>
                     )}
+
                 </div>
             </div>
 
@@ -1404,13 +1413,17 @@ const HRISPage = ({ user, isDark }) => {
                                                             <button onClick={(e) => { e.stopPropagation(); fetchEmployeeHistory(emp); }} className="btn btn-sm border-0 bg-transparent p-1 me-2" title="Detailed History">
                                                                 <img src={detailerHistoryIcon} alt="History" style={{ width: 18 }} />
                                                             </button>
+                                                            <PermissionGate user={user} department="Workforce" action="update">
                                                             <button onClick={(e) => { e.stopPropagation(); openEdit(emp); }} className="btn btn-sm border-0 bg-transparent p-1 me-1" title="Edit">
                                                                 <img src={editIcon} alt="Edit" style={{ width: 18 }} />
                                                             </button>
+                                                            </PermissionGate>
                                                             {!isSelf && (
+                                                                <PermissionGate user={user} department="Workforce" action="delete">
                                                                 <button onClick={(e) => { e.stopPropagation(); handleDeleteEmployee(emp); }} className="btn btn-sm border-0 bg-transparent p-1" title="Remove">
                                                                     <img src={deleteIcon} alt="Delete" style={{ width: 18 }} />
                                                                 </button>
+                                                                </PermissionGate>
                                                             )}
                                                         </td>
                                                     </tr>
@@ -1721,15 +1734,18 @@ const HRISPage = ({ user, isDark }) => {
                                                     placeholder="Search detailers..."
                                                     width="150px"
                                                 />
-                                                <button
-                                                    onClick={handleBulkMarkPaid}
-                                                    disabled={isMarkingPaid === 'bulk' || filteredDetPayroll.filter(d => d.unpaidCommission > 0).length === 0}
-                                                    className="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-sm d-flex align-items-center gap-2"
-                                                    style={{ fontSize: '0.75rem', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
-                                                >
-                                                    <i className="bi bi-check2-all"></i> Mark All Paid
-                                                </button>
+                                                <PermissionGate user={user} department="Workforce" action="update">
+                                                    <button
+                                                        onClick={handleBulkMarkPaid}
+                                                        disabled={isMarkingPaid === 'bulk' || filteredDetPayroll.filter(d => d.unpaidCommission > 0).length === 0}
+                                                        className="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-sm d-flex align-items-center gap-2"
+                                                        style={{ fontSize: '0.75rem', border: 'none', background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
+                                                    >
+                                                        <i className="bi bi-check2-all"></i> Mark All Paid
+                                                    </button>
+                                                </PermissionGate>
                                             </div>
+
                                         </div>
 
                                         {filteredDetPayroll.length === 0 ? (
@@ -1770,14 +1786,16 @@ const HRISPage = ({ user, isDark }) => {
                                                                         </span>
                                                                     </td>
                                                                     <td className="pe-4 text-end border-0">
-                                                                        <button
-                                                                            onClick={() => handleMarkPaid(detailer._id, getEmpName(detailer))}
-                                                                            disabled={unpaidCommission === 0 || isMarkingPaid === detailer._id}
-                                                                            className={`btn btn-xs rounded-pill px-3 fw-bold ${unpaidCommission > 0 ? 'btn-success shadow-none' : 'btn-light text-muted'}`}
-                                                                            style={{ fontSize: '0.65rem' }}
-                                                                        >
-                                                                            {isMarkingPaid === detailer._id ? '...' : unpaidCommission > 0 ? 'Pay' : 'Paid'}
-                                                                        </button>
+                                                                        <PermissionGate user={user} department="Workforce" action="update">
+                                                                            <button
+                                                                                onClick={() => handleMarkPaid(detailer._id, getEmpName(detailer))}
+                                                                                disabled={!canUpdate || unpaidCommission === 0 || isMarkingPaid === detailer._id}
+                                                                                className={`btn btn-xs rounded-pill px-3 fw-bold ${unpaidCommission > 0 ? 'btn-success shadow-none' : 'btn-light text-muted'}`}
+                                                                                style={{ fontSize: '0.65rem' }}
+                                                                            >
+                                                                                {isMarkingPaid === detailer._id ? '...' : unpaidCommission > 0 ? 'Pay' : 'Paid'}
+                                                                            </button>
+                                                                        </PermissionGate>
                                                                     </td>
                                                                 </tr>
                                                             ))}
@@ -1832,10 +1850,13 @@ const HRISPage = ({ user, isDark }) => {
                                                                     </div>
                                                                 </div>
                                                                 <div className="p-3 pt-2 border-top">
-                                                                    <button onClick={() => handleMarkPaid(detailer._id, getEmpName(detailer))} disabled={unpaidCommission === 0 || isMarkingPaid === detailer._id} className="btn w-100 rounded-pill fw-bold shadow-sm" style={{ background: unpaidCommission > 0 ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#f8fafc', color: unpaidCommission > 0 ? '#fff' : '#94a3b8', fontSize: '0.85rem', border: 'none', padding: '10px' }}>
-                                                                        {isMarkingPaid === detailer._id ? <span className="spinner-border spinner-border-sm me-2" /> : unpaidCommission > 0 ? `Mark as Paid — ₱${unpaidCommission.toLocaleString()}` : 'All Commissions Settled'}
-                                                                    </button>
+                                                                    <PermissionGate user={user} department="Workforce" action="update">
+                                                                        <button onClick={() => handleMarkPaid(detailer._id, getEmpName(detailer))} disabled={!canUpdate || unpaidCommission === 0 || isMarkingPaid === detailer._id} className="btn w-100 rounded-pill fw-bold shadow-sm" style={{ background: unpaidCommission > 0 ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#f8fafc', color: unpaidCommission > 0 ? '#fff' : '#94a3b8', fontSize: '0.85rem', border: 'none', padding: '10px' }}>
+                                                                            {isMarkingPaid === detailer._id ? <span className="spinner-border spinner-border-sm me-2" /> : unpaidCommission > 0 ? `Mark as Paid — ₱${unpaidCommission.toLocaleString()}` : 'All Commissions Settled'}
+                                                                        </button>
+                                                                    </PermissionGate>
                                                                 </div>
+
                                                             </div>
                                                         </div>
                                                     ))}
@@ -1870,13 +1891,15 @@ const HRISPage = ({ user, isDark }) => {
                                                 <div className="d-flex gap-2">
                                                     <button onClick={() => setStaffSearch(duePayouts[0].fullName)} className="btn btn-sm btn-white rounded-pill px-3 fw-bold border" style={{ fontSize: '0.75rem' }}>View Due Staff</button>
                                                     {duePayouts.length > 1 && (
-                                                        <button
-                                                            onClick={handleBulkPaySalaries}
-                                                            className="btn btn-sm btn-record-expenses shadow-sm rounded-pill px-3 fw-bold"
-                                                            style={{ fontSize: '0.75rem', background: '#F59E0B', border: 'none' }}
-                                                        >
-                                                            Finalize All Due
-                                                        </button>
+                                                        <PermissionGate user={user} department="Workforce" action="update">
+                                                            <button
+                                                                onClick={handleBulkPaySalaries}
+                                                                className="btn btn-sm btn-record-expenses shadow-sm rounded-pill px-3 fw-bold"
+                                                                style={{ fontSize: '0.75rem', background: '#F59E0B', border: 'none' }}
+                                                            >
+                                                                Finalize All Due
+                                                            </button>
+                                                        </PermissionGate>
                                                     )}
                                                 </div>
                                             </div>
@@ -1896,16 +1919,19 @@ const HRISPage = ({ user, isDark }) => {
                                                     placeholder="Search staff..."
                                                     width="150px"
                                                 />
-                                                <button
-                                                    onClick={handleBulkPaySalaries}
-                                                    disabled={isMarkingPaid === 'bulk-salary' || filteredStaffPayroll.length === 0}
-                                                    className="btn btn-sm btn-record-expenses shadow-none rounded-pill px-3 fw-bold d-flex align-items-center gap-2"
-                                                    style={{ fontSize: '0.75rem' }}
-                                                >
-                                                    <i className="bi bi-lightning-charge-fill"></i> Bulk Finalize
-                                                </button>
+                                                <PermissionGate user={user} department="Workforce" action="update">
+                                                    <button
+                                                        onClick={handleBulkPaySalaries}
+                                                        disabled={isMarkingPaid === 'bulk-salary' || filteredStaffPayroll.length === 0}
+                                                        className="btn btn-sm btn-record-expenses shadow-none rounded-pill px-3 fw-bold d-flex align-items-center gap-2"
+                                                        style={{ fontSize: '0.75rem' }}
+                                                    >
+                                                        <i className="bi bi-lightning-charge-fill"></i> Bulk Finalize
+                                                    </button>
+                                                </PermissionGate>
                                             </div>
                                         </div>
+
 
                                         {filteredStaffPayroll.length === 0 ? (
                                             <div className="card border-0 shadow-sm rounded-4 p-5 text-center">
@@ -1951,14 +1977,16 @@ const HRISPage = ({ user, isDark }) => {
                                                                     <td className="border-0 text-danger">₱{p.stats.totalDeductions.toLocaleString()}</td>
                                                                     <td className="border-0 fw-bold text-dark-secondary">₱{p.netAmount.toLocaleString()}</td>
                                                                     <td className="pe-4 text-end border-0">
-                                                                        <button
-                                                                            onClick={() => handlePaySalary(p)}
-                                                                            disabled={isMarkingPaid === p._id}
-                                                                            className="btn btn-xs btn-record-expenses shadow-none rounded-pill px-3 fw-bold"
-                                                                            style={{ fontSize: '0.65rem' }}
-                                                                        >
-                                                                            {isMarkingPaid === p._id ? '...' : 'Process'}
-                                                                        </button>
+                                                                        <PermissionGate user={user} department="Workforce" action="update">
+                                                                            <button
+                                                                                onClick={() => handlePaySalary(p)}
+                                                                                disabled={!canUpdate || isMarkingPaid === p._id}
+                                                                                className="btn btn-xs btn-record-expenses shadow-none rounded-pill px-3 fw-bold"
+                                                                                style={{ fontSize: '0.65rem' }}
+                                                                            >
+                                                                                {isMarkingPaid === p._id ? '...' : 'Process'}
+                                                                            </button>
+                                                                        </PermissionGate>
                                                                     </td>
                                                                 </tr>
                                                             ))}
@@ -2071,14 +2099,18 @@ const HRISPage = ({ user, isDark }) => {
                                                                 </div>
 
                                                                 <div className="p-3 pt-2 border-top bg-white">
-                                                                    <button onClick={() => handlePaySalary(p)} disabled={isMarkingPaid === p._id} className="btn w-100 btn-record-expenses shadow-sm rounded-pill fw-bold py-2" style={{ fontSize: '0.85rem' }}>
-                                                                        {isMarkingPaid === p._id ? <span className="spinner-border spinner-border-sm me-2" /> : 'Process Payout'}
-                                                                    </button>
+                                                                    <PermissionGate user={user} department="Workforce" action="update">
+                                                                        <button onClick={() => handlePaySalary(p)} disabled={!canUpdate || isMarkingPaid === p._id} className="btn w-100 btn-record-expenses shadow-sm rounded-pill fw-bold py-2" style={{ fontSize: '0.85rem' }}>
+                                                                            {isMarkingPaid === p._id ? <span className="spinner-border spinner-border-sm me-2" /> : 'Process Payout'}
+                                                                        </button>
+                                                                    </PermissionGate>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
+
+
                                                 {filteredStaffPayroll.length > cardsPerPage && (
                                                     <div className="d-flex justify-content-center mt-4">
                                                         <div className="btn-group gap-1">
@@ -3423,10 +3455,13 @@ const HRISPage = ({ user, isDark }) => {
 
                             <div className="modal-footer border-0 p-4 pt-0">
                                 <button onClick={() => setShowPayoutModal(false)} className="btn btn-light rounded-pill px-4 shadow-sm" disabled={isMarkingPaid === selectedPayoutStaff._id}>Cancel Review</button>
-                                <button onClick={handleConfirmPayout} disabled={isMarkingPaid === selectedPayoutStaff._id} className="btn btn-save rounded-pill px-5 shadow">
-                                    {isMarkingPaid === selectedPayoutStaff._id ? <span className="spinner-border spinner-border-sm me-2" /> : 'Confirm & Finalize Payout'}
-                                </button>
+                                <PermissionGate user={user} department="Workforce" action="update">
+                                    <button onClick={handleConfirmPayout} disabled={!canUpdate || isMarkingPaid === selectedPayoutStaff._id} className="btn btn-save rounded-pill px-5 shadow">
+                                        {isMarkingPaid === selectedPayoutStaff._id ? <span className="spinner-border spinner-border-sm me-2" /> : 'Confirm & Finalize Payout'}
+                                    </button>
+                                </PermissionGate>
                             </div>
+
                         </div>
                     </AdminModalWrapper>
                 )

@@ -32,11 +32,12 @@ const Login = () => {
             const employeeData = localStorage.getItem('employee');
             if (employeeData) {
                 const employee = JSON.parse(employeeData);
-                if (employee.role === 'admin') {
+                if (['super_admin', 'admin', 'department_staff'].includes(employee.role)) {
                     navigate('/admin', { replace: true });
                 } else {
                     navigate('/employee', { replace: true });
                 }
+
             }
         };
         checkSetup();

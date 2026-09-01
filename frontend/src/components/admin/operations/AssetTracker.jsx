@@ -10,8 +10,10 @@ import editIcon from '../../../assets/icon/edit.png';
 import deleteIcon from '../../../assets/icon/delete.png';
 import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import rightArrowIcon from '../../../assets/icon/right-arrow.png';
+import PermissionGate from '../../PermissionGate';
 
-const AssetTracker = ({ assets, bays, onRefresh, isDark }) => {
+const AssetTracker = ({ assets, bays, onRefresh, isDark, user }) => {
+
     const [showModal, setShowModal] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState(null);
@@ -90,12 +92,15 @@ const AssetTracker = ({ assets, bays, onRefresh, isDark }) => {
             <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 d-flex flex-column" style={{ minHeight: 475 }}>
                 <div className="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                     <h6 className="mb-0 fw-bold text-dark-secondary">Equipment & Assets</h6>
-                    <button className="btn btn-save btn-sm text-white px-3 d-flex align-items-center gap-1 shadow-sm"
-                        style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600 }}
-                        onClick={openAdd}>
-                        + Register New Asset
-                    </button>
+                    <PermissionGate user={user} department="Operations" action="create">
+                        <button className="btn btn-save btn-sm text-white px-3 d-flex align-items-center gap-1 shadow-sm"
+                            style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600 }}
+                            onClick={openAdd}>
+                            + Register New Asset
+                        </button>
+                    </PermissionGate>
                 </div>
+
                 <div className='card-body p-0 flex-grow-1 d-flex flex-column'>
                     <div className="table-responsive pb-2">
                         <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.88rem' }}>
@@ -144,13 +149,18 @@ const AssetTracker = ({ assets, bays, onRefresh, isDark }) => {
                                                     </span>
                                                 </td>
                                                 <td className="pe-4 text-end" onClick={e => e.stopPropagation()}>
-                                                    <button onClick={() => openEdit(a)} className="btn btn-sm border-0 bg-transparent me-1">
-                                                        <img src={editIcon} alt="Edit" style={{ width: '18px', height: '18px' }} title='Edit Asset' />
-                                                    </button>
-                                                    <button onClick={() => handleDelete(a)} className="btn btn-sm text-danger-hover border-0 bg-transparent">
-                                                        <img src={deleteIcon} alt="Delete" style={{ width: '18px', height: '18px' }} title='Delete Asset' />
-                                                    </button>
+                                                    <PermissionGate user={user} department="Operations" action="update">
+                                                        <button onClick={() => openEdit(a)} className="btn btn-sm border-0 bg-transparent me-1">
+                                                            <img src={editIcon} alt="Edit" style={{ width: '18px', height: '18px' }} title='Edit Asset' />
+                                                        </button>
+                                                    </PermissionGate>
+                                                    <PermissionGate user={user} department="Operations" action="delete">
+                                                        <button onClick={() => handleDelete(a)} className="btn btn-sm text-danger-hover border-0 bg-transparent">
+                                                            <img src={deleteIcon} alt="Delete" style={{ width: '18px', height: '18px' }} title='Delete Asset' />
+                                                        </button>
+                                                    </PermissionGate>
                                                 </td>
+
                                             </tr>
                                         );
                                     })

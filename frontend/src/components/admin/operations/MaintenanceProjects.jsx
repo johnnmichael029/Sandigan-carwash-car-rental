@@ -10,8 +10,10 @@ import editIcon from '../../../assets/icon/edit.png';
 import deleteIcon from '../../../assets/icon/delete.png';
 import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import rightArrowIcon from '../../../assets/icon/right-arrow.png';
+import PermissionGate from '../../PermissionGate';
 
-const MaintenanceProjects = ({ projects, assets, bays, employees, inventoryItems, onRefresh }) => {
+const MaintenanceProjects = ({ projects, assets, bays, employees, inventoryItems, onRefresh, user }) => {
+
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState({ title: '', description: '', assetId: '', bayId: '', priority: 'Medium', assignedPersonnel: '', startDate: '', partsUsed: [], laborCost: 0 });
@@ -135,12 +137,15 @@ const MaintenanceProjects = ({ projects, assets, bays, employees, inventoryItems
             <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 d-flex flex-column" style={{ minHeight: 475 }}>
                 <div className="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                     <h6 className="mb-0 fw-bold text-dark-secondary">Maintenance Projects</h6>
-                    <button className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
-                        style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600 }}
-                        onClick={openAdd}>
-                        + Create Project
-                    </button>
+                    <PermissionGate user={user} department="Operations" action="create">
+                        <button className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
+                            style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600 }}
+                            onClick={openAdd}>
+                            + Create Project
+                        </button>
+                    </PermissionGate>
                 </div>
+
                 <div className='card-body p-0 flex-grow-1 d-flex flex-column'>
                     <div className="table-responsive flex-grow-1 ">
                         <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.88rem' }}>
@@ -185,27 +190,31 @@ const MaintenanceProjects = ({ projects, assets, bays, employees, inventoryItems
                                                     {p.status}
                                                 </span>
                                                 {p.status !== 'Completed' && p.status !== 'Cancelled' && (
-                                                    <>
+                                                    <PermissionGate user={user} department="Operations" action="update">
                                                         <button onClick={() => handleCancel(p)} className="btn btn-sm border-0 shadow-sm rounded-pill btn-active me-2" title="Cancel Project">
                                                             <span style={{ color: '#dc3545' }}>X</span>
                                                         </button>
                                                         <button onClick={() => handleComplete(p)} className="btn btn-sm border-0 shadow-sm rounded-pill btn-active" title="Complete Project">
                                                             <span style={{ color: '#28a745' }}>✓</span>
                                                         </button>
-                                                    </>
+                                                    </PermissionGate>
                                                 )}
                                             </td>
                                             <td className="pe-4 text-end">
                                                 <div className="d-flex gap-1 justify-content-end align-items-center">
-
-                                                    <button onClick={() => openEdit(p)} className="btn btn-sm border-0 bg-transparent">
-                                                        <img src={editIcon} alt="E" style={{ width: 17 }} />
-                                                    </button>
-                                                    <button onClick={() => handleDelete(p)} className="btn btn-sm border-0 bg-transparent">
-                                                        <img src={deleteIcon} alt="D" style={{ width: 17 }} />
-                                                    </button>
+                                                    <PermissionGate user={user} department="Operations" action="update">
+                                                        <button onClick={() => openEdit(p)} className="btn btn-sm border-0 bg-transparent">
+                                                            <img src={editIcon} alt="E" style={{ width: 17 }} />
+                                                        </button>
+                                                    </PermissionGate>
+                                                    <PermissionGate user={user} department="Operations" action="delete">
+                                                        <button onClick={() => handleDelete(p)} className="btn btn-sm border-0 bg-transparent">
+                                                            <img src={deleteIcon} alt="D" style={{ width: 17 }} />
+                                                        </button>
+                                                    </PermissionGate>
                                                 </div>
                                             </td>
+
                                         </tr>
                                     ))
                                 )}

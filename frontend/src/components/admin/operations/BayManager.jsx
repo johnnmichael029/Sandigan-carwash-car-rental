@@ -11,9 +11,10 @@ import deleteIcon from '../../../assets/icon/delete.png';
 import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 import maintenanceIcon from '../../../assets/icon/maintenance-brand.png';
+import PermissionGate from '../../PermissionGate';
 import approvedIcon from '../../../assets/icon/approved.png';
 
-const BayManager = ({ bays, onRefresh }) => {
+const BayManager = ({ bays, onRefresh, user }) => {
     const [showModal, setShowModal] = useState(false);
     const [editingBay, setEditingBay] = useState(null);
     const [form, setForm] = useState({ name: '', type: 'Standard Wash', description: '' });
@@ -101,11 +102,13 @@ const BayManager = ({ bays, onRefresh }) => {
             <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 d-flex flex-column" style={{ minHeight: 475 }}>
                 <div className="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                     <h6 className="mb-0 fw-bold text-dark-secondary">Washing Bays</h6>
+                    <PermissionGate user={user} department="Operations" action="create">
                     <button className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
                         style={{ fontSize: '0.75rem', borderRadius: '8px', height: '36px', border: 'none', fontWeight: 600 }}
                         onClick={openAdd}>
                         + Add New Bay
                     </button>
+                    </PermissionGate>
                 </div>
                 <div className='card-body p-0 flex-grow-1 d-flex flex-column'>
                     <div className="table-responsive pb-2">
@@ -153,12 +156,16 @@ const BayManager = ({ bays, onRefresh }) => {
                                                             <img src={approvedIcon} alt="Available" style={{ width: '14px', height: '14px' }} />
                                                         </button>
                                                     )}
+                                                    <PermissionGate user={user} department="Operations" action="update">
                                                     <button onClick={() => openEdit(bay)} className="btn btn-sm border-0 bg-transparent">
                                                         <img src={editIcon} alt="E" style={{ width: 17 }} />
                                                     </button>
+                                                    </PermissionGate>
+                                                    <PermissionGate user={user} department="Operations" action="delete">
                                                     <button onClick={() => handleDelete(bay)} className="btn btn-sm border-0 bg-transparent">
                                                         <img src={deleteIcon} alt="D" style={{ width: 17 }} />
                                                     </button>
+                                                    </PermissionGate>
                                                 </div>
                                             </td>
                                         </tr>

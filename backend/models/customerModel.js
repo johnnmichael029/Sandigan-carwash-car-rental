@@ -25,6 +25,11 @@ const customerSchema = new mongoose.Schema({
     smcIssuedDate: { type: Date, default: null },
     smcExpiryDate: { type: Date, default: null },
 
+    // Loyalty Card (Stamp Card)
+    hasLoyaltyCard: { type: Boolean, default: false },
+    loyaltyCardId: { type: String, unique: true, sparse: true },
+    loyaltyCardIssuedDate: { type: Date, default: null },
+
     // Mobile Push Notifications
     pushToken: { type: String, default: null },
 

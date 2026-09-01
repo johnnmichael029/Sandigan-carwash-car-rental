@@ -118,6 +118,8 @@ const ActivityLogPage = ({ isDark }) => {
         { key: 'HRIS', label: 'HR & Payroll' },
         { key: 'INVENTORY', label: 'Inventory' },
         { key: 'VENDOR', label: 'Vendors' },
+        { key: 'CRM', label: 'CRM' },
+        { key: 'LOYALTY', label: 'Loyalty Program' },
         { key: 'SETTINGS', label: 'Settings' },
     ];
 

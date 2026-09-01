@@ -7,9 +7,11 @@ import { swrFetcher, SWR_CONFIG } from '../../../api/swrFetcher';
 import AdminModalWrapper from '../shared/AdminModalWrapper';
 import editIcon from '../../../assets/icon/edit.png';
 import deleteIcon from '../../../assets/icon/delete.png';
+import PermissionGate from '../../PermissionGate';
 
-const PurchaseOrderManager = ({ vendors, inventoryItems, onUpdate }) => {
+const PurchaseOrderManager = ({ vendors, inventoryItems, onUpdate, user }) => {
     // ── SWR Data Fetching ──────────────────────────────────────────────────────
+
     const { data: posData, isLoading, mutate: mutatePOs } = useSWR('/purchase-orders', swrFetcher, SWR_CONFIG);
     const pos = posData || [];
 
@@ -134,7 +136,9 @@ const PurchaseOrderManager = ({ vendors, inventoryItems, onUpdate }) => {
             <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
                 <div className="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                     <h6 className="mb-0 fw-bold text-dark-secondary">Purchase Orders</h6>
-                    <button onClick={openCreateModal} className="btn btn-save btn-sm px-3 rounded-pill shadow-sm">+ Generate PO</button>
+                    <PermissionGate user={user} department="Inventory" action="create">
+                        <button onClick={openCreateModal} className="btn btn-save btn-sm px-3 rounded-pill shadow-sm">+ Generate PO</button>
+                    </PermissionGate>
                 </div>
                 <div className="card-body p-0">
                     <div className="table-responsive">
@@ -182,15 +186,21 @@ const PurchaseOrderManager = ({ vendors, inventoryItems, onUpdate }) => {
                                                 <div className="d-flex gap-1 justify-content-end align-items-center">
                                                     {po.status !== 'Received' && (
                                                         <>
-                                                            <button onClick={() => handleReceivePO(po._id)} className="btn btn-sm btn-outline-success rounded-pill px-3" style={{ fontSize: '0.8rem' }}>
-                                                                Receive
-                                                            </button>
-                                                            <button onClick={() => handleEditPO(po)} className="btn btn-sm border-0 bg-transparent">
-                                                                <img src={editIcon} alt="Edit" style={{ width: '18px', height: '18px' }} title="Edit PO" />
-                                                            </button>
-                                                            <button onClick={() => handleDeletePO(po)} className="btn btn-sm border-0 bg-transparent">
-                                                                <img src={deleteIcon} alt="Delete" style={{ width: '18px', height: '18px' }} title="Delete PO" />
-                                                            </button>
+                                                            <PermissionGate user={user} department="Inventory" action="update">
+                                                                <button onClick={() => handleReceivePO(po._id)} className="btn btn-sm btn-outline-success rounded-pill px-3" style={{ fontSize: '0.8rem' }}>
+                                                                    Receive
+                                                                </button>
+                                                            </PermissionGate>
+                                                            <PermissionGate user={user} department="Inventory" action="update">
+                                                                <button onClick={() => handleEditPO(po)} className="btn btn-sm border-0 bg-transparent">
+                                                                    <img src={editIcon} alt="Edit" style={{ width: '18px', height: '18px' }} title="Edit PO" />
+                                                                </button>
+                                                            </PermissionGate>
+                                                            <PermissionGate user={user} department="Inventory" action="delete">
+                                                                <button onClick={() => handleDeletePO(po)} className="btn btn-sm border-0 bg-transparent">
+                                                                    <img src={deleteIcon} alt="Delete" style={{ width: '18px', height: '18px' }} title="Delete PO" />
+                                                                </button>
+                                                            </PermissionGate>
                                                         </>
                                                     )}
                                                 </div>
@@ -202,6 +212,7 @@ const PurchaseOrderManager = ({ vendors, inventoryItems, onUpdate }) => {
                         </table>
                     </div>
                 </div>
+
             </div>
 
             {showModal && (

@@ -74,7 +74,7 @@ const AdminSetup = () => {
                     fullName: form.fullName.trim(),
                     email: form.email.trim().toLowerCase(),
                     password: form.password,
-                    role: 'admin'
+                    role: 'super_admin'
                 })
             });
 
@@ -87,10 +87,11 @@ const AdminSetup = () => {
 
             await Swal.fire({
                 icon: 'success',
-                title: 'Admin Account Created!',
-                html: `<p style="color:#9ca3af;font-size:0.9rem">Welcome, <b style="color:#FAFAFA">${form.fullName}</b>!<br>Your admin account is ready. Please log in to continue.</p>`,
+                title: 'Super Admin Account Created!',
+                html: `<p style="color:#9ca3af;font-size:0.9rem">Welcome, <b style="color:#FAFAFA">${form.fullName}</b>!<br>Your Super Admin account is ready. Please log in to access the system.</p>`,
                 confirmButtonColor: '#23A0CE',
                 confirmButtonText: 'Go to Login',
+
                 background: '#0d1b1b',
                 color: '#FAFAFA',
                 customClass: { popup: 'rounded-4' }

@@ -9,6 +9,7 @@ import MaintenanceProjects from './MaintenanceProjects';
 import bayIcon from '../../../assets/icon/bay.png';
 import assetIcon from '../../../assets/icon/asset.png';
 import maintenanceIcon from '../../../assets/icon/maintenance.png';
+import PermissionGate from '../../PermissionGate';
 
 const OperationsModule = ({ user, isDark }) => {
     // ── SWR Data Fetching ──────────────────────────────────────────────────────
@@ -156,9 +157,9 @@ const OperationsModule = ({ user, isDark }) => {
             {/* Tab Content */}
             {isLoading ? <TableSkeleton /> : (
                 <div className="animate-fade-in">
-                    {activeTab === 'bays' && <BayManager bays={bays} onRefresh={fetchAll} isDark={isDark} />}
-                    {activeTab === 'assets' && <AssetTracker assets={assets} bays={bays} onRefresh={fetchAll} isDark={isDark} />}
-                    {activeTab === 'maintenance' && <MaintenanceProjects projects={projects} assets={assets} bays={bays} employees={employees} inventoryItems={inventoryItems} onRefresh={fetchAll} isDark={isDark} />}
+                    {activeTab === 'bays' && <BayManager user={user} bays={bays} onRefresh={fetchAll} isDark={isDark} />}
+                    {activeTab === 'assets' && <AssetTracker user={user} assets={assets} bays={bays} onRefresh={fetchAll} isDark={isDark} />}
+                    {activeTab === 'maintenance' && <MaintenanceProjects user={user} projects={projects} assets={assets} bays={bays} employees={employees} inventoryItems={inventoryItems} onRefresh={fetchAll} isDark={isDark} />}
                 </div>
             )}
         </div>

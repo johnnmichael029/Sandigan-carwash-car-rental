@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const requireAuth = require('../middleware/requireAuth');
-const adminOnly = require('../middleware/adminOnly');
+const requirePermission = require('../middleware/requirePermission');
+const superAdminOnly = require('../middleware/superAdminOnly');
 const cache = require('../middleware/cacheMiddleware');
 const { invalidatePrefixes } = require('../utils/cache');
 
@@ -28,7 +29,7 @@ const {
 router.get('/setup-status', async (req, res) => {
     try {
         const Employee = require('../models/employeeModel');
-        const adminCount = await Employee.countDocuments({ role: 'admin' });
+        const adminCount = await Employee.countDocuments({ role: { $in: ['admin', 'super_admin'] } });
         res.json({ setupRequired: adminCount === 0 });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -39,13 +40,13 @@ router.get('/setup-status', async (req, res) => {
 router.post('/setup', async (req, res) => {
     try {
         const Employee = require('../models/employeeModel');
-        const adminCount = await Employee.countDocuments({ role: 'admin' });
+        const adminCount = await Employee.countDocuments({ role: { $in: ['admin', 'super_admin'] } });
         if (adminCount > 0) {
             return res.status(403).json({ error: 'Setup already completed. This page is locked.' });
         }
         const { createEmployee } = require('../controllers/employeeController');
-        // Force the role to 'admin' regardless of what was sent
-        req.body.role = 'admin';
+        // Force the role to 'super_admin' for the very first account
+        req.body.role = 'super_admin';
         return createEmployee(req, res);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -59,11 +60,11 @@ router.post('/login', loginEmployee);
 // Employee logout (clears the auth cookie)
 router.post('/logout', logoutEmployee);
 
-// Create a new employee (sign up - restrict to admin)
-router.post('/signup', requireAuth, adminOnly, (req, res, next) => { invalidatePrefixes('employee', 'payroll', 'sandi'); next(); }, createEmployee);
+// Create a new employee (sign up - Super Admin only)
+router.post('/signup', requireAuth, superAdminOnly, (req, res, next) => { invalidatePrefixes('employee', 'payroll', 'sandi'); next(); }, createEmployee);
 
-// Backfill: Assign IDs to all employees missing one (Admin only — run once)
-router.post('/backfill-ids', requireAuth, adminOnly, backfillEmployeeIds);
+// Backfill: Assign IDs to all employees missing one (Super Admin only — run once)
+router.post('/backfill-ids', requireAuth, superAdminOnly, backfillEmployeeIds);
 
 // --- PROTECTED ROUTES (require valid JWT) ---
 
@@ -74,19 +75,19 @@ router.get('/my-earnings', requireAuth, getMyEarnings);
 router.post('/push-token', requireAuth, savePushToken);
 
 // Get all employees
-router.get('/', requireAuth, cache('employee', 90), getEmployees);
+router.get('/', requireAuth, requirePermission('Workforce', 'read'), cache('employee', 90), getEmployees);
 
 // Get a single employee
-router.get('/:id', requireAuth, cache('employee', 60), getEmployee);
+router.get('/:id', requireAuth, requirePermission('Workforce', 'read'), cache('employee', 60), getEmployee);
 
-// Update employee (Admin only)
-router.patch('/:id', requireAuth, adminOnly, (req, res, next) => { invalidatePrefixes('employee', 'payroll', 'sandi'); next(); }, updateEmployee);
+// Update employee (Workforce update OR Super Admin)
+router.patch('/:id', requireAuth, requirePermission('Workforce', 'update'), (req, res, next) => { invalidatePrefixes('employee', 'payroll', 'sandi'); next(); }, updateEmployee);
 
-// Performance and Training (Admin only)
-router.post('/:id/evaluation', requireAuth, adminOnly, (req, res, next) => { invalidatePrefixes('employee'); next(); }, addEvaluation);
-router.patch('/:id/skills', requireAuth, adminOnly, (req, res, next) => { invalidatePrefixes('employee'); next(); }, updateSkills);
+// Performance and Training (Workforce update permission)
+router.post('/:id/evaluation', requireAuth, requirePermission('Workforce', 'update'), (req, res, next) => { invalidatePrefixes('employee'); next(); }, addEvaluation);
+router.patch('/:id/skills', requireAuth, requirePermission('Workforce', 'update'), (req, res, next) => { invalidatePrefixes('employee'); next(); }, updateSkills);
 
-// Delete employee (Admin only)
-router.delete('/:id', requireAuth, adminOnly, (req, res, next) => { invalidatePrefixes('employee', 'payroll', 'sandi'); next(); }, deleteEmployee);
+// Delete employee (Super Admin only)
+router.delete('/:id', requireAuth, superAdminOnly, (req, res, next) => { invalidatePrefixes('employee', 'payroll', 'sandi'); next(); }, deleteEmployee);
 
 module.exports = router;
