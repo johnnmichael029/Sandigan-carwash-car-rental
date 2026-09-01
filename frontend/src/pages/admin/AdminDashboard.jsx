@@ -70,8 +70,11 @@ const AdminDashboard = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [toggleActive, setToggleActive] = useState('dashboard');
     const [isERPOpen, setIsERPOpen] = useState(false);
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(true);
+    const [isHovered, setIsHovered] = useState(false);
+    const displayCollapsed = isCollapsed && !isHovered;
     const [isDark, setIsDark] = useState(() => localStorage.getItem('sandigan-theme') === 'dark');
+
 
     /* ── Theme sync ── */
     useEffect(() => {
@@ -225,25 +228,30 @@ const AdminDashboard = () => {
         );
     }
 
-    const sidebarWidth = isCollapsed ? '85px' : '260px';
+    const sidebarWidth = displayCollapsed ? '85px' : '260px';
 
     return (
         <div className="container-fluid p-0 font-poppins background-light-primary" style={{ height: '100vh', overflow: 'hidden' }}>
             <div className="d-flex w-100 p-3 gap-3" style={{ height: '100vh', overflow: 'hidden' }}>
 
                 {/* ─── FLOATING SIDEBAR ─── */}
-                <nav className="sidebar-container d-flex flex-column shadow-lg" style={{
-                    width: sidebarWidth,
-                    minWidth: sidebarWidth,
-                    height: 'calc(100vh - 32px)',
-                    transition: 'all 0.1s cubic-bezier(0.4, 0, 0.2, 1)',
-                    zIndex: 1001,
-                    overflow: 'visible',
-                    position: 'relative',
-                    flexShrink: 0,
-                    borderRadius: '24px',
-                    backgroundColor: '#002525' // Match theme
-                }}>
+                <nav
+                    className="sidebar-container d-flex flex-column shadow-lg"
+                    onMouseEnter={() => setIsHovered(true)}
+                    onMouseLeave={() => setIsHovered(false)}
+                    style={{
+                        width: sidebarWidth,
+                        minWidth: sidebarWidth,
+                        height: 'calc(100vh - 32px)',
+                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                        zIndex: 1001,
+                        overflow: 'visible',
+                        position: 'relative',
+                        flexShrink: 0,
+                        borderRadius: '24px',
+                        backgroundColor: '#002525' // Match theme
+                    }}
+                >
 
                     {/* Floating Collapse Button */}
                     <div
@@ -280,7 +288,7 @@ const AdminDashboard = () => {
                                 opacity: 1,
                                 filter: 'brightness(0) invert(1)',
                                 transition: 'all 0.3s ease',
-                                transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)'
+                                transform: displayCollapsed ? 'rotate(180deg)' : 'rotate(0deg)'
                             }}
                         />
                     </div>
@@ -289,10 +297,10 @@ const AdminDashboard = () => {
                     <div className="brand-container border-bottom border-secondary-subtle w-100 d-flex justify-content-center align-items-center px-2 py-4">
                         <img
                             className="sandigan-logo transition-all"
-                            src={isCollapsed ? logoIcon : sandiganLogo}
+                            src={displayCollapsed ? logoIcon : sandiganLogo}
                             alt="Sandigan Logo"
                             style={{
-                                width: isCollapsed ? '32px' : '140px',
+                                width: displayCollapsed ? '32px' : '140px',
                                 objectFit: 'contain',
                                 transition: 'all 0.3s ease'
                             }}
@@ -315,11 +323,11 @@ const AdminDashboard = () => {
                                 onClick={() => setToggleActive('dashboard')}
                                 style={{
                                     padding: '12px 16px',
-                                    justifyContent: isCollapsed ? 'center' : 'flex-start'
+                                    justifyContent: displayCollapsed ? 'center' : 'flex-start'
                                 }}
                             >
                                 <img src={dashboardIcon} style={{ width: 22, minWidth: 22 }} alt="Dashboard" />
-                                {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">Dashboard</span>}
+                                {!displayCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">Dashboard</span>}
                             </button>
                         </li>
 
@@ -330,11 +338,11 @@ const AdminDashboard = () => {
                                 onClick={() => setToggleActive('activity-log')}
                                 style={{
                                     padding: '12px 16px',
-                                    justifyContent: isCollapsed ? 'center' : 'flex-start'
+                                    justifyContent: displayCollapsed ? 'center' : 'flex-start'
                                 }}
                             >
                                 <img src={activityLogs} style={{ width: 22, minWidth: 22 }} alt="Logs" />
-                                {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">Activity Log</span>}
+                                {!displayCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">Activity Log</span>}
                             </button>
                         </li>
 
@@ -343,20 +351,20 @@ const AdminDashboard = () => {
                             <div
                                 className={`nav-link d-flex justify-content-between align-items-center transition-all rounded-3 ${ERP_ITEMS.includes(toggleActive) ? 'active shadow-sm' : ''}`}
                                 onClick={() => {
-                                    if (isCollapsed) setIsCollapsed(false);
+                                    if (displayCollapsed) setIsHovered(true);
                                     setIsERPOpen(prev => !prev);
                                 }}
                                 style={{
                                     padding: '12px 16px',
                                     cursor: 'pointer',
-                                    justifyContent: isCollapsed ? 'center' : 'flex-start'
+                                    justifyContent: displayCollapsed ? 'center' : 'flex-start'
                                 }}
                             >
                                 <div className="d-flex align-items-center">
                                     <img src={carService} style={{ width: 22, minWidth: 22 }} alt="ERP" />
-                                    {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">Enterprise Management</span>}
+                                    {!displayCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">Enterprise Management</span>}
                                 </div>
-                                {!isCollapsed && (
+                                {!displayCollapsed && (
                                     <img
                                         src={isERPOpen ? upArrow : downArrow}
                                         alt="toggle"
@@ -367,7 +375,7 @@ const AdminDashboard = () => {
                         </li>
 
                         {/* Sub Menu */}
-                        {isERPOpen && !isCollapsed && (
+                        {isERPOpen && !displayCollapsed && (
                             <li className="w-100 animate-fade-in" >
                                 <ul className="ps-3 w-100 list-unstyled border-start ms-4 border-secondary-subtle">
                                     {[
@@ -411,11 +419,11 @@ const AdminDashboard = () => {
                                     onClick={() => setToggleActive('settings')}
                                     style={{
                                         padding: '12px 16px',
-                                        justifyContent: isCollapsed ? 'center' : 'flex-start'
+                                        justifyContent: displayCollapsed ? 'center' : 'flex-start'
                                     }}
                                 >
                                     <img src={settingsIcon} style={{ width: 22, minWidth: 22 }} alt="Settings" />
-                                    {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">Service Settings</span>}
+                                    {!displayCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">Service Settings</span>}
                                 </button>
                             </li>
                         )}
@@ -428,11 +436,11 @@ const AdminDashboard = () => {
                                     onClick={() => setToggleActive('user-management')}
                                     style={{
                                         padding: '12px 16px',
-                                        justifyContent: isCollapsed ? 'center' : 'flex-start'
+                                        justifyContent: displayCollapsed ? 'center' : 'flex-start'
                                     }}
                                 >
                                     <img src={userManagement} style={{ width: 22, minWidth: 22 }} alt="User Management" />
-                                    {!isCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">User Management</span>}
+                                    {!displayCollapsed && <span className="ms-3 animate-fade-in text-nowrap fw-medium">User Management</span>}
                                 </button>
                             </li>
                         )}
@@ -441,7 +449,7 @@ const AdminDashboard = () => {
 
                     {/* Footer Section - Profile Card */}
                     <div className="p-3 mt-auto border-top border-secondary-subtle">
-                        <div className={`d-flex align-items-center p-2 rounded-4 ${isCollapsed ? 'justify-content-center' : 'gap-3'}`} style={{ background: '#23a0ce10' }}>
+                        <div className={`d-flex align-items-center p-2 rounded-4 ${displayCollapsed ? 'justify-content-center' : 'gap-3'}`} style={{ background: '#23a0ce10' }}>
                             <div style={{
                                 width: 40, height: 40, borderRadius: '12px',
                                 background: 'linear-gradient(60deg, #23A0CE, #002525)',
@@ -451,7 +459,7 @@ const AdminDashboard = () => {
                             }}>
                                 {user?.fullName?.charAt(0)?.toUpperCase() ?? 'A'}
                             </div>
-                            {!isCollapsed && (
+                            {!displayCollapsed && (
                                 <div style={{ overflow: 'hidden' }} className="animate-fade-in">
                                     <p className="mb-0 text-white text-nowrap" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
                                         {user?.fullName ?? 'Administrator'}
@@ -466,10 +474,11 @@ const AdminDashboard = () => {
                             style={{ fontSize: '0.85rem', fontWeight: 600 }}
                         >
                             <img src={adminLogoutIcon} alt="" style={{ width: 16 }} />
-                            {!isCollapsed && <span>Log Out</span>}
+                            {!displayCollapsed && <span>Log Out</span>}
                         </button>
                     </div>
                 </nav>
+
 
                 {/* ─── FLOATING MAIN CONTENT ─── */}
                 <main className="right-content-container flex-grow-1 shadow-sm" style={{
