@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { API_BASE } from '../../api/config';
+import { API_BASE } from '../../api/config'
+import sandibot from '../../assets/logo/sandibot-logo.png';
 
 const SandiBot = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -117,7 +118,8 @@ const SandiBot = () => {
                     <div className="text-white p-4 d-flex justify-content-between align-items-center" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <div className="d-flex align-items-center gap-3">
                             <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', background: '#23A0CE' }}>
-                                <span style={{ fontSize: '1.6rem' }}>🤖</span>
+                                <img src={sandibot} alt="SandiBot" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+
                             </div>
                             <div>
                                 <div className="fw-bold fs-5 mb-0" style={{ lineHeight: '1', letterSpacing: '0.5px' }}>SANDIBOT</div>
