@@ -77,7 +77,7 @@ const SandiBot = () => {
                     }}
                     className="btn shadow-lg bubble-float"
                     style={{
-                        backgroundColor: '#1e293b',
+                        backgroundColor: '#23A0CE',
                         color: 'white',
                         borderRadius: '50%',
                         width: '60px',
@@ -89,10 +89,9 @@ const SandiBot = () => {
                         cursor: 'pointer',
                         transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                     }}
+
                 >
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"></path>
-                    </svg>
+                    <img src={sandibot} alt="SandiBot" style={{ width: '44px', height: '44px', objectFit: 'contain', borderRadius: '50%' }} />
                 </button>
             )}
 
