@@ -590,6 +590,203 @@ const RentalDetailModal = ({ rental, onClose, onStatusChange, onReceipt, isDark 
 };
 
 /* ═══════════════════════════════════════════
+   FLEET CALENDAR VIEW COMPONENT
+═══════════════════════════════════════════ */
+const FleetCalendarView = ({ rentals, fleet, isDark, onSelectRental, month, year, onMonthChange, vehicleFilter, onVehicleFilterChange }) => {
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const prevMonthDays = new Date(year, month, 0).getDate();
+
+    const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    const activeRentals = rentals.filter(r => {
+        if (r.status === 'Cancelled') return false;
+        if (vehicleFilter !== 'All' && r.vehicleName !== vehicleFilter && r.vehicleId !== vehicleFilter) return false;
+        return true;
+    });
+
+    const getRentalsForDay = (day) => {
+        const targetDate = new Date(year, month, day);
+        targetDate.setHours(0, 0, 0, 0);
+
+        return activeRentals.filter(r => {
+            const start = new Date(r.rentalStartDate);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(r.returnDate);
+            end.setHours(23, 59, 59, 999);
+            return targetDate >= start && targetDate <= end;
+        });
+    };
+
+    const days = [];
+    for (let i = firstDay - 1; i >= 0; i--) {
+        days.push({ day: prevMonthDays - i, currentMonth: false });
+    }
+    for (let i = 1; i <= daysInMonth; i++) {
+        days.push({ day: i, currentMonth: true, rentals: getRentalsForDay(i) });
+    }
+    const remaining = (7 - (days.length % 7)) % 7;
+    for (let i = 1; i <= remaining; i++) {
+        days.push({ day: i, currentMonth: false });
+    }
+
+    const isToday = (day) => {
+        const today = new Date();
+        return today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+    };
+
+    return (
+        <div className="card border-0 shadow-sm rounded-4 overflow-hidden p-4" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
+            {/* Calendar Controls */}
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+                <div className="d-flex align-items-center gap-3">
+                    <h5 className="mb-0 fw-bold" style={{ color: 'var(--theme-content-text)' }}>
+                        {monthNames[month]} {year}
+                    </h5>
+                    <div className="btn-group btn-group-sm">
+                        <button
+                            type="button"
+                            className="btn btn-outline-secondary"
+                            onClick={() => {
+                                if (month === 0) onMonthChange(11, year - 1);
+                                else onMonthChange(month - 1, year);
+                            }}
+                        >
+                            &larr; Prev
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-outline-secondary"
+                            onClick={() => {
+                                const now = new Date();
+                                onMonthChange(now.getMonth(), now.getFullYear());
+                            }}
+                        >
+                            Today
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-outline-secondary"
+                            onClick={() => {
+                                if (month === 11) onMonthChange(0, year + 1);
+                                else onMonthChange(month + 1, year);
+                            }}
+                        >
+                            Next &rarr;
+                        </button>
+                    </div>
+                </div>
+
+                {/* Filter by Vehicle */}
+                <div className="d-flex align-items-center gap-2">
+                    <span className="small text-muted">Vehicle:</span>
+                    <select
+                        className="form-select form-select-sm"
+                        style={{ width: '220px', background: 'var(--theme-modal-bg)', color: 'var(--theme-content-text)', border: '1px solid var(--theme-content-border)' }}
+                        value={vehicleFilter}
+                        onChange={e => onVehicleFilterChange(e.target.value)}
+                    >
+                        <option value="All">All Fleet Vehicles</option>
+                        {fleet.map(v => (
+                            <option key={v._id} value={v.vehicleName}>{v.vehicleName}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            {/* Weekday Header */}
+            <div className="d-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginBottom: '8px' }}>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
+                    <div key={d} className="text-center py-2 fw-bold" style={{ fontSize: '0.8rem', color: i === 0 || i === 6 ? '#23A0CE' : 'var(--theme-content-text-secondary)' }}>
+                        {d}
+                    </div>
+                ))}
+            </div>
+
+            {/* Days Grid */}
+            <div className="d-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
+                {days.map((item, idx) => (
+                    <div
+                        key={idx}
+                        className="p-2 rounded-3"
+                        style={{
+                            minHeight: '105px',
+                            background: item.currentMonth
+                                ? (isToday(item.day) ? 'rgba(35,160,206,0.12)' : 'rgba(255,255,255,0.02)')
+                                : 'rgba(0,0,0,0.03)',
+                            border: isToday(item.day) ? '1px solid #23A0CE' : '1px solid var(--theme-content-border)',
+                            opacity: item.currentMonth ? 1 : 0.4,
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}
+                    >
+                        <div className="d-flex justify-content-between align-items-center mb-1">
+                            <span style={{
+                                fontSize: '0.78rem',
+                                fontWeight: isToday(item.day) ? 800 : 600,
+                                color: isToday(item.day) ? '#23A0CE' : 'var(--theme-content-text)'
+                            }}>
+                                {item.day}
+                            </span>
+                            {item.rentals?.length > 0 && (
+                                <span className="badge rounded-pill bg-secondary" style={{ fontSize: '0.62rem' }}>
+                                    {item.rentals.length}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Rental Badges */}
+                        <div className="d-flex flex-column gap-1 overflow-auto" style={{ maxHeight: '75px' }}>
+                            {item.rentals?.map(r => {
+                                const isPending = r.status === 'Pending';
+                                const isActive = r.status === 'Active';
+                                const bg = isPending ? 'rgba(245,158,11,0.2)' : (isActive ? 'rgba(34,197,94,0.2)' : 'rgba(59,130,246,0.2)');
+                                const text = isPending ? '#f59e0b' : (isActive ? '#22c55e' : '#3b82f6');
+                                const border = isPending ? 'rgba(245,158,11,0.4)' : (isActive ? 'rgba(34,197,94,0.4)' : 'rgba(59,130,246,0.4)');
+
+                                return (
+                                    <div
+                                        key={r._id}
+                                        onClick={() => onSelectRental(r)}
+                                        title={`${r.vehicleName} (${r.fullName}) - ${r.status}`}
+                                        className="px-2 py-1 rounded-2 text-truncate"
+                                        style={{
+                                            fontSize: '0.68rem',
+                                            fontWeight: 600,
+                                            background: bg,
+                                            color: text,
+                                            border: `1px solid ${border}`,
+                                            cursor: 'pointer',
+                                            transition: 'transform 0.1s ease'
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                                        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                    >
+                                        🚘 {r.vehicleName.split(' ')[0]} • {r.fullName.split(' ')[0]}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Legend */}
+            <div className="d-flex align-items-center gap-4 mt-4 pt-3 flex-wrap" style={{ borderTop: '1px solid var(--theme-content-border)', fontSize: '0.75rem' }}>
+                <span className="text-muted fw-bold">Status Legend:</span>
+                <span className="d-flex align-items-center gap-1"><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }}></span> Pending Approval</span>
+                <span className="d-flex align-items-center gap-1"><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }}></span> Confirmed / Scheduled</span>
+                <span className="d-flex align-items-center gap-1"><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span> Active on Road</span>
+            </div>
+        </div>
+    );
+};
+
+/* ═══════════════════════════════════════════
    MAIN CAR RENT MANAGEMENT COMPONENT
 ═══════════════════════════════════════════ */
 const CarRentManagement = ({ employee, isDark }) => {
@@ -599,6 +796,12 @@ const CarRentManagement = ({ employee, isDark }) => {
     const [statusFilter, setStatusFilter] = useState('All');
     const [selectedRental, setSelectedRental] = useState(null);
     const [showReceipt, setShowReceipt] = useState(null);
+
+    // View Mode: 'table' vs 'calendar'
+    const [viewMode, setViewMode] = useState('table');
+    const [calMonth, setCalMonth] = useState(new Date().getMonth());
+    const [calYear, setCalYear] = useState(new Date().getFullYear());
+    const [calendarVehicleFilter, setCalendarVehicleFilter] = useState('All');
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -755,34 +958,70 @@ const CarRentManagement = ({ employee, isDark }) => {
                 ))}
             </div>
 
-            {/* Filters */}
+            {/* Filters and View Switcher */}
             <div className="d-flex flex-col flex-md-row align-items-start align-items-md-center gap-3 mb-4 flex-wrap">
-                <SharedSearchBar
-                    placeholder="Search by ID, Customer, Vehicle..."
-                    onDebouncedSearch={(val) => setSearch(val)}
-                    width="300px"
-                />
-
-                <div className="d-flex gap-2 flex-wrap">
-                    {['All', 'Pending', 'Confirmed', 'Active', 'Returned', 'Cancelled'].map(s => (
-                        <button
-                            key={s}
-                            onClick={() => setStatusFilter(s)}
-                            className="btn btn-sm"
-                            style={{
-                                background: statusFilter === s ? '#23A0CE' : 'var(--theme-card-bg)',
-                                color: statusFilter === s ? '#fff' : 'var(--theme-content-text-secondary)',
-                                border: `1px solid ${statusFilter === s ? '#23A0CE' : 'var(--theme-content-border)'}`,
-                                borderRadius: '20px',
-                                fontSize: '0.8rem',
-                                padding: '5px 14px',
-                                fontWeight: 600
-                            }}
-                        >
-                            {s}
-                        </button>
-                    ))}
+                {/* View Mode Toggle */}
+                <div className="btn-group btn-group-sm p-1 rounded-pill" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
+                    <button
+                        type="button"
+                        onClick={() => setViewMode('table')}
+                        className="btn btn-sm rounded-pill px-3"
+                        style={{
+                            background: viewMode === 'table' ? '#23A0CE' : 'transparent',
+                            color: viewMode === 'table' ? '#fff' : 'var(--theme-content-text-secondary)',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                            border: 'none'
+                        }}
+                    >
+                        📋 Table View
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setViewMode('calendar')}
+                        className="btn btn-sm rounded-pill px-3"
+                        style={{
+                            background: viewMode === 'calendar' ? '#23A0CE' : 'transparent',
+                            color: viewMode === 'calendar' ? '#fff' : 'var(--theme-content-text-secondary)',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                            border: 'none'
+                        }}
+                    >
+                        📅 Fleet Calendar
+                    </button>
                 </div>
+
+                {viewMode === 'table' && (
+                    <>
+                        <SharedSearchBar
+                            placeholder="Search by ID, Customer, Vehicle..."
+                            onDebouncedSearch={(val) => setSearch(val)}
+                            width="280px"
+                        />
+
+                        <div className="d-flex gap-2 flex-wrap">
+                            {['All', 'Pending', 'Confirmed', 'Active', 'Returned', 'Cancelled'].map(s => (
+                                <button
+                                    key={s}
+                                    onClick={() => setStatusFilter(s)}
+                                    className="btn btn-sm"
+                                    style={{
+                                        background: statusFilter === s ? '#23A0CE' : 'var(--theme-card-bg)',
+                                        color: statusFilter === s ? '#fff' : 'var(--theme-content-text-secondary)',
+                                        border: `1px solid ${statusFilter === s ? '#23A0CE' : 'var(--theme-content-border)'}`,
+                                        borderRadius: '20px',
+                                        fontSize: '0.8rem',
+                                        padding: '5px 14px',
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    {s}
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                )}
 
                 <div className="ms-md-auto d-flex gap-2">
                     <button className="btn btn-save btn-sm text-white px-3 font-poppins d-flex align-items-center gap-1 shadow-sm"
@@ -796,20 +1035,34 @@ const CarRentManagement = ({ employee, isDark }) => {
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="card border-0 shadow-sm rounded-4 overflow-hidden" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
-                {loading ? (
-                    <div className="text-center py-5">
-                        <div className="spinner-border text-primary" role="status"></div>
-                        <p className="mt-2 text-muted">Fetching rentals...</p>
-                    </div>
-                ) : paginatedRentals.length === 0 ? (
-                    <div className="text-center py-5">
-                        <p className="text-muted">No rental records found.</p>
-                    </div>
-                ) : (
-                    <div className="table-responsive">
-                        <table className="table table-hover mb-0 align-middle">
+            {/* Main Content: Calendar vs Table */}
+            {viewMode === 'calendar' ? (
+                <FleetCalendarView
+                    rentals={rentals}
+                    fleet={fleet}
+                    isDark={isDark}
+                    month={calMonth}
+                    year={calYear}
+                    onMonthChange={(m, y) => { setCalMonth(m); setCalYear(y); }}
+                    vehicleFilter={calendarVehicleFilter}
+                    onVehicleFilterChange={setCalendarVehicleFilter}
+                    onSelectRental={setSelectedRental}
+                />
+            ) : (
+                /* Table */
+                <div className="card border-0 shadow-sm rounded-4 overflow-hidden" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
+                    {loading ? (
+                        <div className="text-center py-5">
+                            <div className="spinner-border text-primary" role="status"></div>
+                            <p className="mt-2 text-muted">Fetching rentals...</p>
+                        </div>
+                    ) : paginatedRentals.length === 0 ? (
+                        <div className="text-center py-5">
+                            <p className="text-muted">No rental records found.</p>
+                        </div>
+                    ) : (
+                        <div className="table-responsive">
+                            <table className="table table-hover mb-0 align-middle">
                             <thead style={{ background: 'rgba(35,160,206,0.05)' }}>
                                 <tr>
                                     <th className="ps-4 border-0 font-poppins" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--theme-content-text-secondary)', textTransform: 'uppercase' }}>Rental ID</th>
@@ -911,6 +1164,7 @@ const CarRentManagement = ({ employee, isDark }) => {
                     </div>
                 )}
             </div>
+            )}
 
             {/* Detail Modal */}
             {selectedRental && (

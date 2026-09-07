@@ -222,7 +222,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
     };
 
     const addServiceOrAddon = (type) => {
-        const newItem = { name: '', price: 0 };
+        const newItem = { name: '', price: 0, description: '' };
         setEditingDoc(prev => ({
             ...prev,
             [type]: [...prev[type], newItem]
@@ -341,8 +341,9 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                                 <table className="table table-borderless table-sm mb-0">
                                                     <thead className="border-bottom text-muted small">
                                                         <tr>
-                                                            <th>Service Name</th>
-                                                            <th style={{ width: '200px' }}>Price (₱)</th>
+                                                            <th style={{ minWidth: '130px' }}>Service Name</th>
+                                                            <th>Description <span className="fw-normal opacity-50">(optional)</span></th>
+                                                            <th style={{ width: '140px' }}>Price (₱)</th>
                                                             <th style={{ width: '50px' }}></th>
                                                         </tr>
                                                     </thead>
@@ -351,6 +352,9 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                                             <tr key={idx} className="border-bottom">
                                                                 <td className="py-2">
                                                                     <input type="text" className="form-control form-control-sm" value={item.name} onChange={(e) => updateItem('services', idx, 'name', e.target.value)} placeholder="e.g. Wash" />
+                                                                </td>
+                                                                <td className="py-2">
+                                                                    <input type="text" className="form-control form-control-sm" value={item.description || ''} onChange={(e) => updateItem('services', idx, 'description', e.target.value)} placeholder="Short description shown on hover..." />
                                                                 </td>
                                                                 <td className="py-2">
                                                                     <input type="number" className="form-control form-control-sm" value={item.price} onChange={(e) => updateItem('services', idx, 'price', e.target.value)} placeholder="0" min="0" />
@@ -377,8 +381,9 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                                 <table className="table table-borderless table-sm mb-0">
                                                     <thead className="border-bottom text-muted small">
                                                         <tr>
-                                                            <th>Addon Name</th>
-                                                            <th style={{ width: '200px' }}>Price (₱)</th>
+                                                            <th style={{ minWidth: '130px' }}>Addon Name</th>
+                                                            <th>Description <span className="fw-normal opacity-50">(optional)</span></th>
+                                                            <th style={{ width: '140px' }}>Price (₱)</th>
                                                             <th style={{ width: '50px' }}></th>
                                                         </tr>
                                                     </thead>
@@ -387,6 +392,9 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                                             <tr key={idx} className="border-bottom">
                                                                 <td className="py-2">
                                                                     <input type="text" className="form-control form-control-sm" value={item.name} onChange={(e) => updateItem('addons', idx, 'name', e.target.value)} placeholder="e.g. Detailing" />
+                                                                </td>
+                                                                <td className="py-2">
+                                                                    <input type="text" className="form-control form-control-sm" value={item.description || ''} onChange={(e) => updateItem('addons', idx, 'description', e.target.value)} placeholder="Short description shown on hover..." />
                                                                 </td>
                                                                 <td className="py-2">
                                                                     <input type="number" className="form-control form-control-sm" value={item.price} onChange={(e) => updateItem('addons', idx, 'price', e.target.value)} placeholder="0" min="0" />

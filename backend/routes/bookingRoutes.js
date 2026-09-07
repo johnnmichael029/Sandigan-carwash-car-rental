@@ -25,13 +25,13 @@ router.patch('/:id/cancel', (req, res, next) => { invalidatePrefixes('booking', 
 
 // ── Payment Routes ────────────────────────────────────────────────────────────
 router.post('/:id/payment-proof', submitBookingPaymentProof);             // PUBLIC — customer submits proof
-router.patch('/:id/payment-verify', requireAuth, requirePermission('Operations', 'update'), verifyBookingPayment); // STAFF — verify or reject
+router.patch('/:id/payment-verify', requireAuth, requirePermission('Operations', 'update', ['employee']), verifyBookingPayment); // STAFF — verify or reject
 
 // --- PROTECTED ROUTES ---
 router.get('/employee-history/:id', requireAuth, cache('booking', 60), getEmployeeHistory);
-router.get('/', requireAuth, requirePermission('Operations', 'read'), cache('booking', 60), getBookings);
-router.get('/:id', requireAuth, requirePermission('Operations', 'read'), cache('booking', 30), getBooking);
-router.patch('/:id', requireAuth, requirePermission('Operations', 'update'), (req, res, next) => { invalidatePrefixes('booking', 'forecast', 'finance', 'revenue', 'sandi'); next(); }, updateBooking);
+router.get('/', requireAuth, requirePermission('Operations', 'read', ['employee']), cache('booking', 60), getBookings);
+router.get('/:id', requireAuth, requirePermission('Operations', 'read', ['employee']), cache('booking', 30), getBooking);
+router.patch('/:id', requireAuth, requirePermission('Operations', 'update', ['employee']), (req, res, next) => { invalidatePrefixes('booking', 'forecast', 'finance', 'revenue', 'sandi'); next(); }, updateBooking);
 router.patch('/:id/location', updateDetailerLocation); // Mobile detailer GPS stream - JWT verified inside controller
 router.delete('/:id', requireAuth, requirePermission('Operations', 'delete'), (req, res, next) => { invalidatePrefixes('booking', 'forecast', 'finance', 'revenue', 'sandi'); next(); }, deleteBooking);
 

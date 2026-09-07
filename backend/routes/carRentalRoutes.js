@@ -1,11 +1,25 @@
 const express = require('express');
 const router = express.Router();
 const requireAuth = require('../middleware/requireAuth');
-const { createRental, getRentals, getRental, updateStatus, updateRental, cancelRental, submitRentalPaymentProof, verifyRentalPayment, sendPickupReminder } = require('../controllers/carRentalController');
+const {
+    createRental,
+    getRentals,
+    getRental,
+    updateStatus,
+    updateRental,
+    cancelRental,
+    submitRentalPaymentProof,
+    verifyRentalPayment,
+    sendPickupReminder,
+    getCalendarAvailability
+} = require('../controllers/carRentalController');
 const cache = require('../middleware/cacheMiddleware');
 const { invalidatePrefixes } = require('../utils/cache');
 
 const invalidateRental = (req, res, next) => { invalidatePrefixes('rental', 'revenue', 'forecast', 'sandi'); next(); };
+
+// PUBLIC — calendar availability for booking dates & fleet schedule
+router.get('/calendar-availability', cache('rental', 60), getCalendarAvailability);
 
 // PUBLIC — guest rental submission (invalidates rental list)
 router.post('/', invalidateRental, createRental);

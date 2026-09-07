@@ -5,14 +5,19 @@
  * Usage:
  *   router.get('/', requireAuth, requirePermission('Finance', 'read'), handler)
  *   router.delete('/:id', requireAuth, requirePermission('Finance', 'delete'), handler)
+ *   router.patch('/:id', requireAuth, requirePermission('Operations', 'update', ['employee']), handler)
  *
  * Access rules:
  *   - super_admin → always allowed
  *   - admin       → always allowed
  *   - department_staff → allowed only if their permissions[department] includes the action
- *   - employee / detailer → always denied (use adminOnly for those routes)
+ *   - employee / detailer → denied by default, unless their role is listed in `allowedRoles`
+ *
+ * @param {string}   department   - The department key to check permissions against
+ * @param {string}   action       - The permission action ('read', 'create', 'update', 'delete')
+ * @param {string[]} allowedRoles - Optional extra roles that bypass the department check (e.g. ['employee'])
  */
-const requirePermission = (department, action) => {
+const requirePermission = (department, action, allowedRoles = []) => {
     return (req, res, next) => {
         const user = req.user;
 
@@ -22,6 +27,11 @@ const requirePermission = (department, action) => {
 
         // Super Admin and Admin bypass all permission checks
         if (user.role === 'super_admin' || user.role === 'admin') {
+            return next();
+        }
+
+        // Explicitly whitelisted roles (e.g. 'employee' on booking routes)
+        if (allowedRoles.includes(user.role)) {
             return next();
         }
 
@@ -40,7 +50,7 @@ const requirePermission = (department, action) => {
             });
         }
 
-        // All other roles (employee, detailer) are denied
+        // All other roles not whitelisted are denied
         return res.status(403).json({
             error: 'Access denied. Insufficient role privileges.'
         });

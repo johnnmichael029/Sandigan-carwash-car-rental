@@ -61,10 +61,10 @@ const createRental = async (req, res) => {
         // Also skip for mobile app users authenticated via Bearer JWT token
         let skipCaptcha = false;
         const token = req.cookies?.token;
-        const bearerToken = req.headers.authorization?.startsWith('Bearer ') 
-            ? req.headers.authorization.split(' ')[1] 
+        const bearerToken = req.headers.authorization?.startsWith('Bearer ')
+            ? req.headers.authorization.split(' ')[1]
             : null;
-        
+
         if (token) {
             try {
                 jwt.verify(token, process.env.JWT_SECRET);
@@ -92,25 +92,40 @@ const createRental = async (req, res) => {
                 });
             }
         }
-        // ── Atomically claim the vehicle ────────────────────────────────────────
-        // findOneAndUpdate with { isAvailable: true } condition ensures only ONE
-        // request can claim the vehicle — even if two customers submit simultaneously.
-        const vehicle = await RentalFleet.findOneAndUpdate(
-            { _id: vehicleId, isAvailable: true },   // condition: must still be available
-            { $set: { isAvailable: false } },          // atomically lock it
-            { new: false }                              // return the OLD doc (before update)
-        );
+        // ── Check Vehicle Existence ─────────────────────────────────────────────
+        const vehicle = await RentalFleet.findById(vehicleId);
         if (!vehicle) {
-            // Either vehicle doesn't exist, or it was just taken by another request
-            return res.status(400).json({ error: 'This vehicle is currently not available. It may have just been booked by another customer.' });
+            return res.status(404).json({ error: 'Rental vehicle not found.' });
         }
 
         // Compute days and total
         const start = new Date(rentalStartDate);
         const end = new Date(returnDate);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+            return res.status(400).json({ error: 'Invalid rental dates provided.' });
+        }
+        if (end < start) {
+            return res.status(400).json({ error: 'Return date cannot be earlier than rental start date.' });
+        }
+
+        // Check for date overlapping conflicts with existing active/pending/confirmed rentals
+        const conflictingRental = await CarRental.findOne({
+            vehicleId: vehicle._id,
+            status: { $in: ['Pending', 'Confirmed', 'Active'] },
+            rentalStartDate: { $lte: end },
+            returnDate: { $gte: start }
+        });
+
+        if (conflictingRental) {
+            const conflictStart = new Date(conflictingRental.rentalStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const conflictEnd = new Date(conflictingRental.returnDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            return res.status(400).json({
+                error: `This vehicle (${vehicle.vehicleName}) is already booked from ${conflictStart} to ${conflictEnd}. Please choose different dates.`
+            });
+        }
         const diffMs = end - start;
         const rentalDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-        
+
         // Use estimatedPrice if provided (mobile), else calculate
         const estimatedTotal = estimatedPrice !== undefined ? estimatedPrice : (rentalDays * vehicle.pricePerDay);
 
@@ -169,7 +184,7 @@ const createRental = async (req, res) => {
                 if (customerId) {
                     await Promotion.findOneAndUpdate(
                         { code: promoCode.trim().toUpperCase() },
-                        { 
+                        {
                             $addToSet: { usedBy: customerId },
                             $inc: { usageCount: 1 }
                         }
@@ -282,33 +297,37 @@ const updateStatus = async (req, res) => {
         // Automatic Vehicle Availability Management & Revenue Generation
         try {
             const io = req.app.get('io');
-            if (status === 'Pending' || status === 'Confirmed' || status === 'Active') {
-                // Mark vehicle as UNAVAILABLE as soon as rental is Pending
+            if (status === 'Active') {
+                // Mark vehicle as on-the-road (Active)
                 await RentalFleet.findByIdAndUpdate(rental.vehicleId, { isAvailable: false }, { returnDocument: 'after', runValidators: true });
                 if (io) io.emit('fleet_updated');
 
-                if (status === 'Active') {
-                    // Generate Revenue Entry for Ledger
-                    const Revenue = require('../models/revenueModel');
-                    const existingRevenue = await Revenue.findOne({ referenceId: rental.rentalId });
+                // Generate Revenue Entry for Ledger
+                const Revenue = require('../models/revenueModel');
+                const existingRevenue = await Revenue.findOne({ referenceId: rental.rentalId });
 
-                    if (!existingRevenue) {
-                        await Revenue.create({
-                            title: `Car Rental — ${rental.fullName}`,
-                            amount: rental.estimatedTotal,
-                            category: 'Rental',
-                            source: 'Rental',
-                            referenceId: rental.rentalId,
-                            notes: `Vehicle: ${rental.vehicleName} | Days: ${rental.rentalDays}`
-                        });
-                        if (io) io.emit('revenue_updated'); // Trigger frontend finance refresh
-                    }
+                if (!existingRevenue) {
+                    await Revenue.create({
+                        title: `Car Rental — ${rental.fullName}`,
+                        amount: rental.estimatedTotal,
+                        category: 'Rental',
+                        source: 'Rental',
+                        referenceId: rental.rentalId,
+                        notes: `Vehicle: ${rental.vehicleName} | Days: ${rental.rentalDays}`
+                    });
+                    if (io) io.emit('revenue_updated'); // Trigger frontend finance refresh
                 }
-
-            } else if (status === 'Returned' || status === 'Cancelled') {
-                // Mark vehicle as AVAILABLE again
-                await RentalFleet.findByIdAndUpdate(rental.vehicleId, { isAvailable: true }, { returnDocument: 'after', runValidators: true });
-                if (io) io.emit('fleet_updated');
+            } else if (status === 'Returned' || status === 'Cancelled' || status === 'Pending' || status === 'Confirmed') {
+                // Check if any other rental is actively on the road for this vehicle
+                const otherActive = await CarRental.findOne({
+                    vehicleId: rental.vehicleId,
+                    status: 'Active',
+                    _id: { $ne: rental._id }
+                });
+                if (!otherActive) {
+                    await RentalFleet.findByIdAndUpdate(rental.vehicleId, { isAvailable: true }, { returnDocument: 'after', runValidators: true });
+                    if (io) io.emit('fleet_updated');
+                }
             }
             if (io) io.emit('update_rental', rental);
 
@@ -318,8 +337,8 @@ const updateStatus = async (req, res) => {
                 if (customer?.pushToken) {
                     const msgMap = {
                         'Confirmed': { title: '📋 Rental Confirmed!', body: `Your rental for ${rental.vehicleName} has been confirmed.` },
-                        'Active':    { title: '🔑 Rental is now Active!', body: `Enjoy your ${rental.vehicleName}. Drive safe!` },
-                        'Returned':  { title: '✅ Rental Completed!', body: `Thank you for returning ${rental.vehicleName}. See you again!` },
+                        'Active': { title: '🔑 Rental is now Active!', body: `Enjoy your ${rental.vehicleName}. Drive safe!` },
+                        'Returned': { title: '✅ Rental Completed!', body: `Thank you for returning ${rental.vehicleName}. See you again!` },
                         'Cancelled': { title: '❌ Rental Cancelled', body: `Your rental for ${rental.vehicleName} was cancelled.` },
                     };
                     const msg = msgMap[status];
@@ -408,7 +427,7 @@ const cancelRental = async (req, res) => {
             if (customer) {
                 await Promotion.findOneAndUpdate(
                     { code: rental.promoCode.trim().toUpperCase() },
-                    { 
+                    {
                         $pull: { usedBy: customer._id },
                         $inc: { usageCount: -1 }
                     }
@@ -591,6 +610,75 @@ const sendPickupReminder = async (req, res) => {
     }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  GET /api/car-rentals/calendar-availability  — PUBLIC / AUTH
+//  Fetch booked date ranges across fleet or for a specific vehicle.
+// ─────────────────────────────────────────────────────────────────────────────
+const getCalendarAvailability = async (req, res) => {
+    try {
+        const { vehicleId, month, year } = req.query;
+
+        const filter = {
+            status: { $in: ['Pending', 'Confirmed', 'Active'] }
+        };
+
+        if (vehicleId) {
+            filter.vehicleId = vehicleId;
+        }
+
+        // Optional date range window
+        if (month && year) {
+            const startOfMonth = new Date(Date.UTC(parseInt(year, 10), parseInt(month, 10) - 1, 1));
+            const endOfMonth = new Date(Date.UTC(parseInt(year, 10), parseInt(month, 10), 0, 23, 59, 59, 999));
+            filter.rentalStartDate = { $lte: endOfMonth };
+            filter.returnDate = { $gte: startOfMonth };
+        } else {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            filter.returnDate = { $gte: thirtyDaysAgo };
+        }
+
+        const rentals = await CarRental.find(filter)
+            .select('rentalId vehicleId vehicleName rentalStartDate returnDate status fullName')
+            .sort({ rentalStartDate: 1 })
+            .lean();
+
+        const fleet = await RentalFleet.find({}).select('vehicleName vehicleType seats pricePerDay isAvailable imageBase64 description').lean();
+        const totalFleet = fleet.length;
+
+        // Group booked dates map: { [YYYY-MM-DD]: { count: N, vehicleIds: [...] } }
+        const bookedDates = {};
+        rentals.forEach(r => {
+            const cur = new Date(r.rentalStartDate);
+            const end = new Date(r.returnDate);
+            const vid = r.vehicleId ? r.vehicleId.toString() : null;
+
+            while (cur <= end) {
+                const key = cur.toISOString().split('T')[0];
+                if (!bookedDates[key]) {
+                    bookedDates[key] = { count: 0, vehicleIds: [] };
+                }
+                bookedDates[key].count += 1;
+                if (vid && !bookedDates[key].vehicleIds.includes(vid)) {
+                    bookedDates[key].vehicleIds.push(vid);
+                }
+                cur.setUTCDate(cur.getUTCDate() + 1);
+            }
+        });
+
+        return res.status(200).json({
+            success: true,
+            totalFleet,
+            fleet,
+            bookedDates,
+            rentals
+        });
+    } catch (err) {
+        console.error('getCalendarAvailability error:', err);
+        return res.status(500).json({ error: 'Failed to fetch calendar availability.' });
+    }
+};
+
 module.exports = {
     createRental,
     getRentals,
@@ -600,5 +688,7 @@ module.exports = {
     cancelRental,
     submitRentalPaymentProof,
     verifyRentalPayment,
-    sendPickupReminder
+    sendPickupReminder,
+    getCalendarAvailability
 };
+

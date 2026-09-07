@@ -17,6 +17,7 @@ import ellipse from '../../assets/img/ellipse.png';
 import { API_BASE, SOCKET_URL, authHeaders } from '../../api/config';
 import { io } from 'socket.io-client';
 import gcashQrFallback from '../../assets/img/gcash-qr.png';
+import RentalDatePicker from '../../components/public/RentalDatePicker';
 
 // 1. Keep the base hours as military for backend compatibility
 const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
@@ -97,23 +98,43 @@ const Book = () => {
     const [rentalStartDate, setRentalStartDate] = useState('');
     const [rentalDurationDays, setRentalDurationDays] = useState(1);
     const [selectedRentalVehicle, setSelectedRentalVehicle] = useState(null);
+    const [vehicleBookedDates, setVehicleBookedDates] = useState([]);
+    const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
 
     useEffect(() => {
-        if (activeCategory === 'rental' && rentalFleet.length === 0) {
-            axios.get(`${API_BASE}/rental-fleet`)
+        if (selectedRentalVehicle?._id) {
+            setIsLoadingAvailability(true);
+            axios.get(`${API_BASE}/car-rentals/calendar-availability?vehicleId=${selectedRentalVehicle._id}`)
                 .then(res => {
-                    setRentalFleet(res.data);
-                    const vId = queryParams.get('vehicleId');
-                    if (vId) {
-                        const v = res.data.find(v => v._id === vId);
-                        // Only auto-select if the vehicle is still available
-                        if (v && v.isAvailable) {
-                            setSelectedRentalVehicle(v);
-                            setVehicleType(v.vehicleName);
-                        }
-                    }
+                    const booked = res.data.bookedDates ? Object.keys(res.data.bookedDates) : [];
+                    setVehicleBookedDates(booked);
                 })
-                .catch(err => console.error(err));
+                .catch(err => console.error('Failed to load rental availability:', err))
+                .finally(() => setIsLoadingAvailability(false));
+        } else {
+            setVehicleBookedDates([]);
+        }
+    }, [selectedRentalVehicle]);
+
+    const fetchRentalFleet = () => {
+        axios.get(`${API_BASE}/rental-fleet`)
+            .then(res => {
+                setRentalFleet(res.data);
+                const vId = queryParams.get('vehicleId');
+                if (vId) {
+                    const v = res.data.find(v => v._id === vId);
+                    if (v && v.isAvailable) {
+                        setSelectedRentalVehicle(v);
+                        setVehicleType(v.vehicleName);
+                    }
+                }
+            })
+            .catch(err => console.error(err));
+    };
+
+    useEffect(() => {
+        if (activeCategory === 'rental') {
+            fetchRentalFleet();
         }
     }, [activeCategory, queryParams]);
 
@@ -177,10 +198,16 @@ const Book = () => {
     useEffect(() => {
         fetchData();
 
-        // Real-time updates for pricing settings
+        // Real-time updates for pricing settings & rental fleet availability
         const socket = io(SOCKET_URL, { withCredentials: true });
         socket.on('pricing_updated', () => {
             fetchData();
+        });
+        socket.on('fleet_updated', () => {
+            fetchRentalFleet();
+        });
+        socket.on('update_rental', () => {
+            fetchRentalFleet();
         });
 
         return () => socket.disconnect();
@@ -211,6 +238,23 @@ const Book = () => {
             if (!rentalStartDate) { setError("Please select a pick-up date."); return false; }
             if (!rentalDurationDays || rentalDurationDays < 1) { setError("Please specify duration (minimum 1 day)."); return false; }
             if (!destination.trim()) { setError("Please provide your destination."); return false; }
+
+            // Check if any requested days conflict with existing bookings
+            const start = new Date(rentalStartDate);
+            const days = parseInt(rentalDurationDays, 10);
+            const conflicts = [];
+            for (let i = 0; i < days; i++) {
+                const d = new Date(start);
+                d.setDate(d.getDate() + i);
+                const dateKey = d.toISOString().split('T')[0];
+                if (vehicleBookedDates.includes(dateKey)) {
+                    conflicts.push(dateKey);
+                }
+            }
+            if (conflicts.length > 0) {
+                setError(`The vehicle (${selectedRentalVehicle.vehicleName}) is already reserved on: ${conflicts.join(', ')}. Please choose another date or duration.`);
+                return false;
+            }
         } else {
             if (!vehicleType.trim()) { setError("Please select your vehicle type."); return false; }
             if (!serviceType.length) { setError("Please select at least one service."); return false; }
@@ -612,15 +656,20 @@ const Book = () => {
                                                                         const isSelected = serviceType.includes(service.name);
                                                                         return (
                                                                             <div key={service.name} className="col mb-3">
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => toggleService(service.name)}
-                                                                                    className={`btn rounded-pill px-2 w-100 ${isSelected ? "btn-primary" : "btn-outline-secondary text-light"}`}
-                                                                                >
-                                                                                    {isSelected && <span className="me-1">✓</span>}
-                                                                                    {service.name}
-                                                                                    <span style={{ fontSize: '0.7rem', display: 'block', opacity: 0.7 }}>₱{service.price}</span>
-                                                                                </button>
+                                                                                <div className="svc-tooltip-wrap">
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => toggleService(service.name)}
+                                                                                        className={`btn rounded-pill px-2 w-100 ${isSelected ? "btn-primary" : "btn-outline-secondary text-light"}`}
+                                                                                    >
+                                                                                        {isSelected && <span className="me-1">✓</span>}
+                                                                                        {service.name}
+                                                                                        <span className={`brand-accent ${isSelected ? 'text-light' : ''}`} style={{ fontSize: '0.7rem', display: 'block', opacity: 0.7 }}>₱{service.price}</span>
+                                                                                    </button>
+                                                                                    {service.description && (
+                                                                                        <span className="svc-tooltip-bubble">{service.description}</span>
+                                                                                    )}
+                                                                                </div>
                                                                             </div>
                                                                         );
                                                                     })}
@@ -634,15 +683,20 @@ const Book = () => {
                                                                                 const isSelected = serviceType.includes(addon.name);
                                                                                 return (
                                                                                     <div key={addon.name} className="col mb-3">
-                                                                                        <button
-                                                                                            type="button"
-                                                                                            onClick={() => toggleService(addon.name)}
-                                                                                            className={`btn rounded-pill px-2 w-100 ${isSelected ? "btn-info text-white border-0 bg-info" : "btn-outline-secondary text-light"}`}
-                                                                                        >
-                                                                                            {isSelected && <span className="me-1">✓</span>}
-                                                                                            {addon.name}
-                                                                                            <span style={{ fontSize: '0.7rem', display: 'block', opacity: 0.8 }}>₱{addon.price}</span>
-                                                                                        </button>
+                                                                                        <div className="svc-tooltip-wrap">
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => toggleService(addon.name)}
+                                                                                                className={`btn rounded-pill px-2 w-100 ${isSelected ? "btn-info text-white border-0 bg-info" : "btn-outline-secondary text-light"}`}
+                                                                                            >
+                                                                                                {isSelected && <span className="me-1">✓</span>}
+                                                                                                {addon.name}
+                                                                                                <span className={`brand-accent ${isSelected ? 'text-light' : ''}`} style={{ fontSize: '0.7rem', display: 'block', opacity: 0.8 }}>₱{addon.price}</span>
+                                                                                            </button>
+                                                                                            {addon.description && (
+                                                                                                <span className="svc-tooltip-bubble">{addon.description}</span>
+                                                                                            )}
+                                                                                        </div>
                                                                                     </div>
                                                                                 );
                                                                             })}
@@ -676,21 +730,37 @@ const Book = () => {
                                                                 >
                                                                     <option value="">-- Select Rental Vehicle --</option>
                                                                     {rentalFleet.filter(v => v.isAvailable).map(v => (
-                                                                        <option key={v._id} value={v._id}>{v.vehicleName} ({v.seats}-Seater) - ₱{v.pricePerDay?.toLocaleString()}/day</option>
+                                                                        <option key={v._id} value={v._id}>
+                                                                            {v.vehicleName} ({v.seats}-Seater) - ₱{v.pricePerDay?.toLocaleString()}/day
+                                                                        </option>
                                                                     ))}
-                                                                    {rentalFleet.every(v => !v.isAvailable) && (
+                                                                    {rentalFleet.filter(v => v.isAvailable).length === 0 && (
                                                                         <option disabled value="">No vehicles currently available</option>
                                                                     )}
                                                                 </select>
                                                             </div>
                                                             <div className="input-container mb-3">
                                                                 <label className="form-label text-light">Pick-up Date</label>
-                                                                <input type="date" className="form-control text-light" required value={rentalStartDate} onChange={e => setRentalStartDate(e.target.value)} min={new Date().toISOString().split('T')[0]} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }} />
+                                                                <RentalDatePicker
+                                                                    selectedDate={rentalStartDate}
+                                                                    onSelectDate={(date) => {
+                                                                        setRentalStartDate(date);
+                                                                        setError(null);
+                                                                    }}
+                                                                    bookedDates={vehicleBookedDates}
+                                                                    durationDays={rentalDurationDays}
+                                                                    placeholder="Choose Pick-up Date"
+                                                                />
                                                             </div>
                                                             <div className="input-container mb-3">
                                                                 <label className="form-label text-light">Duration (Days)</label>
                                                                 <input type="number" className="form-control text-light" min="1" required value={rentalDurationDays} onChange={e => { setRentalDurationDays(Math.max(1, e.target.value)); }} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }} />
                                                             </div>
+                                                            {selectedRentalVehicle && vehicleBookedDates.length > 0 && (
+                                                                <div className="p-2 mb-3 rounded-2" style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', fontSize: '0.8rem', color: '#fde047' }}>
+                                                                    <strong>⚠️ Marked Dates on Calendar:</strong> {vehicleBookedDates.length} booked day(s) already reserved.
+                                                                </div>
+                                                            )}
                                                             <div className="input-container mb-4">
                                                                 <label className="form-label text-light">Destination</label>
                                                                 <input type="text" className="form-control text-light" placeholder="e.g. Tagaytay City, Metro Manila" required value={destination} onChange={e => setDestination(e.target.value)} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }} />

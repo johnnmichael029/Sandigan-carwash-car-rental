@@ -2,30 +2,29 @@ const RentalFleet = require('../models/rentalFleetModel');
 const CarRental = require('../models/carRentalModel');
 
 
-// GET all vehicles — PUBLIC (for landing page)
-// Derives availability from actual rentals (Pending/Confirmed/Active),
-// so it's always accurate even if isAvailable flag is stale.
+// GET all vehicles — PUBLIC (for landing page & booking dropdown)
+// Only vehicles currently Active on the road or marked under maintenance are flagged unavailable.
 const getFleet = async (req, res) => {
     try {
         const [vehicles, activeRentals] = await Promise.all([
             RentalFleet.find().sort({ createdAt: 1 }),
-            // Get all vehicle IDs that are currently tied to an active rental
+            // Only vehicles currently active on the road right now
             CarRental.distinct('vehicleId', {
-                status: { $in: ['Pending', 'Confirmed', 'Active'] }
+                status: 'Active'
             })
         ]);
 
-        // Build a fast lookup set of locked vehicle IDs
-        const lockedIds = new Set(activeRentals.map(id => id.toString()));
+        // Build lookup set of active on-road vehicle IDs
+        const activeIds = new Set(activeRentals.map(id => id.toString()));
 
-        // Override isAvailable based on live rental data
+        // Override isAvailable based on active on-road status & admin maintenance
         const result = vehicles.map(v => {
             const obj = v.toObject();
-            obj.isAvailable = !lockedIds.has(v._id.toString());
+            obj.isAvailable = (v.isAvailable !== false) && !activeIds.has(v._id.toString());
             return obj;
         });
 
-        // Sort: available first, unavailable last
+        // Sort: available first
         result.sort((a, b) => b.isAvailable - a.isAvailable);
 
         res.json(result);

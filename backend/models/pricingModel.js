@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 const serviceItemSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    price: { type: Number, required: true }
+    price: { type: Number, required: true },
+    description: { type: String, default: '' }
 }, { _id: false });
 
 const pricingSchema = new mongoose.Schema({

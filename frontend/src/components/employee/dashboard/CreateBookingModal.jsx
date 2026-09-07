@@ -462,10 +462,15 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
                                             const isSelected = formData.serviceType.includes(service.name);
                                             return (
                                                 <div className="col" key={service.name}>
-                                                    <button type="button" onClick={() => toggleService(service.name)} className={`btn rounded-pill px-3 w-100 btn-active ${isSelected ? 'btn-primary text-white' : 'btn-outline-secondary text-dark-secondary'}`} style={{ fontSize: '0.8rem' }}>
-                                                        {isSelected && <span className="me-1">✓</span>} {service.name}
-                                                        <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{service.price}</span>
-                                                    </button>
+                                                    <div className="svc-tooltip-wrap">
+                                                        <button type="button" onClick={() => toggleService(service.name)} className={`btn rounded-pill px-3 w-100 btn-active ${isSelected ? 'btn-primary text-white' : 'btn-outline-secondary text-dark-secondary'}`} style={{ fontSize: '0.8rem' }}>
+                                                            {isSelected && <span className="me-1">✓</span>} {service.name}
+                                                            <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{service.price}</span>
+                                                        </button>
+                                                        {service.description && (
+                                                            <span className="svc-tooltip-bubble">{service.description}</span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             );
                                         })}
@@ -477,10 +482,15 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
                                                 const isSelected = formData.serviceType.includes(addon.name);
                                                 return (
                                                     <div className="col" key={addon.name}>
-                                                        <button type="button" onClick={() => toggleService(addon.name)} className={`btn rounded-pill px-3 w-100 btn-active ${isSelected ? 'btn-primary text-white' : 'btn-outline-secondary text-dark-secondary'}`} style={{ fontSize: '0.8rem' }}>
-                                                            {isSelected && <span className="me-1">✓</span>} {addon.name}
-                                                            <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{addon.price}</span>
-                                                        </button>
+                                                        <div className="svc-tooltip-wrap">
+                                                            <button type="button" onClick={() => toggleService(addon.name)} className={`btn rounded-pill px-3 w-100 btn-active ${isSelected ? 'btn-primary text-white' : 'btn-outline-secondary text-dark-secondary'}`} style={{ fontSize: '0.8rem' }}>
+                                                                {isSelected && <span className="me-1">✓</span>} {addon.name}
+                                                                <span style={{ fontSize: '0.65rem', display: 'block', opacity: 0.8 }}>₱{addon.price}</span>
+                                                            </button>
+                                                            {addon.description && (
+                                                                <span className="svc-tooltip-bubble">{addon.description}</span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 );
                                             })}

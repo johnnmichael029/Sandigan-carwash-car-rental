@@ -133,7 +133,7 @@ const AdminSetup = () => {
                             <small style={{ color: '#23A0CE', fontWeight: 600, fontSize: '0.72rem', letterSpacing: '0.5px', textTransform: 'uppercase' }}>First-Time Setup</small>
                         </div>
                         <h5 className="fw-bold mb-1 brand-primary" >Create Your Admin Account</h5>
-                        <p className="text-light-gray200 mb-0" style={{ fontSize: '0.82rem' }}>This page will be permanently locked once completed.</p>
+
                     </div>
 
                     <form onSubmit={handleSubmit}>
