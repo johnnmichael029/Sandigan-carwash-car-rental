@@ -281,46 +281,12 @@ server.listen(port, () => {
     console.log(`✅ Server live at http://localhost:${port}`);
 });
 
-// Connect to MongoDB Atlas
-// Script for Migrating Admin as Super
-// mongoose.connect(dbURI)
-//     .then(async () => {
-//         console.log('✅ Connected to MongoDB Atlas!');
-
-//         // ── One-time DB cleanup: Fix empty-string emails that break sparse unique index ──
-//         try {
-//             const Employee = require('./models/employeeModel');
-//             const result = await Employee.updateMany(
-//                 { email: '' },
-//                 { $set: { email: null } }
-//             );
-//             if (result.modifiedCount > 0) {
-//                 console.log(`🔧 [STARTUP FIX] Converted ${result.modifiedCount} empty-string email(s) to null for sparse index compatibility.`);
-//             }
-
-//             // ── RBAC Auto-Migration: Ensure initial Admin account on live server gets Super Admin role ──
-//             const superAdminCount = await Employee.countDocuments({ role: 'super_admin' });
-//             if (superAdminCount === 0) {
-//                 const rbacRes = await Employee.updateMany({ role: 'admin' }, { role: 'super_admin' });
-//                 if (rbacRes.modifiedCount > 0) {
-//                     console.log(`[RBAC MIGRATION] Promoted ${rbacRes.modifiedCount} existing admin account(s) to super_admin.`);
-//                 }
-//             }
-//         } catch (cleanupErr) {
-//             console.warn('[STARTUP FIX] Migration skipped:', cleanupErr.message);
-//         }
-
-//         // ── One-time Migration: Seed premade descriptions for existing services/addons ──
-//         try {
-//             const Pricing = require('./models/pricingModel');
-//             const seedServiceDescriptions = require('./migrations/seedServiceDescriptions');
-//             await seedServiceDescriptions(Pricing);
-//         } catch (migrationErr) {
-//             console.warn('[MIGRATION] seedServiceDescriptions skipped:', migrationErr.message);
-//         }
-//     })
-
-//     .catch(err => {
-//         console.error('❌ Database connection error:', err);
-//         process.exit(1); // This stops the "infinite loading" if the database fails
-//     });
+// Connect to MongoDB
+mongoose.connect(dbURI)
+    .then(() => {
+        console.log('✅ Connected to MongoDB!');
+    })
+    .catch(err => {
+        console.error('❌ Database connection error:', err);
+        process.exit(1); // Stop the server if DB is unreachable — prevents buffering timeouts
+    });
