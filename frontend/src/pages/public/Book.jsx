@@ -125,6 +125,8 @@ const Book = () => {
     const [serviceType, setServiceType] = useState([]);
     const [washSubCategory, setWashSubCategory] = useState('premium'); // 'premium' | 'restore'
     const [privacyChecked, setPrivacyChecked] = useState(false);
+    const [showTermsModal, setShowTermsModal] = useState(false);
+    const [hasScrolledTerms, setHasScrolledTerms] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
     const [availability, setAvailability] = useState({});
@@ -409,8 +411,13 @@ const Book = () => {
         // Final rental check
         if (activeCategory === 'rental') {
             const reqAck = document.getElementById('rentalRequirementsAck');
+            const depositAck = document.getElementById('depositNonRefundableAck');
             if (reqAck && !reqAck.checked) {
                 setError("Please acknowledge the rental requirements.");
+                return false;
+            }
+            if (depositAck && !depositAck.checked) {
+                setError("Please acknowledge that the security deposit is non-refundable.");
                 return false;
             }
         } else {
@@ -1246,13 +1253,21 @@ const Book = () => {
                                                         className="form-check-input flex-shrink-0"
                                                         type="checkbox"
                                                         checked={privacyChecked}
-                                                        onChange={(e) => setPrivacyChecked(e.target.checked)}
+                                                        onChange={() => {
+                                                            if (privacyChecked) {
+                                                                setPrivacyChecked(false);
+                                                            } else {
+                                                                setHasScrolledTerms(false);
+                                                                setShowTermsModal(true);
+                                                            }
+                                                        }}
                                                         id="privacyPolicy"
                                                         required
                                                         style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
                                                     />
                                                     <label className="form-check-label text-light opacity-75 small" htmlFor="privacyPolicy" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
-                                                        By clicking this box, I agree that the company may use my personal information in accordance with the <a href="#" className="text-decoration-none" style={{ color: '#00e8e9' }}>Terms &</a> <a href="#" className="text-decoration-none" style={{ color: '#00e8e9' }}>Privacy Policy</a>.
+                                                        By clicking this box, I agree that the company may use my personal information in accordance with the{' '}
+                                                        <a href="#" className="text-decoration-none" style={{ color: '#00e8e9' }} onClick={(e) => { e.preventDefault(); setHasScrolledTerms(false); setShowTermsModal(true); }}>Terms &amp; Privacy Policy</a>.
                                                     </label>
                                                 </div>
                                                 {activeCategory === 'wash' ? (
@@ -1295,18 +1310,32 @@ const Book = () => {
                                                         </div>
                                                     </>
                                                 ) : (
-                                                    <div className="form-check d-flex align-items-start gap-3 mb-3">
-                                                        <input
-                                                            className="form-check-input flex-shrink-0"
-                                                            type="checkbox"
-                                                            id="rentalRequirementsAck"
-                                                            required
-                                                            style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
-                                                        />
-                                                        <label className="form-check-label text-light opacity-75 small" htmlFor="rentalRequirementsAck" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
-                                                            I acknowledge that I must bring the complete physical documents stated in the requirements checklist and pay the refundable security deposit upon vehicle pick-up. Otherwise, my booking may be forfeited.
-                                                        </label>
-                                                    </div>
+                                                    <>
+                                                        <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                                            <input
+                                                                className="form-check-input flex-shrink-0"
+                                                                type="checkbox"
+                                                                id="rentalRequirementsAck"
+                                                                required
+                                                                style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                                            />
+                                                            <label className="form-check-label text-light opacity-75 small" htmlFor="rentalRequirementsAck" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                                I acknowledge that I must bring the complete physical documents stated in the requirements checklist and pay the security deposit upon vehicle pick-up. Otherwise, my booking may be forfeited.
+                                                            </label>
+                                                        </div>
+                                                        <div className="form-check d-flex align-items-start gap-3 mb-3">
+                                                            <input
+                                                                className="form-check-input flex-shrink-0"
+                                                                type="checkbox"
+                                                                id="depositNonRefundableAck"
+                                                                required
+                                                                style={{ width: '1.5em', height: '1.5em', cursor: 'pointer' }}
+                                                            />
+                                                            <label className="form-check-label text-light opacity-75 small" htmlFor="depositNonRefundableAck" style={{ cursor: 'pointer', lineHeight: '1.5' }}>
+                                                                I understand and acknowledge that the security deposit paid upon vehicle pick-up is <strong style={{ color: '#f87171' }}>non-refundable</strong> in the event of cancellation, no-show, or violation of rental terms.
+                                                            </label>
+                                                        </div>
+                                                    </>
                                                 )}
                                                 <div className="mb-3">
                                                     <ReCAPTCHA
@@ -1729,6 +1758,177 @@ const Book = () => {
                 </div>
             </section>
             <Footer />
+
+            {/* ── Terms & Privacy Policy Modal ─────────────────────────────────── */}
+            {showTermsModal && (
+                <div
+                    style={{
+                        position: 'fixed', inset: 0, zIndex: 9999,
+                        background: 'rgba(0,0,0,0.7)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '1rem'
+                    }}
+                    onClick={(e) => { if (e.target === e.currentTarget) setShowTermsModal(false); }}
+                >
+                    <div style={{
+                        background: '#0f1923',
+                        border: '1px solid rgba(0,232,233,0.25)',
+                        borderRadius: '16px',
+                        width: '100%',
+                        maxWidth: '640px',
+                        maxHeight: '85vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        boxShadow: '0 24px 80px rgba(0,0,0,0.6)'
+                    }}>
+                        {/* Header */}
+                        <div style={{
+                            padding: '1.25rem 1.5rem',
+                            borderBottom: '1px solid rgba(255,255,255,0.08)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                        }}>
+                            <div>
+                                <h5 style={{ color: '#00e8e9', fontWeight: 700, margin: 0, fontSize: '1.1rem' }}>
+                                    📋 Terms &amp; Privacy Policy
+                                </h5>
+                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', margin: '0.25rem 0 0' }}>
+                                    Please read carefully and scroll to the bottom to accept.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowTermsModal(false)}
+                                style={{
+                                    background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)',
+                                    fontSize: '1.4rem', cursor: 'pointer', lineHeight: 1, padding: '0 0.25rem'
+                                }}
+                            >×</button>
+                        </div>
+
+                        {/* Scrollable Body */}
+                        <div
+                            onScroll={(e) => {
+                                const el = e.currentTarget;
+                                if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40) {
+                                    setHasScrolledTerms(true);
+                                }
+                            }}
+                            style={{
+                                overflowY: 'auto', flex: 1,
+                                padding: '1.5rem',
+                                color: 'rgba(255,255,255,0.75)',
+                                fontSize: '0.85rem',
+                                lineHeight: '1.75'
+                            }}
+                        >
+                            <h6 style={{ color: '#00e8e9', fontWeight: 700, marginBottom: '0.75rem' }}>1. Collection of Personal Information</h6>
+                            <p>Sandigan Car Services collects personal information such as your name, contact number, email address, and vehicle details when you make a booking. This information is collected for the purpose of processing your booking, communicating service updates, and improving our services.</p>
+
+                            <h6 style={{ color: '#00e8e9', fontWeight: 700, marginBottom: '0.75rem' }}>2. Use of Your Information</h6>
+                            <p>Your personal information will be used solely for:</p>
+                            <ul>
+                                <li>Processing and managing your carwash or car rental booking</li>
+                                <li>Sending booking confirmations, reminders, and updates via email or SMS</li>
+                                <li>Improving the quality of our services based on feedback</li>
+                                <li>Complying with applicable laws and regulations in the Philippines</li>
+                            </ul>
+                            <p>We do <strong>not</strong> sell, trade, or transfer your personal information to outside parties without your explicit consent, except as required by law.</p>
+
+                            <h6 style={{ color: '#00e8e9', fontWeight: 700, marginBottom: '0.75rem' }}>3. Data Privacy Act Compliance</h6>
+                            <p>Sandigan Car Services is committed to full compliance with the Republic Act No. 10173, also known as the <strong>Data Privacy Act of 2012</strong> of the Philippines. All personal data collected is processed with proper legal basis, kept secure, and only retained for as long as necessary.</p>
+
+                            <h6 style={{ color: '#00e8e9', fontWeight: 700, marginBottom: '0.75rem' }}>4. Data Security</h6>
+                            <p>We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, disclosure, alteration, or destruction. Your data is stored in secured systems and access is restricted to authorized personnel only.</p>
+
+                            <h6 style={{ color: '#00e8e9', fontWeight: 700, marginBottom: '0.75rem' }}>5. Your Rights as a Data Subject</h6>
+                            <p>Under the Data Privacy Act, you have the right to:</p>
+                            <ul>
+                                <li><strong>Access</strong> — Request a copy of your personal information we hold</li>
+                                <li><strong>Rectification</strong> — Request correction of inaccurate data</li>
+                                <li><strong>Erasure or Blocking</strong> — Request removal of your data from our records</li>
+                                <li><strong>Object</strong> — Object to the processing of your personal data</li>
+                                <li><strong>Complaint</strong> — Lodge a complaint with the National Privacy Commission</li>
+                            </ul>
+                            <p>To exercise your rights, contact us at <span style={{ color: '#00e8e9' }}>sandigan@gmail.com</span>.</p>
+
+                            <h6 style={{ color: '#00e8e9', fontWeight: 700, marginBottom: '0.75rem' }}>6. Cookies and Usage Data</h6>
+                            <p>Our website may use cookies and similar tracking technologies to improve user experience. These are used only for functional purposes and do not collect sensitive personal information.</p>
+
+                            <h6 style={{ color: '#00e8e9', fontWeight: 700, marginBottom: '0.75rem' }}>7. Booking Terms & Conditions</h6>
+                            <p>By making a booking through Sandigan Car Services, you agree to the following:</p>
+                            <ul>
+                                <li>Booking schedules are subject to availability and may be adjusted in cases of force majeure or operational constraints.</li>
+                                <li>Cancellations must be made at least 24 hours before your scheduled appointment. Last-minute cancellations may incur a fee.</li>
+                                <li>For car rentals, a refundable security deposit is required upon vehicle pick-up along with the complete documentary requirements.</li>
+                                <li>The company reserves the right to refuse service in cases of non-compliance with booking terms.</li>
+                                <li>Sandigan Car Services shall not be liable for any loss, damage, or injury arising from the customer's failure to comply with these terms.</li>
+                            </ul>
+
+                            <h6 style={{ color: '#00e8e9', fontWeight: 700, marginBottom: '0.75rem' }}>8. Changes to This Policy</h6>
+                            <p>Sandigan Car Services reserves the right to update this Terms &amp; Privacy Policy at any time. Changes will be posted on our website and will take effect immediately upon posting. Continued use of our services constitutes acceptance of the updated policy.</p>
+
+                            <h6 style={{ color: '#00e8e9', fontWeight: 700, marginBottom: '0.75rem' }}>9. Contact Us</h6>
+                            <p>If you have any questions or concerns about this Terms &amp; Privacy Policy, please reach out to us:</p>
+                            <ul>
+                                <li>📧 Email: <span style={{ color: '#00e8e9' }}>sandigan@gmail.com</span></li>
+                                <li>📍 Address: 68 Ruhale st. Calzada Tipas Taguig City, Philippines</li>
+                            </ul>
+
+                            <div style={{
+                                marginTop: '2rem', padding: '1rem',
+                                background: 'rgba(0,232,233,0.05)',
+                                border: '1px solid rgba(0,232,233,0.2)',
+                                borderRadius: '8px',
+                                textAlign: 'center',
+                                color: 'rgba(255,255,255,0.5)',
+                                fontSize: '0.78rem'
+                            }}>
+                                {hasScrolledTerms
+                                    ? '✅ You have read the Terms & Privacy Policy. You may now accept below.'
+                                    : '⬇ Please scroll down to read the full Terms & Privacy Policy before accepting.'}
+                            </div>
+                        </div>
+
+                        {/* Footer Actions */}
+                        <div style={{
+                            padding: '1rem 1.5rem',
+                            borderTop: '1px solid rgba(255,255,255,0.08)',
+                            display: 'flex', gap: '0.75rem', justifyContent: 'flex-end'
+                        }}>
+                            <button
+                                onClick={() => setShowTermsModal(false)}
+                                style={{
+                                    background: 'rgba(255,255,255,0.06)',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    color: 'rgba(255,255,255,0.7)',
+                                    borderRadius: '8px', padding: '0.5rem 1.25rem',
+                                    cursor: 'pointer', fontSize: '0.875rem'
+                                }}
+                            >
+                                Decline
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (!hasScrolledTerms) return;
+                                    setPrivacyChecked(true);
+                                    setShowTermsModal(false);
+                                }}
+                                disabled={!hasScrolledTerms}
+                                style={{
+                                    background: hasScrolledTerms ? 'linear-gradient(135deg, #00e8e9, #00b4d8)' : 'rgba(0,232,233,0.2)',
+                                    border: 'none',
+                                    color: hasScrolledTerms ? '#000' : 'rgba(255,255,255,0.3)',
+                                    borderRadius: '8px', padding: '0.5rem 1.5rem',
+                                    cursor: hasScrolledTerms ? 'pointer' : 'not-allowed',
+                                    fontWeight: 700, fontSize: '0.875rem',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                {hasScrolledTerms ? '✓ I Accept' : 'Scroll to Accept'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };
