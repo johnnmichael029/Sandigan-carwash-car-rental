@@ -274,7 +274,10 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
     // Fetch detailers once on mount
     useEffect(() => {
         axios.get(`${API_BASE}/employees`, { headers: authHeaders(), withCredentials: true })
-            .then(res => setDetailers(res.data.filter(e => e.role === 'detailer')))
+            .then(res => {
+                const list = Array.isArray(res.data) ? res.data : [];
+                setDetailers(list.filter(e => e.role?.toLowerCase() === 'detailer'));
+            })
             .catch(err => console.error('Failed to fetch detailers', err));
 
         axios.get(`${API_BASE}/bays`, { headers: authHeaders(), withCredentials: true })
@@ -285,22 +288,24 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
     // Fetch availability, pricing, products & inventory when edit mode opens
     useEffect(() => {
         if (editMode) {
-            Promise.all([
+            Promise.allSettled([
                 axios.get(`${API_BASE}/booking/availability`, { headers: authHeaders(), withCredentials: true }),
                 axios.get(`${API_BASE}/pricing`),
                 axios.get(`${API_BASE}/products`, { headers: authHeaders(), withCredentials: true }),
                 axios.get(`${API_BASE}/inventory`, { headers: authHeaders(), withCredentials: true })
             ])
                 .then(([availRes, pricingRes, prodRes, invRes]) => {
-                    setAvailability(availRes.data);
-                    if (pricingRes.data && pricingRes.data.dynamicPricing) {
-                        setDynamicPricingData(pricingRes.data.dynamicPricing);
+                    if (availRes.status === 'fulfilled' && availRes.value?.data) {
+                        setAvailability(availRes.value.data);
                     }
-                    if (prodRes && prodRes.data) {
-                        setProducts(prodRes.data.filter(p => p.isActive !== false));
+                    if (pricingRes.status === 'fulfilled' && pricingRes.value?.data?.dynamicPricing) {
+                        setDynamicPricingData(pricingRes.value.data.dynamicPricing);
                     }
-                    if (invRes && invRes.data) {
-                        setInventoryItems(invRes.data);
+                    if (prodRes.status === 'fulfilled' && prodRes.value?.data) {
+                        setProducts(prodRes.value.data.filter(p => p.isActive !== false));
+                    }
+                    if (invRes.status === 'fulfilled' && invRes.value?.data) {
+                        setInventoryItems(invRes.value.data);
                     }
                 })
                 .catch(err => console.error("Failed to fetch edit mode data", err));

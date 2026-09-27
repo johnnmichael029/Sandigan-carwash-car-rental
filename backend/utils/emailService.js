@@ -36,6 +36,36 @@ const formatDate = (date) => {
 };
 
 /**
+ * Format a date + separate HH:MM time string into a readable datetime.
+ * e.g. ('2026-09-27', '10:00') → 'September 27, 2026 at 10:00 AM'
+ * Falls back to formatDate if no valid time is provided.
+ */
+const formatDateTime = (dateVal, timeStr) => {
+  if (!dateVal) return '—';
+  try {
+    // Build a date from the stored Date value or YYYY-MM-DD string
+    const base = new Date(dateVal);
+    if (isNaN(base.getTime())) return String(dateVal);
+
+    // Apply HH:MM offset if provided
+    if (timeStr && /^\d{2}:\d{2}$/.test(timeStr)) {
+      const [h, m] = timeStr.split(':').map(Number);
+      // Use Manila-local date parts to avoid UTC-shift issues
+      const local = new Date(base.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+      local.setHours(h, m, 0, 0);
+      return local.toLocaleString('en-PH', {
+        timeZone: 'UTC', // already adjusted above
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: true,
+      });
+    }
+    return formatDate(dateVal);
+  } catch {
+    return formatDate(dateVal);
+  }
+};
+
+/**
  * Format a datetime string (e.g., "2026-07-29T10:00") to readable form
  */
 const formatBookingTime = (bookingTime) => {
@@ -321,9 +351,9 @@ const sendRentalConfirmation = async (rental) => {
         ${row('Address', rental.address)}
         ${row('Vehicle', rental.vehicleName)}
         ${row('Price per Day', formatPeso(rental.pricePerDay))}
-        ${row('Rental Start', formatDate(rental.rentalStartDate))}
-        ${row('Return Date', formatDate(rental.returnDate))}
-        ${row('Number of Days', `${rental.rentalDays} day${rental.rentalDays > 1 ? 's' : ''}`)}
+        ${row('Pick-up Date &amp; Time', `<strong style="color:#fbbf24;">${formatDateTime(rental.rentalStartDate, rental.pickupTime)}</strong>`)}
+        ${row('Return Date &amp; Time', formatDateTime(rental.returnDate, rental.pickupTime))}
+        ${row('Duration', `${rental.rentalDays} day${rental.rentalDays > 1 ? 's' : ''}`)}
         ${row('Destination', rental.destination)}
         ${rental.notes ? row('Notes', rental.notes) : ''}
         ${promoRows}
@@ -545,8 +575,8 @@ const sendRentalPickupReminderEmail = async (rental) => {
         style="border-radius:10px; overflow:hidden; border:1px solid #2d2d3f; margin-bottom: 24px;">
         ${row('Rental Reference', `<code style="background:#1e2040;padding:2px 8px;border-radius:4px;color:#a5b4fc;">${refId}</code>`)}
         ${row('Vehicle', vehicle)}
-        ${row('Scheduled Pickup', `<strong style="color:#fbbf24;">${startDate}</strong>`)}
-        ${row('Return Date', returnDate)}
+        ${row('Pick-up Date &amp; Time', `<strong style="color:#fbbf24;">${formatDateTime(rental.rentalStartDate, rental.pickupTime)}</strong>`)}
+        ${row('Return Date &amp; Time', formatDateTime(rental.returnDate, rental.pickupTime))}
         ${row('Destination', destination)}
         ${row('Payment Status', rental.payment?.status === 'Verified' ? '<span style="color:#4ade80;font-weight:700;">✓ Verified</span>' : (rental.payment?.status || 'Pending'))}
         ${row('Remaining Balance', `<strong style="color:#f1f5f9;">${remainingBal}</strong>`)}

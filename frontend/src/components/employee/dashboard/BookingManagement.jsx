@@ -116,7 +116,10 @@ const BookingManagement = ({ employee, onNavigate, onShowSMC, isDark }) => {
     // Fetch bays and detailers for inline dropdowns
     useEffect(() => {
         axios.get(`${API_BASE}/employees`, { headers: authHeaders(), withCredentials: true })
-            .then(res => setDetailers(res.data.filter(e => e.role === 'detailer')))
+            .then(res => {
+                const list = Array.isArray(res.data) ? res.data : [];
+                setDetailers(list.filter(e => e.role?.toLowerCase() === 'detailer'));
+            })
             .catch(err => console.error('Failed to fetch detailers', err));
 
         axios.get(`${API_BASE}/bays`, { headers: authHeaders(), withCredentials: true })

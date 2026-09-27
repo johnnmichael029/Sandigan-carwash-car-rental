@@ -75,7 +75,7 @@ router.get('/my-earnings', requireAuth, getMyEarnings);
 router.post('/push-token', requireAuth, savePushToken);
 
 // Get all employees
-router.get('/', requireAuth, requirePermission('Workforce', 'read'), cache('employee', 90), getEmployees);
+router.get('/', requireAuth, requirePermission('Workforce', 'read', ['employee', 'detailer']), cache('employee', 90), getEmployees);
 
 // Get a single employee
 router.get('/:id', requireAuth, requirePermission('Workforce', 'read'), cache('employee', 60), getEmployee);

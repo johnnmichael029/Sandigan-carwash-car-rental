@@ -116,7 +116,7 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
     };
 
     useEffect(() => {
-        Promise.all([
+        Promise.allSettled([
             axios.get(`${API_BASE}/booking/availability`, { headers: authHeaders(), withCredentials: true }),
             axios.get(`${API_BASE}/pricing`),
             axios.get(`${API_BASE}/employees`, { headers: authHeaders(), withCredentials: true }),
@@ -125,21 +125,24 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
             axios.get(`${API_BASE}/bays`, { headers: authHeaders(), withCredentials: true })
         ])
             .then(([availRes, pricingRes, empRes, prodRes, invRes, baysRes]) => {
-                setAvailability(availRes.data);
-                if (pricingRes.data && pricingRes.data.dynamicPricing) {
-                    setDynamicPricingData(pricingRes.data.dynamicPricing);
+                if (availRes.status === 'fulfilled' && availRes.value?.data) {
+                    setAvailability(availRes.value.data);
                 }
-                if (empRes && empRes.data) {
-                    setDetailers(empRes.data.filter(e => e.role === 'detailer'));
+                if (pricingRes.status === 'fulfilled' && pricingRes.value?.data?.dynamicPricing) {
+                    setDynamicPricingData(pricingRes.value.data.dynamicPricing);
                 }
-                if (prodRes && prodRes.data) {
-                    setProducts(prodRes.data.filter(p => p.isActive !== false));
+                if (empRes.status === 'fulfilled' && empRes.value?.data) {
+                    const list = Array.isArray(empRes.value.data) ? empRes.value.data : [];
+                    setDetailers(list.filter(e => e.role?.toLowerCase() === 'detailer'));
                 }
-                if (invRes && invRes.data) {
-                    setInventory(invRes.data);
+                if (prodRes.status === 'fulfilled' && prodRes.value?.data) {
+                    setProducts(prodRes.value.data.filter(p => p.isActive !== false));
                 }
-                if (baysRes && baysRes.data) {
-                    setBays(baysRes.data);
+                if (invRes.status === 'fulfilled' && invRes.value?.data) {
+                    setInventory(invRes.value.data);
+                }
+                if (baysRes.status === 'fulfilled' && baysRes.value?.data) {
+                    setBays(baysRes.value.data);
                 }
             })
             .catch(err => console.error("Failed to fetch create mode data", err));

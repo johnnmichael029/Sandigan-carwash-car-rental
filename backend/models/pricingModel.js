@@ -3,12 +3,17 @@ const mongoose = require('mongoose');
 const serviceItemSchema = new mongoose.Schema({
     name: { type: String, required: true },
     price: { type: Number, required: true },
-    description: { type: String, default: '' }
+    description: { type: String, default: '' },
+    inclusions: { type: [String], default: [] },
+    badge: { type: String, default: '' },
+    savings: { type: String, default: '' },
+    category: { type: String, default: '' }
 }, { _id: false });
 
 const pricingSchema = new mongoose.Schema({
     vehicleType: { type: String, required: true, unique: true },
     services: { type: [serviceItemSchema], default: [] },
+    restorePackages: { type: [serviceItemSchema], default: [] },
     addons: { type: [serviceItemSchema], default: [] },
     
     // Legacy fields kept for backward compatibility and migration bridging

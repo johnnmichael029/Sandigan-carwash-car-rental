@@ -391,12 +391,47 @@ const AboutSection = () => (
    SECTION 3: SERVICES
 ═══════════════════════════════════════════ */
 
-// Reusable service card component
-const ServiceCard = ({ image, title, duration, price, description, icons, type, onRentNow, vehicleTypeName, vehicleTypeBg, vehicleTypeText, isAvailable }) => (
-    <div className="service-card d-flex flex-column align-items-start gap-0 " style={type === 'rental' && !isAvailable ? { opacity: 0.75 } : {}}>
+// Reusable service card component — Uniform Height (560px) & Equal Alignment
+const ServiceCard = ({ image, title, duration, price, savings, rates, description, inclusions, type, onRentNow, vehicleTypeName, vehicleTypeBg, vehicleTypeText, isAvailable, badge, badgeBg, isFeatured }) => (
+    <div
+        className={`service-card d-flex flex-column align-items-start gap-0 w-100 position-relative ${isFeatured ? 'featured-card' : ''}`}
+        style={{
+            height: '560px',
+            opacity: type === 'rental' && !isAvailable ? 0.75 : 1,
+            border: isFeatured
+                ? '1.5px solid #10b981'
+                : badge === 'MOST POPULAR'
+                    ? '1.5px solid #0ea5e9'
+                    : '1px solid rgba(255, 255, 255, 0.12)',
+            boxShadow: isFeatured ? '0 8px 24px rgba(16, 185, 129, 0.2)' : 'none'
+        }}
+    >
         {/* Card image - Edge to Edge */}
-        <div className="service-img-wrapper w-100 overflow-hidden" style={{ borderTopLeftRadius: '24px', borderTopRightRadius: '24px', position: 'relative' }}>
-            <img src={image} className="img-fluid w-100" style={{ objectFit: 'cover', aspectRatio: '16/12', filter: type === 'rental' && !isAvailable ? 'grayscale(60%)' : 'none' }} alt={title} />
+        <div className="service-img-wrapper w-100 overflow-hidden flex-shrink-0" style={{ height: '190px', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', position: 'relative' }}>
+            <img src={image} className="img-fluid w-100 h-100" style={{ objectFit: 'cover', filter: type === 'rental' && !isAvailable ? 'grayscale(60%)' : 'none' }} alt={title} />
+            
+            {/* Badge Floating Pill */}
+            {badge && (
+                <span
+                    className="badge rounded-pill position-absolute shadow-lg"
+                    style={{
+                        top: '16px',
+                        right: '16px',
+                        background: badgeBg || (badge === 'BEST VALUE' ? 'linear-gradient(135deg, #10b981, #047857)' : 'linear-gradient(135deg, #0ea5e9, #1d4ed8)'),
+                        color: '#fff',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.5px',
+                        padding: '0.4rem 0.85rem',
+                        zIndex: 3,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                        textTransform: 'uppercase'
+                    }}
+                >
+                    {badge}
+                </span>
+            )}
+
             {vehicleTypeName && (
                 <span className="badge rounded-pill position-absolute" style={{ top: '16px', left: '16px', background: vehicleTypeBg || '#6c757d', color: vehicleTypeText || '#fff', fontSize: '0.75rem', padding: '0.4rem 0.8rem', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>
                     {vehicleTypeName}
@@ -431,120 +466,233 @@ const ServiceCard = ({ image, title, duration, price, description, icons, type, 
             )}
         </div>
 
-        {/* Text content - Padded */}
-        <div className="service-text-container p-4 w-100 ">
-            <h3 className="service-title fw-bold mb-1 hero-title" style={{ fontSize: '1.25rem' }}>{title}</h3>
+        {/* Text content - Padded & Stretched */}
+        <div className="service-text-container p-4 w-100 d-flex flex-column justify-content-between flex-grow-1 overflow-hidden">
+            <div className="overflow-auto pe-1" style={{ scrollbarWidth: 'thin' }}>
+                <h3 className="service-title fw-bold mb-1 hero-title" style={{ fontSize: '1.2rem' }}>{title}</h3>
 
-            {type === 'rental' ? (
-                <div className="rental-info m-0 p-0 d-flex gap-3 mt-3">
-                    <span className="d-flex align-items-center gap-2">
-                        <span className="indicator-dot"></span> {price}
-                    </span>
-                    <span className="d-flex align-items-center gap-2">
-                        <span className="indicator-dot"></span> {duration}
-                    </span>
-                </div>
-            ) : (
-                <div className="d-flex align-items-center gap-3 mb-3">
-                    {duration && <small className="brand-accent" style={{ fontSize: '12px' }}>• {duration}</small>}
-                    {price && <small className="brand-accent" style={{ fontSize: '12px' }}>• {price}</small>}
-                </div>
-            )}
+                {type === 'rental' ? (
+                    <div className="rental-info m-0 p-0 d-flex gap-3 mt-2 mb-2">
+                        <span className="d-flex align-items-center gap-2">
+                            <span className="indicator-dot"></span> {price}
+                        </span>
+                        <span className="d-flex align-items-center gap-2">
+                            <span className="indicator-dot"></span> {duration}
+                        </span>
+                    </div>
+                ) : (
+                    <div className="d-flex align-items-center gap-3 mb-2">
+                        {price && <small className="brand-accent fw-bold" style={{ fontSize: '13px' }}>• {price}</small>}
+                    </div>
+                )}
 
-            {description && (
-                <p className="service-description hero-description mb-0 mt-2" style={{ fontSize: '0.88rem', lineHeight: 1.6 }}>
-                    {description}
-                </p>
-            )}
+                {/* Checklist Inclusions */}
+                {inclusions && Array.isArray(inclusions) ? (
+                    <ul className="list-unstyled mb-2 mt-2 pe-1" style={{ fontSize: '0.8rem', lineHeight: 1.45, color: 'rgba(255,255,255,0.85)' }}>
+                        {inclusions.map((item, idx) => (
+                            <li key={idx} className="d-flex align-items-start gap-2 mb-1">
+                                <span className="brand-accent fw-bold" style={{ fontSize: '0.85rem', minWidth: '10px' }}>•</span>
+                                <span>{item}</span>
+                            </li>
+                        ))}
+                    </ul>
+                ) : description ? (
+                    <p className="service-description hero-description mb-0 mt-2" style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>
+                        {description}
+                    </p>
+                ) : null}
 
-            <div className=" pt-5 w-100">
-                {/* Rent Now — for rental cards */}
-                {type === 'rental' && (
-                    <div className="mt-5">
-                        {isAvailable ? (
-                            <button
-                                onClick={onRentNow}
-                                className="btn btn-primary w-100 d-flex align-items-center justify-content-center text-white gap-2"
-                                style={{ height: '2.75rem', borderRadius: '24px', border: 'none', fontSize: '0.875rem', fontWeight: 600 }}
-                            >
-                                Rent Now
-                            </button>
-                        ) : (
-                            <button
-                                disabled
-                                className="btn w-100 d-flex align-items-center justify-content-center gap-2"
-                                style={{ height: '2.75rem', borderRadius: '24px', border: '1.5px solid #374151', fontSize: '0.875rem', fontWeight: 600, background: '#111827', color: '#6b7280', cursor: 'not-allowed' }}
-                            >
-                                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6b7280', display: 'inline-block' }}></span>
-                                Not Available
-                            </button>
-                        )}
+                {/* Vehicle Rates Breakdown */}
+                {rates && (
+                    <div className="mt-2 pt-2 border-top border-secondary/30">
+                        <small className="brand-accent fw-semibold d-block" style={{ fontSize: '0.75rem' }}>
+                            {rates}
+                        </small>
                     </div>
                 )}
             </div>
 
-            {/* Icons + Book button - Only show for wash */}
-            {type !== 'rental' && (
-                <div className="d-flex align-items-center mt-4 w-100 gap-3 flex-wrap">
-                    <div className="d-flex gap-2">
-                        {icons?.map((icon, i) => (
-                            <div key={i} className="icon-container">
-                                <img src={icon} alt={`Service feature ${i + 1}`} />
-                            </div>
-                        ))}
-                    </div>
-                    <div className="ms-auto">
+            {/* Bottom Row - Fixed at baseline */}
+            <div className="w-100 mt-auto pt-3 border-top border-secondary/20">
+                {type === 'rental' ? (
+                    isAvailable ? (
+                        <button
+                            onClick={onRentNow}
+                            className="btn btn-primary w-100 d-flex align-items-center justify-content-center text-white gap-2"
+                            style={{ height: '2.5rem', borderRadius: '24px', border: 'none', fontSize: '0.85rem', fontWeight: 600 }}
+                        >
+                            Rent Now
+                        </button>
+                    ) : (
+                        <button
+                            disabled
+                            className="btn w-100 d-flex align-items-center justify-content-center gap-2"
+                            style={{ height: '2.5rem', borderRadius: '24px', border: '1.5px solid #374151', fontSize: '0.85rem', fontWeight: 600, background: '#111827', color: '#6b7280', cursor: 'not-allowed' }}
+                        >
+                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6b7280', display: 'inline-block' }}></span>
+                            Not Available
+                        </button>
+                    )
+                ) : (
+                    <div className="d-flex align-items-center justify-content-between w-100 gap-2">
+                        {savings ? (
+                            <span
+                                className="badge rounded-pill fw-bold text-uppercase"
+                                style={{
+                                    background: 'rgba(35, 160, 206, 0.15)',
+                                    color: '#23A0CE',
+                                    border: '1px solid rgba(35, 160, 206, 0.35)',
+                                    padding: '0.5rem 0.85rem',
+                                    fontSize: '0.75rem',
+                                    letterSpacing: '0.5px'
+                                }}
+                            >
+                                {savings}
+                            </span>
+                        ) : (
+                            <span></span>
+                        )}
                         <Link
-                            to="/book"
-                            className="btn btn-primary btn-sm d-flex align-items-center justify-content-center text-white"
-                            style={{ minWidth: '8rem', height: '2.75rem', borderRadius: '24px', border: 'none', fontSize: '0.875rem', whiteSpace: 'nowrap' }}
+                            to={`/book?service=${encodeURIComponent(title)}`}
+                            className="btn btn-primary btn-sm d-flex align-items-center justify-content-center text-white ms-auto"
+                            style={{ minWidth: '7.5rem', height: '2.5rem', borderRadius: '24px', border: 'none', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
                         >
                             Book Now
                         </Link>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     </div >
 );
 
-const serviceData = [
+const restorePackageData = [
     {
         image: img1,
-        title: 'Armor Wash',
-        duration: '40 Mins',
-        price: '₱150 – ₱750',
-        description: 'Our signature deep-cleaning process that creates a protective barrier for your vehicle\'s exterior, shielding it from dirt and environmental damage.',
-        icons: [serviceicon, serviceicon1, serviceicon2],
+        title: 'Saver Package',
+        duration: 'Restore & Shine',
+        price: '₱1,550 – ₱1,950',
+        savings: 'SAVES ₱600',
+        rates: 'Rates: S: ₱1,550 | M: ₱1,650 | L: ₱1,750 | XL: ₱1,950',
+        inclusions: [
+            '1. Premium Carwash (Body Wash, Vacuum, Interior Dressing, Spray Wax, Tire Black)',
+            '2. Fogging Sanitation (Back to Zero)',
+            '3. Acid Rain Removal (Glass)',
+            '4. Engine Wash'
+        ],
         type: 'wash'
     },
     {
         image: img4,
-        title: 'Premium Wax',
-        duration: '60 Mins',
-        price: '₱300 – ₱750',
-        description: 'Long-lasting wax coating that enhances your car\'s shine and adds a glossy, showroom-quality finish that protects against UV rays and oxidation.',
-        icons: [serviceicon, serviceicon1, serviceicon2],
+        title: 'Standard Package',
+        duration: 'Restore & Shine',
+        price: '₱2,150 – ₱2,550',
+        savings: 'SAVES ₱800',
+        rates: 'Rates: S: ₱2,150 | M: ₱2,250 | L: ₱2,350 | XL: ₱2,550',
+        badge: 'MOST POPULAR',
+        badgeBg: 'linear-gradient(135deg, #0ea5e9, #1d4ed8)',
+        isFeatured: false,
+        inclusions: [
+            '1. Premium Carwash (Body Wash, Vacuum, Interior Dressing, Tire Black)',
+            '2. Hand Wax (Hydrophobic Wax)',
+            '3. Fogging Sanitation (Back to Zero)',
+            '4. Acid Rain Removal (Glass)',
+            '5. Back to Back (Plastic Trim Restore)',
+            '6. Engine Wash'
+        ],
         type: 'wash'
     },
     {
         image: img2,
-        title: 'Engine Wash',
-        duration: '45 Mins',
-        price: '₱400 – ₱700',
-        description: 'Thorough engine bay cleaning that removes built-up grease and dirt, helping your engine run cooler and making maintenance checks easier.',
-        icons: [serviceicon, serviceicon1, serviceicon2],
+        title: 'Supreme Package',
+        duration: 'Restore & Shine',
+        price: '₱3,550 – ₱4,550',
+        savings: 'SAVES ₱1,350',
+        rates: 'Rates: S: ₱3,550 | M: ₱3,850 | L: ₱4,150 | XL: ₱4,550',
+        badge: 'BEST VALUE',
+        badgeBg: 'linear-gradient(135deg, #10b981, #047857)',
+        isFeatured: true,
+        inclusions: [
+            '1. Premium Carwash (Body Wash, Vacuum, Interior Dressing, Tire Black)',
+            '2. Fogging Sanitation (Back to Zero)',
+            '3. Acid Rain Removal',
+            '4. Engine Wash',
+            '5. Machine Wax (Buffing)',
+            '6. Back to Black',
+            '7. Headlight Restoration w/ Coating',
+            '8. Under Wash'
+        ],
+        type: 'wash'
+    }
+];
+
+const premiumShineData = [
+    {
+        image: img1,
+        title: 'Regular Wash',
+        duration: '30 Mins',
+        price: '₱150 – ₱300',
+        savings: '30 MINS',
+        rates: 'Rates: Sedan: ₱150 | SUV: ₱250 | Pick Up: ₱300 | Van: ₱300',
+        inclusions: [
+            'Vacuum Cleaning',
+            'Body Wash',
+            'Tire Black Dressing',
+            'Glass Cleaning'
+        ],
         type: 'wash'
     },
+    {
+        image: img4,
+        title: 'Premium Wash',
+        duration: 'Protection & Shine',
+        price: '₱230 – ₱600',
+        savings: 'PROTECTION & SHINE',
+        rates: 'Rates: Sedan: ₱230 | SUV: ₱350 | Pick Up: ₱400 | Van: ₱500-600',
+        badge: 'BEST VALUE',
+        badgeBg: 'linear-gradient(135deg, #10b981, #047857)',
+        isFeatured: true,
+        inclusions: [
+            'Deep Vacuum Cleaning',
+            'Body Wash',
+            'Tire Black Dressing',
+            'Glass Cleaning',
+            'Spray Wax Protection',
+            'Full Interior Dressing',
+            'Air Freshener'
+        ],
+        type: 'wash'
+    },
+    {
+        image: img3,
+        title: 'Motorcycle Wash',
+        duration: '20 Mins',
+        price: '₱130 – ₱160',
+        savings: '20 MINS',
+        rates: 'Rates: 125cc: ₱130 | 150cc: ₱140 | 500cc: ₱150 | 1000cc: ₱160',
+        inclusions: [
+            'Full Body Wash & Degrease',
+            'Chain & Wheel Cleaning',
+            'Tire Shine Dressing',
+            'Glass & Mirror Wipe'
+        ],
+        type: 'wash'
+    }
 ];
 
 const ServiceSection = () => {
     const [activeCategory, setActiveCategory] = useState('wash');
+    const [washSubCategory, setWashSubCategory] = useState('premium'); // 'premium' | 'restore'
     const [rentalFleet, setRentalFleet] = useState([]);
     const [rentalLoading, setRentalLoading] = useState(false);
     const [vehicleTypesList, setVehicleTypesList] = useState([]);
     const scrollRef = useRef(null);
-    const displayData = activeCategory === 'wash' ? serviceData : rentalFleet;
+
+    const displayData = activeCategory === 'rental'
+        ? rentalFleet
+        : washSubCategory === 'premium'
+            ? premiumShineData
+            : restorePackageData;
 
     const fetchFleet = () => {
         setRentalLoading(true);
@@ -571,7 +719,6 @@ const ServiceSection = () => {
         const socket = io(SOCKET_URL);
 
         socket.on('fleet_updated', () => {
-            // Always refetch so the slider stays in sync regardless of active tab
             fetchFleet();
         });
 
@@ -582,7 +729,7 @@ const ServiceSection = () => {
         });
 
         return () => socket.disconnect();
-    }, []); // intentionally empty — socket setup only once
+    }, []);
 
     const scroll = (direction) => {
         if (scrollRef.current) {
@@ -593,13 +740,11 @@ const ServiceSection = () => {
             let scrollTo;
             if (direction === 'left') {
                 scrollTo = scrollLeft - scrollAmount;
-                // If at the very start, loop to the end
                 if (scrollLeft <= 5) {
                     scrollTo = scrollWidth - clientWidth;
                 }
             } else {
                 scrollTo = scrollLeft + scrollAmount;
-                // If at the very end, loop back to start
                 if (scrollLeft + clientWidth >= scrollWidth - 5) {
                     scrollTo = 0;
                 }
@@ -654,6 +799,30 @@ const ServiceSection = () => {
                             </button>
                         </div>
                     </div>
+
+                    {/* Wash Sub-Category Toggle (Restore & Shine vs Premium Shine) */}
+                    {activeCategory === 'wash' && (
+                        <div className="d-flex justify-content-center mb-3">
+                            <div className="p-1 rounded-pill d-inline-flex gap-2" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                                <button
+                                    type="button"
+                                    className={`btn btn-sm rounded-pill px-4 py-2 transition-all ${washSubCategory === 'premium' ? 'btn-primary text-white shadow-sm' : 'text-light border-0'}`}
+                                    onClick={() => setWashSubCategory('premium')}
+                                    style={{ fontWeight: 600, fontSize: '0.88rem' }}
+                                >
+                                    ✨ Premium Shine &amp; Care
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn btn-sm rounded-pill px-4 py-2 transition-all ${washSubCategory === 'restore' ? 'btn-primary text-white shadow-sm' : 'text-light border-0'}`}
+                                    onClick={() => setWashSubCategory('restore')}
+                                    style={{ fontWeight: 600, fontSize: '0.88rem' }}
+                                >
+                                    🧼 Restore &amp; Shine Packages
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Service cards grid — with navigation arrows for rental */}
                     <div className="position-relative">
@@ -711,20 +880,6 @@ const ServiceSection = () => {
                                 );
                             })}
                         </div>
-                    </div>
-
-                    {/* Bottom CTA */}
-                    <div className="mt-4 pt-3 text-center">
-                        <Link
-                            to="/services"
-                            className="btn btn-primary d-inline-flex align-items-center gap-2 px-5 py-3 text-white shadow-sm"
-                            style={{ borderRadius: '50px', fontWeight: 600, fontSize: '1rem' }}
-                        >
-                            Learn More About What We Offer
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M5 12h14m-7-7 7 7-7 7" />
-                            </svg>
-                        </Link>
                     </div>
                 </div>
             </section>

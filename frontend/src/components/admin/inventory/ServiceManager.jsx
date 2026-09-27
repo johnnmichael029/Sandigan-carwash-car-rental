@@ -41,7 +41,11 @@ const ServiceSettingsPage = ({ user, isDark }) => {
     const handleSelectVehicle = (v) => {
         setSelectedVehicle(v);
         // Deep copy so we can edit without affecting the list until saved
-        setEditingDoc(JSON.parse(JSON.stringify(v)));
+        const doc = JSON.parse(JSON.stringify(v));
+        if (!doc.services) doc.services = [];
+        if (!doc.restorePackages) doc.restorePackages = [];
+        if (!doc.addons) doc.addons = [];
+        setEditingDoc(doc);
     };
 
     const handleCreateVehicle = async () => {
@@ -61,11 +65,13 @@ const ServiceSettingsPage = ({ user, isDark }) => {
         if (!isConfirmed || !name?.trim()) return;
         try {
             const res = await axios.post(`${API_BASE}/pricing`, {
-                vehicleType: name.trim(), services: [], addons: []
+                vehicleType: name.trim(), services: [], restorePackages: [], addons: []
             }, { headers: authHeaders(), withCredentials: true });
             mutatePricing();
             setSelectedVehicle(res.data);
-            setEditingDoc(JSON.parse(JSON.stringify(res.data)));
+            const doc = JSON.parse(JSON.stringify(res.data));
+            if (!doc.restorePackages) doc.restorePackages = [];
+            setEditingDoc(doc);
             Swal.fire({ title: 'Vehicle Added!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
         } catch (err) {
             Swal.fire('Error', err.response?.data?.error || 'Failed to create vehicle.', 'error');
@@ -101,9 +107,14 @@ const ServiceSettingsPage = ({ user, isDark }) => {
         if (!editingDoc || !editingDoc._id) return;
 
         // Validation Check
-        const hasEmptyNames = [...editingDoc.services, ...editingDoc.addons].some(item => !item.name.trim());
+        const allItems = [
+            ...(editingDoc.services || []),
+            ...(editingDoc.restorePackages || []),
+            ...(editingDoc.addons || [])
+        ];
+        const hasEmptyNames = allItems.some(item => !item.name.trim());
         if (hasEmptyNames) {
-            Swal.fire('Incomplete Data', 'All services and add-ons must have a name.', 'warning');
+            Swal.fire('Incomplete Data', 'All services, packages, and add-ons must have a name.', 'warning');
             return;
         }
 
@@ -111,16 +122,19 @@ const ServiceSettingsPage = ({ user, isDark }) => {
         try {
             const res = await axios.put(`${API_BASE}/pricing/${editingDoc._id}`, {
                 vehicleType: editingDoc.vehicleType,
-                services: editingDoc.services,
-                addons: editingDoc.addons
+                services: editingDoc.services || [],
+                restorePackages: editingDoc.restorePackages || [],
+                addons: editingDoc.addons || []
             }, { headers: authHeaders(), withCredentials: true });
 
             if (res.data && res.data._id) {
                 mutatePricing();
                 setSelectedVehicle(res.data);
-                setEditingDoc(JSON.parse(JSON.stringify(res.data))); // Refresh edit buffer
+                const doc = JSON.parse(JSON.stringify(res.data));
+                if (!doc.restorePackages) doc.restorePackages = [];
+                setEditingDoc(doc);
                 Swal.fire({
-                    title: 'Item Added Successfully!',
+                    title: 'Saved Successfully!',
                     icon: 'success',
                     toast: true,
                     position: 'top-end',
@@ -240,7 +254,14 @@ const ServiceSettingsPage = ({ user, isDark }) => {
     const updateItem = (type, index, field, value) => {
         setEditingDoc(prev => {
             const arr = [...prev[type]];
-            arr[index] = { ...arr[index], [field]: field === 'price' ? Number(value) : value };
+            if (field === 'inclusions') {
+                const list = typeof value === 'string' ? value.split('\n') : (Array.isArray(value) ? value : []);
+                arr[index] = { ...arr[index], inclusions: list };
+            } else if (field === 'price') {
+                arr[index] = { ...arr[index], price: Number(value) };
+            } else {
+                arr[index] = { ...arr[index], [field]: value };
+            }
             return { ...prev, [type]: arr };
         });
     };
@@ -307,7 +328,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                         style={{ cursor: 'pointer', transition: '0.2s' }}
                                     >
                                         <span className="fw-bold font-poppins" style={{ fontSize: '0.9rem' }}>{v.vehicleType}</span>
-                                        <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{v.services?.length + v.addons?.length || 0} items</span>
+                                        <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{(v.services?.length || 0) + (v.restorePackages?.length || 0) + (v.addons?.length || 0)} items</span>
                                     </li>
                                 ))}
                             </ul>
@@ -330,36 +351,41 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                 </div>
 
                                 <div className="card-body p-4 p-lg-5">
-                                    {/* Core Services */}
+                                    {/* 1. ✨ Premium Shine & Care Washes */}
                                     <div className="mb-5">
                                         <div className="d-flex justify-content-between align-items-center mb-3">
-                                            <h6 className="fw-bold text-dark-secondary mb-0">Core Services</h6>
-                                            <button onClick={() => addServiceOrAddon('services')} className="btn btn-sm btn-save rounded-pill text-white shadow-sm">+ Add Service</button>
+                                            <h6 className="fw-bold text-dark-secondary mb-0">✨ Premium Shine &amp; Care Washes</h6>
+                                            <button onClick={() => addServiceOrAddon('services')} className="btn btn-sm btn-save rounded-pill text-white shadow-sm">+ Add Wash Service</button>
                                         </div>
-                                        {editingDoc.services.length === 0 ? <p className="text-muted small">No core services defined.</p> : (
+                                        {(!editingDoc.services || editingDoc.services.length === 0) ? <p className="text-muted small">No wash services defined.</p> : (
                                             <div className="table-responsive">
-                                                <table className="table table-borderless table-sm mb-0">
+                                                <table className="table table-borderless align-middle mb-0">
                                                     <thead className="border-bottom text-muted small">
                                                         <tr>
-                                                            <th style={{ minWidth: '130px' }}>Service Name</th>
-                                                            <th>Description <span className="fw-normal opacity-50">(optional)</span></th>
-                                                            <th style={{ width: '140px' }}>Price (₱)</th>
-                                                            <th style={{ width: '50px' }}></th>
+                                                            <th style={{ width: '220px' }}>Service Name &amp; Tags</th>
+                                                            <th>Description &amp; Checklist Inclusions (1 item per line)</th>
+                                                            <th style={{ width: '130px' }}>Price (₱)</th>
+                                                            <th style={{ width: '40px' }}></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {editingDoc.services.map((item, idx) => (
                                                             <tr key={idx} className="border-bottom">
-                                                                <td className="py-2">
-                                                                    <input type="text" className="form-control form-control-sm" value={item.name} onChange={(e) => updateItem('services', idx, 'name', e.target.value)} placeholder="e.g. Wash" />
+                                                                <td className="py-3 align-top">
+                                                                    <input type="text" className="form-control form-control-sm fw-bold mb-2" value={item.name} onChange={(e) => updateItem('services', idx, 'name', e.target.value)} placeholder="Package Name" />
+                                                                    <div className="d-flex gap-1">
+                                                                        <input type="text" className="form-control form-control-sm text-success" value={item.badge || ''} onChange={(e) => updateItem('services', idx, 'badge', e.target.value)} placeholder="Badge (e.g. BEST VALUE)" style={{ fontSize: '0.75rem' }} />
+                                                                        <input type="text" className="form-control form-control-sm text-info" value={item.savings || ''} onChange={(e) => updateItem('services', idx, 'savings', e.target.value)} placeholder="Savings (e.g. 30 MINS)" style={{ fontSize: '0.75rem' }} />
+                                                                    </div>
                                                                 </td>
-                                                                <td className="py-2">
-                                                                    <input type="text" className="form-control form-control-sm" value={item.description || ''} onChange={(e) => updateItem('services', idx, 'description', e.target.value)} placeholder="Short description shown on hover..." />
+                                                                <td className="py-3 align-top">
+                                                                    <input type="text" className="form-control form-control-sm mb-2" value={item.description || ''} onChange={(e) => updateItem('services', idx, 'description', e.target.value)} placeholder="Subtitle / short description..." />
+                                                                    <textarea className="form-control form-control-sm" rows="3" value={(item.inclusions || []).join('\n')} onChange={(e) => updateItem('services', idx, 'inclusions', e.target.value)} placeholder="Checklist items (1 per line, e.g. Vacuum Cleaning)..." style={{ fontSize: '0.8rem' }} />
                                                                 </td>
-                                                                <td className="py-2">
-                                                                    <input type="number" className="form-control form-control-sm" value={item.price} onChange={(e) => updateItem('services', idx, 'price', e.target.value)} placeholder="0" min="0" />
+                                                                <td className="py-3 align-top">
+                                                                    <input type="number" className="form-control form-control-sm fw-bold" value={item.price} onChange={(e) => updateItem('services', idx, 'price', e.target.value)} placeholder="0" min="0" />
                                                                 </td>
-                                                                <td className="py-2 text-end">
+                                                                <td className="py-3 align-top text-end">
                                                                     <button onClick={() => removeServiceOrAddon('services', idx)} className="btn btn-sm text-danger p-1">✕</button>
                                                                 </td>
                                                             </tr>
@@ -370,18 +396,63 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                         )}
                                     </div>
 
-                                    {/* Addons */}
+                                    {/* 2. 🧼 Restore & Shine Packages */}
+                                    <div className="mb-5">
+                                        <div className="d-flex justify-content-between align-items-center mb-3">
+                                            <h6 className="fw-bold brand-primary mb-0">🧼 Restore &amp; Shine Packages</h6>
+                                            <button onClick={() => addServiceOrAddon('restorePackages')} className="btn btn-sm btn-save rounded-pill text-white shadow-sm">+ Add Package</button>
+                                        </div>
+                                        {(!editingDoc.restorePackages || editingDoc.restorePackages.length === 0) ? <p className="text-muted small">No restore packages defined for this vehicle.</p> : (
+                                            <div className="table-responsive">
+                                                <table className="table table-borderless align-middle mb-0">
+                                                    <thead className="border-bottom text-muted small">
+                                                        <tr>
+                                                            <th style={{ width: '220px' }}>Package Name &amp; Tags</th>
+                                                            <th>Description &amp; Checklist Inclusions (1 item per line)</th>
+                                                            <th style={{ width: '130px' }}>Price (₱)</th>
+                                                            <th style={{ width: '40px' }}></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {editingDoc.restorePackages.map((item, idx) => (
+                                                            <tr key={idx} className="border-bottom">
+                                                                <td className="py-3 align-top">
+                                                                    <input type="text" className="form-control form-control-sm fw-bold mb-2" value={item.name} onChange={(e) => updateItem('restorePackages', idx, 'name', e.target.value)} placeholder="Package Name" />
+                                                                    <div className="d-flex gap-1">
+                                                                        <input type="text" className="form-control form-control-sm text-success" value={item.badge || ''} onChange={(e) => updateItem('restorePackages', idx, 'badge', e.target.value)} placeholder="Badge (e.g. BEST VALUE)" style={{ fontSize: '0.75rem' }} />
+                                                                        <input type="text" className="form-control form-control-sm text-info" value={item.savings || ''} onChange={(e) => updateItem('restorePackages', idx, 'savings', e.target.value)} placeholder="Savings (e.g. SAVES ₱600)" style={{ fontSize: '0.75rem' }} />
+                                                                    </div>
+                                                                </td>
+                                                                <td className="py-3 align-top">
+                                                                    <input type="text" className="form-control form-control-sm mb-2" value={item.description || ''} onChange={(e) => updateItem('restorePackages', idx, 'description', e.target.value)} placeholder="Subtitle / short description..." />
+                                                                    <textarea className="form-control form-control-sm" rows="3" value={(item.inclusions || []).join('\n')} onChange={(e) => updateItem('restorePackages', idx, 'inclusions', e.target.value)} placeholder="Checklist items (1 per line)..." style={{ fontSize: '0.8rem' }} />
+                                                                </td>
+                                                                <td className="py-3 align-top">
+                                                                    <input type="number" className="form-control form-control-sm fw-bold" value={item.price} onChange={(e) => updateItem('restorePackages', idx, 'price', e.target.value)} placeholder="0" min="0" />
+                                                                </td>
+                                                                <td className="py-3 align-top text-end">
+                                                                    <button onClick={() => removeServiceOrAddon('restorePackages', idx)} className="btn btn-sm text-danger p-1">✕</button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* 3. ➕ Addons & Extras */}
                                     <div className="mb-4">
                                         <div className="d-flex justify-content-between align-items-center mb-3">
-                                            <h6 className="fw-bold brand-primary mb-0">Add-ons & Extras</h6>
+                                            <h6 className="fw-bold text-info mb-0">➕ Add-ons &amp; Extras</h6>
                                             <button onClick={() => addServiceOrAddon('addons')} className="btn btn-sm btn-save rounded-pill text-white shadow-sm">+ Add Item</button>
                                         </div>
-                                        {editingDoc.addons.length === 0 ? <p className="text-muted small">No add-ons defined.</p> : (
+                                        {(!editingDoc.addons || editingDoc.addons.length === 0) ? <p className="text-muted small">No add-ons defined.</p> : (
                                             <div className="table-responsive">
                                                 <table className="table table-borderless table-sm mb-0">
                                                     <thead className="border-bottom text-muted small">
                                                         <tr>
-                                                            <th style={{ minWidth: '130px' }}>Addon Name</th>
+                                                            <th style={{ minWidth: '150px' }}>Addon Name</th>
                                                             <th>Description <span className="fw-normal opacity-50">(optional)</span></th>
                                                             <th style={{ width: '140px' }}>Price (₱)</th>
                                                             <th style={{ width: '50px' }}></th>
@@ -394,7 +465,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                                                     <input type="text" className="form-control form-control-sm" value={item.name} onChange={(e) => updateItem('addons', idx, 'name', e.target.value)} placeholder="e.g. Detailing" />
                                                                 </td>
                                                                 <td className="py-2">
-                                                                    <input type="text" className="form-control form-control-sm" value={item.description || ''} onChange={(e) => updateItem('addons', idx, 'description', e.target.value)} placeholder="Short description shown on hover..." />
+                                                                    <input type="text" className="form-control form-control-sm" value={item.description || ''} onChange={(e) => updateItem('addons', idx, 'description', e.target.value)} placeholder="Short description..." />
                                                                 </td>
                                                                 <td className="py-2">
                                                                     <input type="number" className="form-control form-control-sm" value={item.price} onChange={(e) => updateItem('addons', idx, 'price', e.target.value)} placeholder="0" min="0" />

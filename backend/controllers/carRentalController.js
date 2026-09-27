@@ -43,7 +43,8 @@ const createRental = async (req, res) => {
         fullName, contactNumber, emailAddress, address,
         vehicleId, rentalStartDate, returnDate, destination, notes,
         requirementsAcknowledged, captchaToken,
-        promoCode, promoDiscount, estimatedPrice // From mobile
+        promoCode, promoDiscount, estimatedPrice, // From mobile
+        pickupTime // e.g. "10:00" (HH:MM 24-hour)
     } = req.body;
 
     // --- Validation ---
@@ -98,6 +99,11 @@ const createRental = async (req, res) => {
             return res.status(404).json({ error: 'Rental vehicle not found.' });
         }
 
+        // ── Parse & validate pickupTime ────────────────────────────────────────
+        // Accepts "HH:MM" (24-hour). Defaults to 08:00 if not provided or invalid.
+        const resolvedPickupTime = pickupTime && /^\d{2}:\d{2}$/.test(pickupTime) ? pickupTime : '08:00';
+        const [pickupHours, pickupMinutes] = resolvedPickupTime.split(':').map(Number);
+
         // Compute days and total
         const start = new Date(rentalStartDate);
         const end = new Date(returnDate);
@@ -107,6 +113,11 @@ const createRental = async (req, res) => {
         if (end < start) {
             return res.status(400).json({ error: 'Return date cannot be earlier than rental start date.' });
         }
+
+        // ── Apply pick-up time to both dates ──────────────────────────────────
+        // This makes rentalStartDate = "Sep 27 at 10:00" and returnDate = "Sep 29 at 10:00"
+        start.setHours(pickupHours, pickupMinutes, 0, 0);
+        end.setHours(pickupHours, pickupMinutes, 0, 0);
 
         // Check for date overlapping conflicts with existing active/pending/confirmed rentals
         const conflictingRental = await CarRental.findOne({
@@ -143,6 +154,7 @@ const createRental = async (req, res) => {
             rentalStartDate: start,
             returnDate: end,
             rentalDays,
+            pickupTime: resolvedPickupTime,
             estimatedTotal,
             destination: destination.trim(),
             notes: notes?.trim() || '',
@@ -359,7 +371,7 @@ const updateStatus = async (req, res) => {
 
 const updateRental = async (req, res) => {
     const { id } = req.params;
-    const { fullName, contactNumber, emailAddress, address, rentalStartDate, returnDate, destination, notes } = req.body;
+    const { fullName, contactNumber, emailAddress, address, rentalStartDate, returnDate, destination, notes, pickupTime } = req.body;
 
     try {
         const rental = await CarRental.findById(id);
@@ -372,10 +384,21 @@ const updateRental = async (req, res) => {
         if (destination) rental.destination = destination;
         if (notes !== undefined) rental.notes = notes;
 
+        // ── pickupTime update ─────────────────────────────────────────────────
+        if (pickupTime && /^\d{2}:\d{2}$/.test(pickupTime)) {
+            rental.pickupTime = pickupTime;
+        }
+        const resolvedTime = rental.pickupTime || '08:00';
+        const [tHours, tMinutes] = resolvedTime.split(':').map(Number);
+
         // Schedule Update & Recalculation
         if (rentalStartDate || returnDate) {
             if (rentalStartDate) rental.rentalStartDate = new Date(rentalStartDate);
             if (returnDate) rental.returnDate = new Date(returnDate);
+
+            // Re-apply pick-up time to both dates after any date update
+            rental.rentalStartDate.setHours(tHours, tMinutes, 0, 0);
+            rental.returnDate.setHours(tHours, tMinutes, 0, 0);
 
             // Recalculate duration and total
             const diff = new Date(rental.returnDate) - new Date(rental.rentalStartDate);
@@ -385,6 +408,10 @@ const updateRental = async (req, res) => {
             if (vehicle) {
                 rental.estimatedTotal = rental.rentalDays * vehicle.pricePerDay;
             }
+        } else if (pickupTime && /^\d{2}:\d{2}$/.test(pickupTime)) {
+            // Time changed but no date change — re-apply time to existing dates
+            rental.rentalStartDate.setHours(tHours, tMinutes, 0, 0);
+            rental.returnDate.setHours(tHours, tMinutes, 0, 0);
         }
 
         await rental.save();

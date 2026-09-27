@@ -22,6 +22,99 @@ import RentalDatePicker from '../../components/public/RentalDatePicker';
 // 1. Keep the base hours as military for backend compatibility
 const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
 
+const WASH_PACKAGES_DATA = {
+    premium: [
+        {
+            name: 'Regular Wash',
+            description: 'Essential wash & vacuum clean',
+            rates: { S: 150, M: 200, L: 250, XL: 300, Motorcycle: 150 },
+            ratesDisplay: 'Rates: S: ₱150 | M: ₱200 | L: ₱250 | XL: ₱300',
+            inclusions: ['Vacuum Cleaning', 'Body Wash', 'Tire Black Dressing', 'Glass Cleaning'],
+            category: 'premium'
+        },
+        {
+            name: 'Premium Wash',
+            badge: 'BEST VALUE',
+            description: 'Deep clean + hydrophobic spray wax protection',
+            rates: { S: 230, M: 300, L: 350, XL: 500, Motorcycle: 200 },
+            ratesDisplay: 'Rates: S: ₱230 | M: ₱300 | L: ₱350 | XL: ₱500',
+            inclusions: ['Deep Vacuum Cleaning', 'Body Wash', 'Tire Black Dressing', 'Glass Cleaning', 'Spray Wax Protection', 'Full Interior Dressing', 'Air Freshener'],
+            category: 'premium'
+        },
+        {
+            name: 'Motorcycle Wash',
+            description: 'Full bike degrease & wheel/chain wash',
+            rates: { Motorcycle: 140, S: 140, M: 140, L: 140, XL: 140 },
+            ratesDisplay: 'Rates: 125cc: ₱130 | 150cc: ₱140 | 500cc: ₱150 | 1000cc: ₱160',
+            inclusions: ['Full Body Wash & Degrease', 'Chain & Wheel Cleaning', 'Tire Shine Dressing', 'Glass & Mirror Wipe'],
+            category: 'premium'
+        }
+    ],
+    restore: [
+        {
+            name: 'Saver Package',
+            savings: 'SAVES ₱600',
+            rates: { S: 1550, M: 1650, L: 1750, XL: 1950, Motorcycle: 1550 },
+            ratesDisplay: 'Rates: S: ₱1,550 | M: ₱1,650 | L: ₱1,750 | XL: ₱1,950',
+            inclusions: [
+                '1. Premium Carwash (Body Wash, Vacuum, Interior Dressing, Spray Wax, Tire Black)',
+                '2. Fogging Sanitation (Back to Zero)',
+                '3. Acid Rain Removal (Glass)',
+                '4. Engine Wash'
+            ],
+            category: 'restore'
+        },
+        {
+            name: 'Standard Package',
+            badge: 'MOST POPULAR',
+            savings: 'SAVES ₱800',
+            rates: { S: 2150, M: 2250, L: 2350, XL: 2550, Motorcycle: 2150 },
+            ratesDisplay: 'Rates: S: ₱2,150 | M: ₱2,250 | L: ₱2,350 | XL: ₱2,550',
+            inclusions: [
+                '1. Premium Carwash (Body Wash, Vacuum, Interior Dressing, Tire Black)',
+                '2. Hand Wax (Hydrophobic Wax)',
+                '3. Fogging Sanitation (Back to Zero)',
+                '4. Acid Rain Removal (Glass)',
+                '5. Back to Back (Plastic Trim Restore)',
+                '6. Engine Wash'
+            ],
+            category: 'restore'
+        },
+        {
+            name: 'Supreme Package',
+            badge: 'BEST VALUE',
+            savings: 'SAVES ₱1,350',
+            rates: { S: 3550, M: 3850, L: 4150, XL: 4550, Motorcycle: 3550 },
+            ratesDisplay: 'Rates: S: ₱3,550 | M: ₱3,850 | L: ₱4,150 | XL: ₱4,550',
+            inclusions: [
+                '1. Premium Carwash (Body Wash, Vacuum, Interior Dressing, Tire Black)',
+                '2. Fogging Sanitation (Back to Zero)',
+                '3. Acid Rain Removal',
+                '4. Engine Wash',
+                '5. Machine Wax (Buffing)',
+                '6. Back to Back',
+                '7. Headlight Restoration w/ Coating',
+                '8. Under Wash'
+            ],
+            category: 'restore'
+        }
+    ]
+};
+
+const WASH_PACKAGES_FLAT = {};
+[...WASH_PACKAGES_DATA.premium, ...WASH_PACKAGES_DATA.restore].forEach(pkg => {
+    WASH_PACKAGES_FLAT[pkg.name] = pkg;
+});
+
+const getVehicleSizeTier = (vType) => {
+    if (!vType) return 'S';
+    const lower = vType.toLowerCase();
+    if (lower.includes('motorcycle') || lower.includes('bike') || lower.includes('125cc') || lower.includes('150cc') || lower.includes('500cc') || lower.includes('1000cc')) return 'Motorcycle';
+    if (lower.includes('van') || lower.includes('hiace') || lower.includes('urvan') || lower.includes('alphard') || lower.includes('xl') || lower.includes('extra large')) return 'XL';
+    if (lower.includes('suv') || lower.includes('pickup') || lower.includes('pick-up') || lower.includes('pick up') || lower.includes('large') || lower.includes('l')) return 'L';
+    if (lower.includes('innova') || lower.includes('crossover') || lower.includes('cuv') || lower.includes('mpv') || lower.includes('medium') || lower.includes('m')) return 'M';
+    return 'S';
+};
 
 const Book = () => {
     const [firstName, setFirstName] = useState('');
@@ -30,6 +123,7 @@ const Book = () => {
     const [email, setEmail] = useState('');
     const [vehicleType, setVehicleType] = useState('');
     const [serviceType, setServiceType] = useState([]);
+    const [washSubCategory, setWashSubCategory] = useState('premium'); // 'premium' | 'restore'
     const [privacyChecked, setPrivacyChecked] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
@@ -96,10 +190,18 @@ const Book = () => {
     const [destination, setDestination] = useState('');
     const [address, setAddress] = useState('');
     const [rentalStartDate, setRentalStartDate] = useState('');
-    const [rentalDurationDays, setRentalDurationDays] = useState(1);
+    const [returnDate, setReturnDate] = useState('');
+    const [pickupTime, setPickupTime] = useState('08:00');
     const [selectedRentalVehicle, setSelectedRentalVehicle] = useState(null);
     const [vehicleBookedDates, setVehicleBookedDates] = useState([]);
     const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+
+    // Auto-computed from selected date range — no manual input needed
+    const rentalDurationDays = useMemo(() => {
+        if (!rentalStartDate || !returnDate) return 0;
+        const diff = new Date(returnDate) - new Date(rentalStartDate);
+        return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    }, [rentalStartDate, returnDate]);
 
     useEffect(() => {
         if (selectedRentalVehicle?._id) {
@@ -131,6 +233,32 @@ const Book = () => {
             })
             .catch(err => console.error(err));
     };
+
+    // Pre-select service if passed from Home page (e.g. /book?service=Standard%20Package)
+    useEffect(() => {
+        const serviceParam = queryParams.get('service');
+        if (serviceParam && serviceType.length === 0) {
+            setServiceType([serviceParam]);
+            if (WASH_PACKAGES_FLAT[serviceParam]?.category) {
+                setWashSubCategory(WASH_PACKAGES_FLAT[serviceParam].category);
+            }
+        }
+    }, [queryParams]);
+
+    // Handle vehicle type change conditions (Motorcycle vs 4-wheel vehicle restriction)
+    useEffect(() => {
+        if (!vehicleType) return;
+        const tier = getVehicleSizeTier(vehicleType);
+        if (tier === 'Motorcycle') {
+            setWashSubCategory('premium');
+            setServiceType(['Motorcycle Wash']);
+        } else {
+            // If switching to a 4-wheel vehicle while Motorcycle Wash was selected, clear it
+            if (serviceType.includes('Motorcycle Wash')) {
+                setServiceType([]);
+            }
+        }
+    }, [vehicleType]);
 
     useEffect(() => {
         if (activeCategory === 'rental') {
@@ -165,7 +293,7 @@ const Book = () => {
             const hourKey = hour.toString().padStart(2, '0');
             const bookedCount = availability[hourKey] || 0;
             const slotsLeft = MAX_CAPACITY - bookedCount;
-            const slotText = slotsLeft <= 3 ? ` (${slotsLeft} slot${slotsLeft === 1 ? '' : 's'} left)` : '';
+            const slotText = slotsLeft <= 3 ? ` (${slotsLeft} slot${slotsLeft === 1 ? '' : 's'} available)` : '';
 
             return {
                 raw: hour, // Sent to backend
@@ -236,28 +364,27 @@ const Book = () => {
         if (activeCategory === 'rental') {
             if (!selectedRentalVehicle) { setError("Please select a vehicle to rent."); return false; }
             if (!rentalStartDate) { setError("Please select a pick-up date."); return false; }
-            if (!rentalDurationDays || rentalDurationDays < 1) { setError("Please specify duration (minimum 1 day)."); return false; }
+            if (!returnDate) { setError("Please select a return date from the calendar."); return false; }
+            if (rentalDurationDays < 1) { setError("Return date must be after pick-up date."); return false; }
             if (!destination.trim()) { setError("Please provide your destination."); return false; }
 
-            // Check if any requested days conflict with existing bookings
+            // Check if any day in the selected range conflicts with existing bookings
             const start = new Date(rentalStartDate);
-            const days = parseInt(rentalDurationDays, 10);
+            const end = new Date(returnDate);
             const conflicts = [];
-            for (let i = 0; i < days; i++) {
-                const d = new Date(start);
-                d.setDate(d.getDate() + i);
-                const dateKey = d.toISOString().split('T')[0];
-                if (vehicleBookedDates.includes(dateKey)) {
-                    conflicts.push(dateKey);
-                }
+            const cur = new Date(start);
+            while (cur <= end) {
+                const dateKey = cur.toISOString().split('T')[0];
+                if (vehicleBookedDates.includes(dateKey)) conflicts.push(dateKey);
+                cur.setDate(cur.getDate() + 1);
             }
             if (conflicts.length > 0) {
-                setError(`The vehicle (${selectedRentalVehicle.vehicleName}) is already reserved on: ${conflicts.join(', ')}. Please choose another date or duration.`);
+                setError(`The vehicle (${selectedRentalVehicle.vehicleName}) is already reserved on: ${conflicts.join(', ')}. Please choose different dates.`);
                 return false;
             }
         } else {
-            if (!vehicleType.trim()) { setError("Please select your vehicle type."); return false; }
-            if (!serviceType.length) { setError("Please select at least one service."); return false; }
+            if (!vehicleType.trim()) { setError("Please select your vehicle category/type."); return false; }
+            if (!serviceType.length) { setError("Please select at least one package or service."); return false; }
         }
         return true;
     };
@@ -336,10 +463,8 @@ const Book = () => {
     // Handle phone number input to allow only digits and limit to 10 characters
     const handlePhoneChange = (e) => {
         const value = e.target.value;
-        // This regex says: Replace anything that is NOT a digit (0-9) with an empty string
         const onlyNums = value.replace(/[^0-9]/g, "");
 
-        // Optional: Limit to 10 digits since you already have +63
         if (onlyNums.length <= 10) {
             setPhoneNumber(onlyNums);
         }
@@ -353,8 +478,6 @@ const Book = () => {
             format: [80, 100]
         });
 
-
-        // Header
         doc.setFont("courier", "bold");
         doc.setFontSize(16);
         doc.text("SANDIGAN CARWASH", 40, 15, { align: "center" });
@@ -365,22 +488,19 @@ const Book = () => {
         doc.text(new Date().toLocaleString(), 40, 28, { align: "center" });
         doc.text("----------------------------", 40, 34, { align: "center" });
 
-        // Main ID (Big and Bold like Jollibee Kiosk)
         doc.setFontSize(12);
         doc.text(activeCategory === 'rental' ? "YOUR RENTAL ID:" : "YOUR BOOKING NUMBER:", 40, 45, { align: "center" });
 
-        doc.setFontSize(22); // Extra large
+        doc.setFontSize(22);
         doc.setFont("courier", "bold");
         doc.text(finalId, 40, 58, { align: "center" });
 
-        // Footer
         doc.setFont("courier", "normal");
         doc.setFontSize(10);
         doc.text("----------------------------", 40, 70, { align: "center" });
         doc.text("Please present this to", 40, 78, { align: "center" });
         doc.text("the staff upon arrival.", 40, 84, { align: "center" });
 
-        // Save/Download
         const fileName = activeCategory === 'rental' ? `rental_Receipt_${finalId}.pdf` : `book_Receipt_${finalId}.pdf`;
         doc.save(fileName);
     };
@@ -435,7 +555,6 @@ const Book = () => {
             document.body.removeChild(link);
             URL.revokeObjectURL(blobUrl);
         } catch (err) {
-            // Fallback for direct download link
             const link = document.createElement('a');
             link.href = imgSrc;
             link.download = filename;
@@ -478,7 +597,8 @@ const Book = () => {
             address: sanitizeInput(address),
             vehicleId: selectedRentalVehicle?._id,
             rentalStartDate: rentalStartDate,
-            returnDate: new Date(new Date(rentalStartDate).getTime() + (parseInt(rentalDurationDays) * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+            returnDate: returnDate,
+            pickupTime: pickupTime,
             destination: sanitizeInput(destination),
             notes: `Booked via Web Portal`,
             requirementsAcknowledged: true,
@@ -527,11 +647,7 @@ const Book = () => {
         }
     };
 
-    // Sanitize input to prevent XSS (basic example, consider using a library for production)
     const sanitizeInput = (input) => {
-        // 1. Remove leading/trailing whitespace
-        // 2. Remove any HTML tags (the < > characters)
-        // 3. Escape special characters
         return input.replace(/<[^>]*>?/gm, '').trim();
     };
 
@@ -542,24 +658,54 @@ const Book = () => {
 
     // Live price calculation
     const totalPrice = useMemo(() => {
-        if (!activeVehicleData) return 0;
-        return serviceType.reduce((sum, name) => {
-            const serv = activeVehicleData.services?.find(s => s.name === name);
-            const add = activeVehicleData.addons?.find(a => a.name === name);
-            if (serv) return sum + serv.price;
-            if (add) return sum + add.price;
-            return sum;
-        }, 0);
-    }, [activeVehicleData, serviceType]);
+        const sizeTier = getVehicleSizeTier(vehicleType);
+        let total = 0;
+        serviceType.forEach(name => {
+            if (WASH_PACKAGES_FLAT[name]) {
+                const pkg = WASH_PACKAGES_FLAT[name];
+                total += pkg.rates[sizeTier] || pkg.rates.S || 0;
+            } else if (activeVehicleData) {
+                const serv = activeVehicleData.services?.find(s => s.name === name);
+                const add = activeVehicleData.addons?.find(a => a.name === name);
+                if (serv) total += serv.price;
+                if (add) total += add.price;
+            }
+        });
+        return total;
+    }, [activeVehicleData, vehicleType, serviceType]);
 
-    // Toggle service selection
+    // Toggle service selection (Only 1 main package allowed at a time + Motorcycle restriction)
     const toggleService = (serviceLabel) => {
-        if (serviceType.includes(serviceLabel)) {
-            // If already there, remove it (Deselect)
-            setServiceType(serviceType.filter(item => item !== serviceLabel));
+        const tier = getVehicleSizeTier(vehicleType);
+
+        if (WASH_PACKAGES_FLAT[serviceLabel]) {
+            // Motorcycle condition: Motorcycles can ONLY select Motorcycle Wash
+            if (tier === 'Motorcycle' && serviceLabel !== 'Motorcycle Wash') {
+                setError("Motorcycles can only select the Motorcycle Wash package.");
+                return;
+            }
+            // 4-Wheel Vehicles cannot select Motorcycle Wash
+            if (tier !== 'Motorcycle' && serviceLabel === 'Motorcycle Wash') {
+                setError("Motorcycle Wash is reserved for motorcycles only.");
+                return;
+            }
+
+            // Main Package: Single selection only
+            if (serviceType.includes(serviceLabel)) {
+                // If already selected, deselect it
+                setServiceType(serviceType.filter(item => item !== serviceLabel));
+            } else {
+                // Select this package and replace any previously selected package (keep add-ons if any)
+                const existingAddons = serviceType.filter(item => !WASH_PACKAGES_FLAT[item]);
+                setServiceType([serviceLabel, ...existingAddons]);
+            }
         } else {
-            // If not there, add it (Select)
-            setServiceType([...serviceType, serviceLabel]);
+            // Add-ons & extras: Can select multiple
+            if (serviceType.includes(serviceLabel)) {
+                setServiceType(serviceType.filter(item => item !== serviceLabel));
+            } else {
+                setServiceType([...serviceType, serviceLabel]);
+            }
         }
     };
     return (
@@ -634,51 +780,140 @@ const Book = () => {
                                                 <>
                                                     {activeCategory === 'wash' ? (
                                                         <div className="vehicle-information-container">
-                                                            <div className="input-container vehicle-type-container mb-3">
-                                                                <label className="form-label">Vehicle type</label>
+                                                            {/* Vehicle Type & Size Selector */}
+                                                            <div className="input-container vehicle-type-container mb-4">
+                                                                <label className="form-label brand-accent fw-semibold">Select Vehicle Type &amp; Rate Category</label>
                                                                 <select
                                                                     className="form-select"
-                                                                    onChange={(e) => { setVehicleType(e.target.value); setServiceType([]); }}
+                                                                    onChange={(e) => { setVehicleType(e.target.value); }}
                                                                     value={vehicleType}
                                                                     required
-                                                                    disabled={!priceListDict}
                                                                 >
-                                                                    <option value="">{priceListDict ? "-- Select Vehicle --" : "Loading vehicles..."}</option>
+                                                                    <option value="">-- Choose Vehicle Type --</option>
                                                                     {dynamicPricingData && dynamicPricingData.map(v => (
                                                                         <option key={v._id} value={v.vehicleType}>{v.vehicleType}</option>
                                                                     ))}
                                                                 </select>
                                                             </div>
+
+                                                            {/* Sub-Category Toggle */}
+                                                            <div className="d-flex justify-content-center mb-4">
+                                                                <div className="p-1 rounded-pill d-inline-flex gap-2 w-100" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`btn btn-sm rounded-pill flex-fill py-2 transition-all ${washSubCategory === 'premium' ? 'btn-primary text-white shadow-sm' : 'text-light border-0'}`}
+                                                                        onClick={() => setWashSubCategory('premium')}
+                                                                        style={{ fontWeight: 600, fontSize: '0.85rem' }}
+                                                                    >
+                                                                        ✨ Premium Shine &amp; Care
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`btn btn-sm rounded-pill flex-fill py-2 transition-all ${washSubCategory === 'restore' ? 'btn-primary text-white shadow-sm' : 'text-light border-0'}`}
+                                                                        onClick={() => setWashSubCategory('restore')}
+                                                                        style={{ fontWeight: 600, fontSize: '0.85rem' }}
+                                                                    >
+                                                                        🧼 Restore &amp; Shine Packages
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Package Cards List */}
                                                             <div className="service-type-container">
-                                                                <label className="form-label brand-accent" >Core Services</label>
-                                                                <div className="mb-3 row row-cols-2 row-cols-lg-4 g-3">
-                                                                    {activeVehicleData?.services?.map((service) => {
-                                                                        const isSelected = serviceType.includes(service.name);
-                                                                        return (
-                                                                            <div key={service.name} className="col mb-3">
-                                                                                <div className="svc-tooltip-wrap">
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={() => toggleService(service.name)}
-                                                                                        className={`btn rounded-pill px-2 w-100 ${isSelected ? "btn-primary" : "btn-outline-secondary text-light"}`}
+                                                                <label className="form-label brand-accent mb-3">Select Package</label>
+                                                                <div className="row g-3 mb-4">
+                                                                    {(() => {
+                                                                        const key = washSubCategory === 'premium' ? 'services' : 'restorePackages';
+                                                                        const packagesToRender = (activeVehicleData && activeVehicleData[key] && activeVehicleData[key].length > 0)
+                                                                            ? activeVehicleData[key]
+                                                                            : WASH_PACKAGES_DATA[washSubCategory];
+
+                                                                        return packagesToRender.map((pkg) => {
+                                                                            const isSelected = serviceType.includes(pkg.name);
+                                                                            const tier = getVehicleSizeTier(vehicleType);
+                                                                            const isMotorcycleTier = tier === 'Motorcycle';
+                                                                            const isMotorcyclePackage = pkg.name === 'Motorcycle Wash';
+                                                                            const isDisabledPackage = (isMotorcycleTier && !isMotorcyclePackage) || (!isMotorcycleTier && vehicleType && isMotorcyclePackage);
+
+                                                                            const pkgPrice = activeVehicleData ? pkg.price : (vehicleType ? (pkg.rates ? (pkg.rates[tier] || pkg.rates.S) : null) : null);
+
+                                                                            return (
+                                                                                <div key={pkg.name} className="col-12">
+                                                                                    <div
+                                                                                        onClick={() => toggleService(pkg.name)}
+                                                                                        className="p-3 rounded-4 transition-all position-relative"
+                                                                                        style={{
+                                                                                            background: isSelected ? 'rgba(35, 160, 206, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                                                                                            border: isSelected ? '2px solid #23A0CE' : '1px solid rgba(255, 255, 255, 0.12)',
+                                                                                            opacity: isDisabledPackage ? 0.45 : 1,
+                                                                                            cursor: isDisabledPackage ? 'not-allowed' : 'pointer'
+                                                                                        }}
                                                                                     >
-                                                                                        {isSelected && <span className="me-1">✓</span>}
-                                                                                        {service.name}
-                                                                                        <span className={`brand-accent ${isSelected ? 'text-light' : ''}`} style={{ fontSize: '0.7rem', display: 'block', opacity: 0.7 }}>₱{service.price}</span>
-                                                                                    </button>
-                                                                                    {service.description && (
-                                                                                        <span className="svc-tooltip-bubble">{service.description}</span>
-                                                                                    )}
+                                                                                        <div className="d-flex justify-content-between align-items-start mb-2">
+                                                                                            <div>
+                                                                                                <div className="d-flex align-items-center gap-2 flex-wrap">
+                                                                                                    <h6 className="fw-bold mb-0 text-white" style={{ fontSize: '1rem' }}>{pkg.name}</h6>
+                                                                                                    {pkg.badge && (
+                                                                                                        <span className="badge rounded-pill" style={{ background: pkg.badge === 'BEST VALUE' ? 'linear-gradient(135deg, #10b981, #047857)' : 'linear-gradient(135deg, #0ea5e9, #1d4ed8)', fontSize: '0.65rem' }}>
+                                                                                                            {pkg.badge}
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                    {isMotorcycleTier && !isMotorcyclePackage && (
+                                                                                                        <span className="badge rounded-pill bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50" style={{ fontSize: '0.65rem' }}>
+                                                                                                            🚫 4-Wheel Vehicles Only
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                    {!isMotorcycleTier && vehicleType && isMotorcyclePackage && (
+                                                                                                        <span className="badge rounded-pill bg-warning bg-opacity-25 text-warning border border-warning border-opacity-50" style={{ fontSize: '0.65rem' }}>
+                                                                                                            🏍️ Motorcycles Only
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                                {pkg.description && (
+                                                                                                    <small className="text-secondary d-block mt-1" style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)' }}>{pkg.description}</small>
+                                                                                                )}
+                                                                                                <small className="text-secondary" style={{ fontSize: '0.75rem' }}>{pkg.ratesDisplay}</small>
+                                                                                            </div>
+                                                                                            <div className="text-end">
+                                                                                                <span className="fw-bold d-block" style={{ color: '#23A0CE', fontSize: '1.1rem' }}>
+                                                                                                    {pkgPrice ? `₱${pkgPrice.toLocaleString()}` : 'Select Vehicle'}
+                                                                                                </span>
+                                                                                                {pkg.savings && (
+                                                                                                    <span className="badge rounded-pill" style={{ background: 'rgba(35, 160, 206, 0.2)', color: '#38bdf8', fontSize: '0.68rem' }}>
+                                                                                                        {pkg.savings}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+
+                                                                                        {/* Checklist */}
+                                                                                        <ul className="list-unstyled mb-0 mt-2 pe-1" style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.8)' }}>
+                                                                                            {pkg.inclusions.map((item, idx) => (
+                                                                                                <li key={idx} className="d-flex align-items-start gap-1 mb-1">
+                                                                                                    ✅
+                                                                                                    <span>{typeof item === 'string' ? item.replace(/^\d+\.\s*/, '') : item}</span>
+                                                                                                </li>
+                                                                                            ))}
+                                                                                        </ul>
+
+                                                                                        {/* Selection Button */}
+                                                                                        <div className="mt-3 d-flex justify-content-end">
+                                                                                            <span className={`btn btn-sm rounded-pill px-3 ${isSelected ? 'btn-primary text-white' : 'btn-outline-secondary text-light'}`} style={{ fontSize: '0.78rem' }}>
+                                                                                                {isSelected ? '✓ Selected' : isDisabledPackage ? 'Not Applicable' : '+ Select Package'}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                    </div>
                                                                                 </div>
-                                                                            </div>
-                                                                        );
-                                                                    })}
+                                                                            );
+                                                                        });
+                                                                    })()}
                                                                 </div>
 
+                                                                {/* Optional Add-ons & Extras */}
                                                                 {activeVehicleData?.addons?.length > 0 && (
                                                                     <>
-                                                                        <label className="form-label brand-accent">Add-ons & Extras</label>
-                                                                        <div className="mb-4 row row-cols-2 row-cols-lg- g-3">
+                                                                        <label className="form-label brand-accent">Add-ons &amp; Extras</label>
+                                                                        <div className="mb-4 row row-cols-2 row-cols-lg-2 g-3">
                                                                             {activeVehicleData.addons.map((addon) => {
                                                                                 const isSelected = serviceType.includes(addon.name);
                                                                                 return (
@@ -739,37 +974,83 @@ const Book = () => {
                                                                     )}
                                                                 </select>
                                                             </div>
+                                                            {/* ── Pick-up Date & Time (Range Calendar) ── */}
                                                             <div className="input-container mb-3">
-                                                                <label className="form-label text-light">Pick-up Date</label>
+                                                                <label className="form-label text-light">Pick-up Date &amp; Time</label>
                                                                 <RentalDatePicker
-                                                                    selectedDate={rentalStartDate}
-                                                                    onSelectDate={(date) => {
-                                                                        setRentalStartDate(date);
+                                                                    startDate={rentalStartDate}
+                                                                    endDate={returnDate}
+                                                                    pickupTime={pickupTime}
+                                                                    onRangeSelect={(start, end) => {
+                                                                        setRentalStartDate(start);
+                                                                        setReturnDate(end);
                                                                         setError(null);
                                                                     }}
+                                                                    onTimeChange={(t) => setPickupTime(t)}
                                                                     bookedDates={vehicleBookedDates}
-                                                                    durationDays={rentalDurationDays}
                                                                     placeholder="Choose Pick-up Date"
                                                                 />
                                                             </div>
+
+                                                            {/* ── Return Date (read-only, auto-filled) ── */}
                                                             <div className="input-container mb-3">
-                                                                <label className="form-label text-light">Duration (Days)</label>
-                                                                <input type="number" className="form-control text-light" min="1" required value={rentalDurationDays} onChange={e => { setRentalDurationDays(Math.max(1, e.target.value)); }} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }} />
+                                                                <label className="form-label text-light">Return Date</label>
+                                                                <div
+                                                                    className="form-control d-flex align-items-center gap-2"
+                                                                    style={{
+                                                                        background: 'rgba(255,255,255,0.02)',
+                                                                        border: '1px solid rgba(255,255,255,0.08)',
+                                                                        color: returnDate ? '#94a3b8' : 'rgba(255,255,255,0.2)',
+                                                                        borderRadius: '8px',
+                                                                        cursor: 'not-allowed',
+                                                                        userSelect: 'none',
+                                                                        padding: '10px 14px',
+                                                                    }}
+                                                                >
+                                                                    <span style={{ fontSize: '1.1rem', opacity: 0.5 }}>🔒</span>
+                                                                    <span style={{ fontSize: '0.9rem' }}>
+                                                                        {returnDate
+                                                                            ? `${new Date(returnDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}  —  ${(() => { const [h] = pickupTime.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; return `${h % 12 || 12}:00 ${ampm}`; })()}`
+                                                                            : 'Auto-filled after date selection'}
+                                                                    </span>
+                                                                </div>
                                                             </div>
-                                                            {selectedRentalVehicle && vehicleBookedDates.length > 0 && (
-                                                                <div className="p-2 mb-3 rounded-2" style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', fontSize: '0.8rem', color: '#fde047' }}>
-                                                                    <strong>⚠️ Marked Dates on Calendar:</strong> {vehicleBookedDates.length} booked day(s) already reserved.
+
+                                                            {/* ── Duration badge (auto-calculated) ── */}
+                                                            {rentalDurationDays > 0 && (
+                                                                <div className="mb-3 d-flex align-items-center gap-2">
+                                                                    <span style={{
+                                                                        background: 'rgba(35,160,206,0.15)',
+                                                                        border: '1px solid rgba(35,160,206,0.35)',
+                                                                        color: '#38bdf8',
+                                                                        borderRadius: '99px',
+                                                                        padding: '3px 14px',
+                                                                        fontSize: '0.8rem',
+                                                                        fontWeight: 600,
+                                                                    }}>
+                                                                        🗓️ {rentalDurationDays} day{rentalDurationDays > 1 ? 's' : ''}
+                                                                    </span>
+                                                                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>rental duration</span>
                                                                 </div>
                                                             )}
+
+                                                            {/* ── Booked dates warning ── */}
+                                                            {selectedRentalVehicle && vehicleBookedDates.length > 0 && (
+                                                                <div className="p-2 mb-3 rounded-2" style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', fontSize: '0.8rem', color: '#fde047' }}>
+                                                                    <strong>⚠️ Booked Dates on Calendar:</strong> {vehicleBookedDates.length} day(s) already reserved — shown in red.
+                                                                </div>
+                                                            )}
+
                                                             <div className="input-container mb-4">
                                                                 <label className="form-label text-light">Destination</label>
                                                                 <input type="text" className="form-control text-light" placeholder="e.g. Tagaytay City, Metro Manila" required value={destination} onChange={e => setDestination(e.target.value)} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }} />
                                                             </div>
 
-                                                            {selectedRentalVehicle && rentalDurationDays && (
+                                                            {/* ── Estimated Total ── */}
+                                                            {selectedRentalVehicle && rentalDurationDays > 0 && (
                                                                 <div className="px-3 py-2 rounded-3 d-flex justify-content-between align-items-center mb-3" style={{ background: 'rgba(35,160,206,0.12)', border: '1px solid rgba(35,160,206,0.3)' }}>
                                                                     <span className="text-light" style={{ fontSize: '0.85rem' }}>Estimated Total</span>
-                                                                    <span className="fw-bold" style={{ color: '#23A0CE', fontSize: '1.1rem' }}>₱{(selectedRentalVehicle.pricePerDay * parseInt(rentalDurationDays)).toLocaleString()}</span>
+                                                                    <span className="fw-bold" style={{ color: '#23A0CE', fontSize: '1.1rem' }}>₱{(selectedRentalVehicle.pricePerDay * rentalDurationDays).toLocaleString()}</span>
                                                                 </div>
                                                             )}
                                                         </div>

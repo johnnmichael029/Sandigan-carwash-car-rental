@@ -56,6 +56,14 @@ const carRentalSchema = new mongoose.Schema({
         required: true,
         min: 1
     },
+    // ── Pick-up Time ─────────────────────────────────────────────────────────
+    // Stored as "HH:MM" (24-hour). Applied to both rentalStartDate & returnDate.
+    // Defaults to '08:00' so existing records without this field stay valid.
+    pickupTime: {
+        type: String,
+        default: '08:00',
+        match: [/^\d{2}:\d{2}$/, 'pickupTime must be in HH:MM format (e.g. "10:00")']
+    },
     estimatedTotal: {
         type: Number,
         required: true
