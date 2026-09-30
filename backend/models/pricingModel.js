@@ -12,6 +12,7 @@ const serviceItemSchema = new mongoose.Schema({
 
 const pricingSchema = new mongoose.Schema({
     vehicleType: { type: String, required: true, unique: true },
+    brandGroup: { type: String, default: '' },
     services: { type: [serviceItemSchema], default: [] },
     restorePackages: { type: [serviceItemSchema], default: [] },
     addons: { type: [serviceItemSchema], default: [] },

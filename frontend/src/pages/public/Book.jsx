@@ -18,6 +18,7 @@ import { API_BASE, SOCKET_URL, authHeaders } from '../../api/config';
 import { io } from 'socket.io-client';
 import gcashQrFallback from '../../assets/img/gcash-qr.png';
 import RentalDatePicker from '../../components/public/RentalDatePicker';
+import { groupVehiclesByBrand } from '../../utils/vehicleGrouping';
 
 // 1. Keep the base hours as military for backend compatibility
 const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
@@ -797,8 +798,12 @@ const Book = () => {
                                                                     required
                                                                 >
                                                                     <option value="">-- Choose Vehicle Type --</option>
-                                                                    {dynamicPricingData && dynamicPricingData.map(v => (
-                                                                        <option key={v._id} value={v.vehicleType}>{v.vehicleType}</option>
+                                                                    {groupVehiclesByBrand(dynamicPricingData).map(group => (
+                                                                        <optgroup key={group.brand} label={group.brand}>
+                                                                            {group.items.map(v => (
+                                                                                <option key={v.id} value={v.value}>{v.label}</option>
+                                                                            ))}
+                                                                        </optgroup>
                                                                     ))}
                                                                 </select>
                                                             </div>

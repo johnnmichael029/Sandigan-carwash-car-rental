@@ -3,6 +3,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { API_BASE, authHeaders } from '../../../api/config';
 import AdminModalWrapper from '../../admin/shared/AdminModalWrapper';
+import { groupVehiclesByBrand } from '../../../utils/vehicleGrouping';
 
 const CreateBookingModal = ({ onClose, onSave, showToast }) => {
     const [isSaving, setIsSaving] = useState(false);
@@ -354,7 +355,13 @@ const CreateBookingModal = ({ onClose, onSave, showToast }) => {
                                     <label className="form-label text-muted mb-1" style={{ fontSize: '0.8rem' }}>Vehicle Type</label>
                                     <select name="vehicleType" className="form-select form-select-sm shadow-none" value={formData.vehicleType} onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value, serviceType: [] })}>
                                         <option value="">-- Select Vehicle --</option>
-                                        {dynamicPricingData.map(v => <option key={v._id} value={v.vehicleType}>{v.vehicleType}</option>)}
+                                        {groupVehiclesByBrand(dynamicPricingData).map(group => (
+                                            <optgroup key={group.brand} label={group.brand}>
+                                                {group.items.map(v => (
+                                                    <option key={v.id} value={v.value}>{v.label}</option>
+                                                ))}
+                                            </optgroup>
+                                        ))}
                                     </select>
                                 </div>
                                 <div className="col-md-6 text-start">

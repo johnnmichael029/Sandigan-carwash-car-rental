@@ -49,23 +49,37 @@ const ServiceSettingsPage = ({ user, isDark }) => {
     };
 
     const handleCreateVehicle = async () => {
-        const { value: name, isConfirmed } = await Swal.fire({
+        const { value: formValues, isConfirmed } = await Swal.fire({
             title: 'New Vehicle Type',
-            input: 'text',
-            inputPlaceholder: 'e.g., Luxury SUV',
+            html:
+                '<div className="text-start mb-2"><label className="small font-poppins text-muted">Vehicle / Model Name</label></div>' +
+                '<input id="swal-vname" class="swal2-input mt-1 mb-3" placeholder="e.g., Fortuner, Innova, Sedan">' +
+                '<div className="text-start mb-2"><label className="small font-poppins text-muted">Brand / Group Category</label></div>' +
+                '<input id="swal-vbrand" class="swal2-input mt-1" placeholder="e.g., Toyota, Mitsubishi, General Categories">',
+            focusConfirm: false,
             showCancelButton: true,
             confirmButtonText: 'Create',
             confirmButtonColor: '#23A0CE',
             background: 'var(--theme-modal-bg)',
             color: 'var(--theme-content-text)',
-            inputValidator: (value) => {
-                if (!value || !value.trim()) return 'Please enter a vehicle type name.';
+            preConfirm: () => {
+                const vname = document.getElementById('swal-vname')?.value;
+                const vbrand = document.getElementById('swal-vbrand')?.value;
+                if (!vname || !vname.trim()) {
+                    Swal.showValidationMessage('Please enter a vehicle type name.');
+                    return false;
+                }
+                return { vehicleType: vname.trim(), brandGroup: vbrand ? vbrand.trim() : '' };
             }
         });
-        if (!isConfirmed || !name?.trim()) return;
+        if (!isConfirmed || !formValues) return;
         try {
             const res = await axios.post(`${API_BASE}/pricing`, {
-                vehicleType: name.trim(), services: [], restorePackages: [], addons: []
+                vehicleType: formValues.vehicleType,
+                brandGroup: formValues.brandGroup,
+                services: [],
+                restorePackages: [],
+                addons: []
             }, { headers: authHeaders(), withCredentials: true });
             mutatePricing();
             setSelectedVehicle(res.data);
@@ -122,6 +136,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
         try {
             const res = await axios.put(`${API_BASE}/pricing/${editingDoc._id}`, {
                 vehicleType: editingDoc.vehicleType,
+                brandGroup: editingDoc.brandGroup || '',
                 services: editingDoc.services || [],
                 restorePackages: editingDoc.restorePackages || [],
                 addons: editingDoc.addons || []
@@ -327,7 +342,10 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                         onClick={() => handleSelectVehicle(v)}
                                         style={{ cursor: 'pointer', transition: '0.2s' }}
                                     >
-                                        <span className="fw-bold font-poppins" style={{ fontSize: '0.9rem' }}>{v.vehicleType}</span>
+                                        <div>
+                                            <span className="fw-bold font-poppins d-block" style={{ fontSize: '0.9rem' }}>{v.vehicleType}</span>
+                                            {v.brandGroup && <span className="badge bg-info bg-opacity-25 text-info rounded-pill" style={{ fontSize: '0.68rem', fontWeight: 600 }}>{v.brandGroup}</span>}
+                                        </div>
                                         <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{(v.services?.length || 0) + (v.restorePackages?.length || 0) + (v.addons?.length || 0)} items</span>
                                     </li>
                                 ))}
@@ -351,10 +369,42 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                 </div>
 
                                 <div className="card-body p-4 p-lg-5">
+                                    {/* Brand / Group Category Field */}
+                                    <div className="mb-4 p-3 rounded-3" style={{ background: 'rgba(35, 160, 206, 0.08)', border: '1px solid rgba(35, 160, 206, 0.2)' }}>
+                                        <div className="row align-items-center g-3">
+                                            <div className="col-md-6">
+                                                <label className="form-label text-muted fw-bold small mb-1">Brand / Group Category</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control form-control-sm"
+                                                    value={editingDoc.brandGroup || ''}
+                                                    onChange={(e) => setEditingDoc({ ...editingDoc, brandGroup: e.target.value })}
+                                                    placeholder="e.g. Toyota, Mitsubishi, General Categories, Motorcycles"
+                                                />
+                                                <small className="text-muted d-block mt-1" style={{ fontSize: '0.73rem' }}>
+                                                    Group name in booking dropdowns (e.g. "Toyota", "Mitsubishi").
+                                                </small>
+                                            </div>
+                                            <div className="col-md-6">
+                                                <label className="form-label text-muted fw-bold small mb-1">Vehicle / Model Name</label>
+
+                                                <input
+                                                    type="text"
+                                                    className="form-control form-control-sm"
+                                                    value={editingDoc.vehicleType || ''}
+                                                    onChange={(e) => setEditingDoc({ ...editingDoc, vehicleType: e.target.value })}
+                                                    placeholder="e.g. Fortuner"
+                                                />
+                                                <small className="text-muted d-block mt-1" style={{ fontSize: '0.73rem' }}>
+                                                    Specific model name (e.g., "Hilux", "Montero").
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
                                     {/* 1. ✨ Premium Shine & Care Washes */}
                                     <div className="mb-5">
                                         <div className="d-flex justify-content-between align-items-center mb-3">
-                                            <h6 className="fw-bold text-dark-secondary mb-0">✨ Premium Shine &amp; Care Washes</h6>
+                                            <h6 className="fw-bold mb-0" style={{ color: "var(--brand-primary)" }}>✨ Premium Shine &amp; Care Washes</h6>
                                             <button onClick={() => addServiceOrAddon('services')} className="btn btn-sm btn-save rounded-pill text-white shadow-sm">+ Add Wash Service</button>
                                         </div>
                                         {(!editingDoc.services || editingDoc.services.length === 0) ? <p className="text-muted small">No wash services defined.</p> : (
@@ -399,7 +449,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                     {/* 2. 🧼 Restore & Shine Packages */}
                                     <div className="mb-5">
                                         <div className="d-flex justify-content-between align-items-center mb-3">
-                                            <h6 className="fw-bold brand-primary mb-0">🧼 Restore &amp; Shine Packages</h6>
+                                            <h6 className="fw-bold mb-0" style={{ color: "var(--brand-primary)" }}>🧼 Restore &amp; Shine Packages</h6>
                                             <button onClick={() => addServiceOrAddon('restorePackages')} className="btn btn-sm btn-save rounded-pill text-white shadow-sm">+ Add Package</button>
                                         </div>
                                         {(!editingDoc.restorePackages || editingDoc.restorePackages.length === 0) ? <p className="text-muted small">No restore packages defined for this vehicle.</p> : (
@@ -444,7 +494,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                     {/* 3. ➕ Addons & Extras */}
                                     <div className="mb-4">
                                         <div className="d-flex justify-content-between align-items-center mb-3">
-                                            <h6 className="fw-bold text-info mb-0">➕ Add-ons &amp; Extras</h6>
+                                            <h6 className="fw-bold mb-0" style={{ color: "var(--brand-primary)" }}>➕ Add-ons &amp; Extras</h6>
                                             <button onClick={() => addServiceOrAddon('addons')} className="btn btn-sm btn-save rounded-pill text-white shadow-sm">+ Add Item</button>
                                         </div>
                                         {(!editingDoc.addons || editingDoc.addons.length === 0) ? <p className="text-muted small">No add-ons defined.</p> : (
@@ -598,9 +648,67 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                                 <div className="col-md-6 d-flex flex-column justify-content-center">
                                                     <label className="form-label fw-bold text-muted small">Availability</label>
                                                     <div className="form-check form-switch pt-1">
-                                                        <input className="form-check-input" type="checkbox" role="switch" id="fleetAvailable" checked={editingFleet.isAvailable} onChange={e => setEditingFleet({ ...editingFleet, isAvailable: e.target.checked })} />
-                                                        <label className="form-check-label" htmlFor="fleetAvailable">{editingFleet.isAvailable ? 'Available' : 'Unavailable'}</label>
+                                                        <input
+                                                            className="form-check-input"
+                                                            type="checkbox"
+                                                            role="switch"
+                                                            id="fleetAvailable"
+                                                            checked={editingFleet.isAvailable}
+                                                            onChange={e => setEditingFleet({
+                                                                ...editingFleet,
+                                                                isAvailable: e.target.checked,
+                                                                unavailableReason: e.target.checked ? '' : (editingFleet.unavailableReason || '')
+                                                            })}
+                                                        />
+                                                        <label className="form-check-label" htmlFor="fleetAvailable">
+                                                            {editingFleet.isAvailable
+                                                                ? <span style={{ color: '#10b981', fontWeight: 600 }}>Available</span>
+                                                                : <span style={{ color: '#ef4444', fontWeight: 600 }}>Unavailable</span>}
+                                                        </label>
                                                     </div>
+                                                    {/* Reason selector — shown only when unavailable */}
+                                                    {!editingFleet.isAvailable && (() => {
+                                                        const PRESET_REASONS = [
+                                                            'Under Maintenance',
+                                                            'In Use',
+                                                            'No Longer Available',
+                                                            'Retired',
+                                                        ];
+                                                        const isCustom = editingFleet.unavailableReason && !PRESET_REASONS.includes(editingFleet.unavailableReason);
+                                                        return (
+                                                            <div className="mt-2" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                                <label className="form-label fw-bold text-muted small mb-0">Reason</label>
+                                                                <select
+                                                                    className="form-select form-select-sm"
+                                                                    style={{ borderColor: '#ef4444', fontSize: '0.8rem' }}
+                                                                    value={isCustom ? '__custom__' : (editingFleet.unavailableReason || '')}
+                                                                    onChange={e => {
+                                                                        if (e.target.value === '__custom__') {
+                                                                            setEditingFleet({ ...editingFleet, unavailableReason: '' });
+                                                                        } else {
+                                                                            setEditingFleet({ ...editingFleet, unavailableReason: e.target.value });
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <option value="">— Select a reason —</option>
+                                                                    {PRESET_REASONS.map(r => (
+                                                                        <option key={r} value={r}>{r}</option>
+                                                                    ))}
+                                                                    <option value="__custom__">Custom…</option>
+                                                                </select>
+                                                                {(isCustom || editingFleet.unavailableReason === '') && (
+                                                                    <input
+                                                                        type="text"
+                                                                        className="form-control form-control-sm"
+                                                                        style={{ borderColor: '#ef4444', fontSize: '0.8rem' }}
+                                                                        placeholder="e.g. Awaiting Parts, Sold, etc."
+                                                                        value={isCustom ? editingFleet.unavailableReason : ''}
+                                                                        onChange={e => setEditingFleet({ ...editingFleet, unavailableReason: e.target.value })}
+                                                                    />
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                             <div className="mb-3">

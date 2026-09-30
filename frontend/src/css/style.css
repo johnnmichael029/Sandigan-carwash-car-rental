@@ -846,7 +846,7 @@ label {
 }
 
 .service-settings-active {
-    background-color: var(--brand-dark);
+    background-color: var(--brand-dark) !important;
     font-weight: 500;
     color: var(--text-primary);
 }
@@ -1864,4 +1864,3 @@ label {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
 }
-

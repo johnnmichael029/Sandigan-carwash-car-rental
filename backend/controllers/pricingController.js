@@ -111,6 +111,51 @@ const DEFAULT_RESTORE_PACKAGES = (tier) => {
     ];
 };
 
+const getBrandGroupForVehicle = (vType) => {
+    if (!vType) return 'General Categories';
+    const BRAND_MAP = {
+        'Fortuner': 'Toyota',
+        'Innova': 'Toyota',
+        'Veloz': 'Toyota',
+        'Vios': 'Toyota',
+        'Wigo': 'Toyota',
+        'Avanza': 'Toyota',
+        'Montero': 'Mitsubishi',
+        'Adventure': 'Mitsubishi',
+        'L300': 'Mitsubishi',
+        'X-pander Cross': 'Mitsubishi',
+        'Mirage C4': 'Mitsubishi',
+        'Crosswind': 'Isuzu',
+        'Everest': 'Ford',
+        'Ertiga': 'Suzuki',
+        'Honda Civic': 'Honda',
+        'Changan': 'Changan',
+        'Travis': 'Foton / Chevrolet',
+        'Hatchback': 'General Categories',
+        'Sedan': 'General Categories',
+        'Compact': 'General Categories',
+        'MPV': 'General Categories',
+        'SUV': 'General Categories',
+        'Pick Up': 'General Categories',
+        'Van': 'General Categories',
+        'Jeep': 'General Categories',
+        'Big Bike': 'Motorcycles & Bikes',
+        '150cc': 'Motorcycles & Bikes',
+        '125cc': 'Motorcycles & Bikes',
+        '100cc': 'Motorcycles & Bikes',
+        'Tricycle': 'Motorcycles & Bikes'
+    };
+    if (BRAND_MAP[vType]) return BRAND_MAP[vType];
+    if (/toyota/i.test(vType)) return 'Toyota';
+    if (/mitsubishi/i.test(vType)) return 'Mitsubishi';
+    if (/isuzu/i.test(vType)) return 'Isuzu';
+    if (/ford/i.test(vType)) return 'Ford';
+    if (/suzuki/i.test(vType)) return 'Suzuki';
+    if (/honda/i.test(vType)) return 'Honda';
+    if (/bike|cc|tricycle/i.test(vType)) return 'Motorcycles & Bikes';
+    return 'Other Brands';
+};
+
 const seedPricingIfNotExists = async () => {
     try {
         // Clean up dummy standard categories if they were previously created
@@ -122,6 +167,7 @@ const seedPricingIfNotExists = async () => {
                 const tier = getVehicleTier(vehicleType);
                 return {
                     vehicleType,
+                    brandGroup: getBrandGroupForVehicle(vehicleType),
                     services: DEFAULT_PREMIUM_WASHES(tier),
                     restorePackages: DEFAULT_RESTORE_PACKAGES(tier),
                     addons: [...NEW_ADDONS]
@@ -129,25 +175,17 @@ const seedPricingIfNotExists = async () => {
             });
             await Pricing.insertMany(seedData);
         } else {
-            // Ensure all PRICE_LIST vehicles exist
-            for (let vehicleType of Object.keys(PRICE_LIST)) {
-                const exists = await Pricing.findOne({ vehicleType });
-                if (!exists) {
-                    const tier = getVehicleTier(vehicleType);
-                    await Pricing.create({
-                        vehicleType,
-                        services: DEFAULT_PREMIUM_WASHES(tier),
-                        restorePackages: DEFAULT_RESTORE_PACKAGES(tier),
-                        addons: [...NEW_ADDONS]
-                    });
-                }
-            }
-
-            // Migrate existing docs if restorePackages is empty or services contains legacy names ("Wash")
+            // Migrate existing docs if missing brandGroup, restorePackages, or services contains legacy names
             const docs = await Pricing.find();
             for (let doc of docs) {
                 let modified = false;
                 const tier = getVehicleTier(doc.vehicleType);
+
+                // Default brand group if missing
+                if (!doc.brandGroup || !doc.brandGroup.trim()) {
+                    doc.brandGroup = getBrandGroupForVehicle(doc.vehicleType);
+                    modified = true;
+                }
 
                 // Upgrade services if legacy
                 const hasLegacyServices = doc.services?.some(s => s.name === 'Wash' || s.name === 'Engine' || s.name === 'Wax');
@@ -203,6 +241,7 @@ const getPricing = async (req, res) => {
             dynamicPricing.push({
                 _id: doc._id,
                 vehicleType: doc.vehicleType,
+                brandGroup: doc.brandGroup || '',
                 services: doc.services || [],
                 restorePackages: doc.restorePackages || [],
                 addons: doc.addons || []
@@ -246,11 +285,13 @@ const calculateTotalFromDb = async (vehicleType, serviceArray) => {
 
 const createVehiclePricing = async (req, res) => {
     try {
-        const { vehicleType, services, restorePackages, addons } = req.body;
+        const { vehicleType, brandGroup, services, restorePackages, addons } = req.body;
         const exists = await Pricing.findOne({ vehicleType });
-        if (exists) return res.status(400).json({ error: 'Vehicle Type already exists' });
+        if (exists) return res.status(400).json({ error: `Vehicle type "${vehicleType}" already exists.` });
 
-        const newDoc = new Pricing({ vehicleType, services, restorePackages: restorePackages || [], addons: addons || [] });
+        const defaultBrand = brandGroup || getBrandGroupForVehicle(vehicleType);
+
+        const newDoc = new Pricing({ vehicleType, brandGroup: defaultBrand, services: services || [], restorePackages: restorePackages || [], addons: addons || [] });
         await newDoc.save();
 
         // Emit real-time update
@@ -259,17 +300,29 @@ const createVehiclePricing = async (req, res) => {
 
         res.status(201).json(newDoc);
     } catch (err) {
-        res.status(500).json({ error: 'Failed to create vehicle pricing' });
+        console.error("createVehiclePricing error:", err);
+        res.status(500).json({ error: err.message || 'Failed to create vehicle pricing' });
     }
 };
 
 const updateVehiclePricing = async (req, res) => {
     try {
-        const { vehicleType, services, restorePackages, addons } = req.body;
+        const { vehicleType, brandGroup, services, restorePackages, addons } = req.body;
+
+        // Check if another vehicle document already has this vehicleType
+        const existingDoc = await Pricing.findOne({ vehicleType, _id: { $ne: req.params.id } });
+        if (existingDoc) {
+            return res.status(400).json({ error: `Vehicle type "${vehicleType}" already exists.` });
+        }
+
         const updated = await Pricing.findByIdAndUpdate(req.params.id,
-            { vehicleType, services: services || [], restorePackages: restorePackages || [], addons: addons || [] },
+            { vehicleType, brandGroup: brandGroup !== undefined ? brandGroup : '', services: services || [], restorePackages: restorePackages || [], addons: addons || [] },
             { new: true }
         );
+
+        if (!updated) {
+            return res.status(404).json({ error: 'Vehicle pricing record not found' });
+        }
 
         // Emit real-time update
         const io = req.app.get('io');
@@ -277,7 +330,8 @@ const updateVehiclePricing = async (req, res) => {
 
         res.json(updated);
     } catch (err) {
-        res.status(500).json({ error: 'Failed to update vehicle pricing' });
+        console.error("updateVehiclePricing error:", err);
+        res.status(500).json({ error: err.message || 'Failed to update vehicle pricing' });
     }
 };
 

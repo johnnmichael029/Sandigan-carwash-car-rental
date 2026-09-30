@@ -45,6 +45,7 @@ const rentalFleetRoutes = require('./routes/rentalFleetRoutes');
 const carRentalRoutes = require('./routes/carRentalRoutes');
 const vehicleTypeRoutes = require('./routes/vehicleTypeRoutes');
 const chatbotRoutes = require('./routes/chatbotRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 const path = require('path');
 
 // Middleware
@@ -262,6 +263,7 @@ app.use('/api/car-rentals', carRentalRoutes);
 app.use('/api/vehicle-types', vehicleTypeRoutes);
 app.use('/api/sandi', require('./routes/sandiRoutes'));
 app.use('/api/loyalty', require('./routes/loyaltyRoutes'));
+app.use('/api/analytics', analyticsRoutes);
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {
     if (err.code === 'EBADCSRFTOKEN') {

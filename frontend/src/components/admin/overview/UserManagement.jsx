@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { API_BASE, authHeaders } from '../../../api/config';
 import TopHeader from '../TopHeader';
@@ -490,7 +490,17 @@ const UserManagement = ({ user, isDark }) => {
                                                             ) : null;
                                                         })}
                                                     </div>
-                                                ) : <span style={{ color: 'var(--theme-content-text-secondary)', fontSize: '0.8rem' }}>Full Access</span>}
+                                                ) : (
+                                                    <span style={{ color: 'var(--theme-content-text-secondary)', fontSize: '0.8rem' }}>
+                                                        {emp.role === 'super_admin' || emp.role === 'admin'
+                                                            ? 'Full Access'
+                                                            : emp.role === 'detailer'
+                                                                ? 'Detailer Operations'
+                                                                : emp.role === 'employee'
+                                                                    ? 'Standard Employee'
+                                                                    : 'No Department Access'}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="py-3 pe-4 text-end align-middle">
                                                 <div className="d-flex gap-2 justify-content-end">

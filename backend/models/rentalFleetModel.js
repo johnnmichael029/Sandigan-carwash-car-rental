@@ -28,6 +28,10 @@ const rentalFleetSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    unavailableReason: {
+        type: String,
+        default: ''
+    },
     description: {
         type: String,
         default: ''

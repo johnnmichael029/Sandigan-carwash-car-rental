@@ -392,7 +392,14 @@ const AboutSection = () => (
 ═══════════════════════════════════════════ */
 
 // Reusable service card component — Uniform Height (560px) & Equal Alignment
-const ServiceCard = ({ image, title, duration, price, savings, rates, description, inclusions, type, onRentNow, vehicleTypeName, vehicleTypeBg, vehicleTypeText, isAvailable, badge, badgeBg, isFeatured }) => (
+const formatRentalDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const ServiceCard = ({ image, title, duration, price, savings, rates, description, inclusions, type, onRentNow, vehicleTypeName, vehicleTypeBg, vehicleTypeText, isAvailable, unavailableReason, activeRentalStart, activeRentalEnd, badge, badgeBg, isFeatured }) => (
     <div
         className={`service-card d-flex flex-column align-items-start gap-0 w-100 position-relative ${isFeatured ? 'featured-card' : ''}`}
         style={{
@@ -442,8 +449,8 @@ const ServiceCard = ({ image, title, duration, price, savings, rates, descriptio
                 <div style={{
                     position: 'absolute', inset: 0,
                     background: 'rgba(0,0,0,0.45)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    borderTopLeftRadius: '24px', borderTopRightRadius: '24px'
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    borderTopLeftRadius: '24px', borderTopRightRadius: '24px', gap: '6px', padding: '12px'
                 }}>
                     <span style={{
                         background: '#1a1a1a',
@@ -460,8 +467,24 @@ const ServiceCard = ({ image, title, duration, price, savings, rates, descriptio
                         gap: '6px'
                     }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }}></span>
-                        Currently Unavailable
+                        {unavailableReason || 'Currently Unavailable'}
                     </span>
+                    {activeRentalStart && activeRentalEnd && (
+                        <span style={{
+                            color: 'rgba(255,255,255,0.95)',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            background: 'rgba(0,0,0,0.65)',
+                            padding: '4px 12px',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(239, 68, 68, 0.4)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px'
+                        }}>
+                            📅 {formatRentalDate(activeRentalStart)} – {formatRentalDate(activeRentalEnd)}
+                        </span>
+                    )}
                 </div>
             )}
         </div>
@@ -486,7 +509,7 @@ const ServiceCard = ({ image, title, duration, price, savings, rates, descriptio
                     </div>
                 )}
 
-                {/* Checklist Inclusions */}
+                {/* Checklist Inclusions / Features */}
                 {inclusions && Array.isArray(inclusions) ? (
                     <ul className="list-unstyled mb-2 mt-2 pe-1" style={{ fontSize: '0.8rem', lineHeight: 1.45, color: 'rgba(255,255,255,0.85)' }}>
                         {inclusions.map((item, idx) => (
@@ -497,10 +520,31 @@ const ServiceCard = ({ image, title, duration, price, savings, rates, descriptio
                         ))}
                     </ul>
                 ) : description ? (
-                    <p className="service-description hero-description mb-0 mt-2" style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>
-                        {description}
-                    </p>
+                    typeof description === 'string' && (description.includes(',') || description.includes('\n')) ? (
+                        <ul className="list-unstyled mb-2 mt-2 pe-1" style={{ fontSize: '0.8rem', lineHeight: 1.45, color: 'rgba(255,255,255,0.85)' }}>
+                            {description.split(/,|\n/).map(s => s.trim()).filter(Boolean).map((item, idx) => (
+                                <li key={idx} className="d-flex align-items-start gap-2 mb-1">
+                                    <span className="brand-accent fw-bold" style={{ fontSize: '0.85rem', minWidth: '10px' }}>•</span>
+                                    <span>{item}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="service-description hero-description mb-0 mt-2" style={{ fontSize: '0.85rem', lineHeight: 1.5, color: 'rgba(255,255,255,0.85)' }}>
+                            {description}
+                        </p>
+                    )
                 ) : null}
+
+                {/* Active Rental Dates callout */}
+                {type === 'rental' && activeRentalStart && activeRentalEnd && (
+                    <div className="mt-2 p-2 rounded-3 d-flex align-items-center gap-2" style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)', fontSize: '0.78rem', color: '#fca5a5' }}>
+                        <span style={{ fontSize: '0.9rem' }}>📅</span>
+                        <span>
+                            <strong>Rental Period:</strong> {formatRentalDate(activeRentalStart)} – {formatRentalDate(activeRentalEnd)}
+                        </span>
+                    </div>
+                )}
 
                 {/* Vehicle Rates Breakdown */}
                 {rates && (
@@ -866,8 +910,12 @@ const ServiceSection = () => {
                                     title: service.vehicleName,
                                     duration: `${service.seats}-SEATER`,
                                     price: `₱${service.pricePerDay?.toLocaleString()}/day`,
+                                    description: service.description || '',
                                     type: 'rental',
                                     isAvailable: service.isAvailable,
+                                    unavailableReason: service.unavailableReason || '',
+                                    activeRentalStart: service.activeRentalStart || null,
+                                    activeRentalEnd: service.activeRentalEnd || null,
                                     onRentNow: service.isAvailable ? () => window.location.href = `/book?type=rental&vehicleId=${service._id}` : undefined,
                                     vehicleTypeName: service.vehicleType,
                                     vehicleTypeBg: vehicleTypesList.find(t => t.name === service.vehicleType)?.color || '#6c757d',

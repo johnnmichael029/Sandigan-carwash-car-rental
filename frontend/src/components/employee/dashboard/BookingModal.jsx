@@ -3,6 +3,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { API_BASE, authHeaders } from '../../../api/config';
 import AdminModalWrapper from '../../admin/shared/AdminModalWrapper';
+import { groupVehiclesByBrand } from '../../../utils/vehicleGrouping';
 
 // Icons
 import pendingBooking from '../../../assets/icon/pending-booking-brand.png';
@@ -646,8 +647,12 @@ const BookingModal = ({ booking, onClose, showToast, onSave, onPrint, onSMC, onS
                                     {editMode && dynamicPricingData.length > 0 ? (
                                         <select name="vehicleType" className="form-select form-select-sm shadow-none" value={formData.vehicleType} onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value, serviceType: [] })}>
                                             <option value="" disabled>-- Select Vehicle --</option>
-                                            {dynamicPricingData.map(v => (
-                                                <option key={v._id} value={v.vehicleType}>{v.vehicleType}</option>
+                                            {groupVehiclesByBrand(dynamicPricingData).map(group => (
+                                                <optgroup key={group.brand} label={group.brand}>
+                                                    {group.items.map(v => (
+                                                        <option key={v.id} value={v.value}>{v.label}</option>
+                                                    ))}
+                                                </optgroup>
                                             ))}
                                         </select>
                                     ) : (
