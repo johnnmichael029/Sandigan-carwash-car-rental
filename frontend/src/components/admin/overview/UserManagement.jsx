@@ -593,22 +593,22 @@ const UserManagement = ({ user, isDark }) => {
                                     <p className="fw-bold mb-3" style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--theme-content-text-secondary)' }}>Basic Info</p>
                                     <div className="row g-3">
                                         <div className="col-md-6">
-                                            <label className="form-label small fw-bold">Full Name *</label>
+                                            <label className="form-label small fw-bold" style={{ color: 'var(--theme-content-text-secondary)' }}>Full Name *</label>
                                             <input className="form-control rounded-3" style={{ background: 'var(--theme-card-bg)', color: 'var(--theme-content-text)', border: '1px solid var(--theme-input-border)' }}
                                                 value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} placeholder="e.g. Juan Dela Cruz" />
                                         </div>
                                         <div className="col-md-6">
-                                            <label className="form-label small fw-bold">Email {editingEmployee ? '(leave blank to keep)' : '*'}</label>
+                                            <label className="form-label small fw-bold" style={{ color: 'var(--theme-content-text-secondary)' }}>Email {editingEmployee ? '(leave blank to keep)' : '*'}</label>
                                             <input type="email" className="form-control rounded-3" style={{ background: 'var(--theme-card-bg)', color: 'var(--theme-content-text)', border: '1px solid var(--theme-input-border)' }}
                                                 value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="e.g. juan@sandigan.com" />
                                         </div>
                                         <div className="col-md-6">
-                                            <label className="form-label small fw-bold">Password {editingEmployee ? '(leave blank to keep)' : '*'}</label>
+                                            <label className="form-label small fw-bold" style={{ color: 'var(--theme-content-text-secondary)' }}>Password {editingEmployee ? '(leave blank to keep)' : '*'}</label>
                                             <input type="password" className="form-control rounded-3" style={{ background: 'var(--theme-card-bg)', color: 'var(--theme-content-text)', border: '1px solid var(--theme-input-border)' }}
                                                 value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder={editingEmployee ? 'Leave blank to keep current' : 'Set a password'} />
                                         </div>
                                         <div className="col-md-6">
-                                            <label className="form-label small fw-bold">Role *</label>
+                                            <label className="form-label small fw-bold" style={{ color: 'var(--theme-content-text-secondary)' }}>Role *</label>
                                             <select className="form-select rounded-3" style={{ background: 'var(--theme-card-bg)', color: 'var(--theme-content-text)', border: '1px solid var(--theme-input-border)' }}
                                                 value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value, departments: [], permissions: {} }))}>
                                                 {ROLE_OPTIONS.map(r => <option key={r} value={r}>{ROLE_BADGE[r]?.label || r}</option>)}

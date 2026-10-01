@@ -857,6 +857,25 @@ label {
     color: var(--text-primary);
 }
 
+/* Theme Active State Dashboard Tab */
+.dashboard-tab:hover {
+    background-color: var(--brand-active);
+    font-weight: 500;
+    color: var(--brand-primary);
+}
+
+.dashboard-tab-active {
+    background-color: var(--brand-dark) !important;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.dashboard-tab-active:hover {
+    background-color: var(--brand-dark);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
 .category-tags:hover {
     background: linear-gradient(135deg, #1e293b, #0f172a);
 }

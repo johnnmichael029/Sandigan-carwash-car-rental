@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import '../../../css/style.css';
 import useSWR from 'swr';
 import { io } from 'socket.io-client';
 import { API_BASE } from '../../../api/config';
@@ -192,10 +193,10 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`btn btn-sm px-3 py-2 rounded-3 fw-bold d-flex align-items-center gap-2 border-0 transition-all ${activeTab === tab.id ? 'btn-save text-white shadow-sm' : 'text-secondary'}`}
+                                className={`btn btn-sm px-3 py-2 rounded-3 fw-bold d-flex align-items-center gap-2 border-0 transition-all dashboard-tab ${activeTab === tab.id ? 'dashboard-tab-active' : ''}`}
                                 style={{
                                     fontSize: '0.85rem',
-                                    background: activeTab === tab.id ? undefined : 'transparent'
+                                    color: activeTab === tab.id ? undefined : 'var(--theme-content-text)'
                                 }}
                             >
                                 <i className={`bi ${tab.icon}`}></i>
@@ -805,52 +806,52 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                                 </div>
                             </div>
                         </div>
-                    {/* Revenue vs Expenses Grouped Bar Chart */}
-                    <div className="col-12 col-xl-8">
-                        <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
-                            <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>Revenue vs Expenses (Past 6 Months)</h6>
-                            <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Comparing monthly inflow vs outflow & net profit line</p>
-                            {isLoading ? <ChartSkeleton /> : (
-                                <div style={{ height: 320, width: '100%' }}>
-                                    <ResponsiveContainer>
-                                        <BarChart data={finance.monthlyOverview}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#334155' : '#eee'} />
-                                            <XAxis dataKey="month" tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }} />
-                                            <YAxis tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }} tickFormatter={(v) => `₱${v}`} />
-                                            <Tooltip content={<CustomTooltip currency={true} />} />
-                                            <Legend verticalAlign="top" height={36} />
-                                            <Bar dataKey="revenue" name="Total Revenue" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                                            <Bar dataKey="expense" name="Total Expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            )}
+                        {/* Revenue vs Expenses Grouped Bar Chart */}
+                        <div className="col-12 col-xl-8">
+                            <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
+                                <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>Revenue vs Expenses (Past 6 Months)</h6>
+                                <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Comparing monthly inflow vs outflow & net profit line</p>
+                                {isLoading ? <ChartSkeleton /> : (
+                                    <div style={{ height: 320, width: '100%' }}>
+                                        <ResponsiveContainer>
+                                            <BarChart data={finance.monthlyOverview}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#334155' : '#eee'} />
+                                                <XAxis dataKey="month" tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }} />
+                                                <YAxis tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }} tickFormatter={(v) => `₱${v}`} />
+                                                <Tooltip content={<CustomTooltip currency={true} />} />
+                                                <Legend verticalAlign="top" height={36} />
+                                                <Bar dataKey="revenue" name="Total Revenue" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                                                <Bar dataKey="expense" name="Total Expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Expense Breakdown Pie Chart */}
-                    <div className="col-12 col-xl-4">
-                        <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
-                            <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>Expense Categories (This Month)</h6>
-                            <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Operational spending distribution</p>
-                            {isLoading ? <ChartSkeleton /> : (
-                                <div style={{ height: 320, width: '100%' }}>
-                                    <ResponsiveContainer>
-                                        <PieChart>
-                                            <Pie data={finance.expenseCategories} dataKey="total" nameKey="category" innerRadius={55} outerRadius={85} paddingAngle={4}>
-                                                {finance.expenseCategories.map((entry, index) => (
-                                                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip content={<CustomTooltip currency={true} />} />
-                                            <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            )}
+                        {/* Expense Breakdown Pie Chart */}
+                        <div className="col-12 col-xl-4">
+                            <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
+                                <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>Expense Categories (This Month)</h6>
+                                <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Operational spending distribution</p>
+                                {isLoading ? <ChartSkeleton /> : (
+                                    <div style={{ height: 320, width: '100%' }}>
+                                        <ResponsiveContainer>
+                                            <PieChart>
+                                                <Pie data={finance.expenseCategories} dataKey="total" nameKey="category" innerRadius={55} outerRadius={85} paddingAngle={4}>
+                                                    {finance.expenseCategories.map((entry, index) => (
+                                                        <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip content={<CustomTooltip currency={true} />} />
+                                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
                 );
             })()}
         </div>
