@@ -24,8 +24,6 @@ const getBusinessDates = (startStr, endStr) => {
  */
 const createLeave = async (req, res) => {
     try {
-        if (req.employeeRole !== 'admin') return res.status(403).json({ error: 'Admins only.' });
-
         const { employeeId, leaveType, startDate, endDate, reason } = req.body;
         if (!employeeId || !leaveType || !startDate || !endDate) {
             return res.status(400).json({ error: 'employeeId, leaveType, startDate, and endDate are required.' });
@@ -69,8 +67,6 @@ const createLeave = async (req, res) => {
  */
 const getAllLeaves = async (req, res) => {
     try {
-        if (req.employeeRole !== 'admin') return res.status(403).json({ error: 'Admins only.' });
-
         const leaves = await Leave.find({})
             .populate('employee', 'fullName role leaveBalances')
             .populate('approvedBy', 'fullName')
@@ -87,8 +83,6 @@ const getAllLeaves = async (req, res) => {
  */
 const updateLeaveStatus = async (req, res) => {
     try {
-        if (req.employeeRole !== 'admin') return res.status(403).json({ error: 'Admins only.' });
-
         const { status, adminRemarks } = req.body;
         if (!['Approved', 'Rejected'].includes(status)) {
             return res.status(400).json({ error: 'Status must be Approved or Rejected.' });
@@ -173,8 +167,6 @@ const updateLeaveStatus = async (req, res) => {
  */
 const deleteLeave = async (req, res) => {
     try {
-        if (req.employeeRole !== 'admin') return res.status(403).json({ error: 'Admins only.' });
-
         const leave = await Leave.findById(req.params.id).populate('employee');
         if (!leave) return res.status(404).json({ error: 'Leave record not found.' });
 
@@ -203,7 +195,6 @@ const deleteLeave = async (req, res) => {
  */
 const updateLeaveBalances = async (req, res) => {
     try {
-        if (req.employeeRole !== 'admin') return res.status(403).json({ error: 'Admins only.' });
         const { employeeId, sickLeaveAllocated, vacationLeaveAllocated } = req.body;
         const emp = await Employee.findById(employeeId);
         if (!emp) return res.status(404).json({ error: 'Employee not found.' });

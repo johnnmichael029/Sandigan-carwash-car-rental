@@ -243,10 +243,6 @@ const adminClockToggle = async (req, res) => {
  */
 const approveOT = async (req, res) => {
     try {
-        if (req.employeeRole !== 'admin') {
-            return res.status(403).json({ error: 'Permission denied. Admins only.' });
-        }
-
         const { attendanceId, approved } = req.body;
         const record = await Attendance.findById(attendanceId);
         if (!record) return res.status(404).json({ error: 'Attendance record not found.' });
@@ -296,10 +292,6 @@ const getTodayStatus = async (req, res) => {
  */
 const getAllAttendance = async (req, res) => {
     try {
-        if (req.employeeRole !== 'admin') {
-            return res.status(403).json({ error: 'Permission denied. Admins only.' });
-        }
-
         const limit = parseInt(req.query.limit) || 200;
 
         const records = await Attendance.find({})
@@ -318,10 +310,6 @@ const getAllAttendance = async (req, res) => {
  */
 const updateAttendance = async (req, res) => {
     try {
-        if (req.employeeRole !== 'admin') {
-            return res.status(403).json({ error: 'Permission denied. Admins only.' });
-        }
-
         const { holidayType, holidayName, wasPresentYesterday, clockInTime, clockOutTime } = req.body;
         const record = await Attendance.findById(req.params.id).populate('employee');
         if (!record) return res.status(404).json({ error: 'Attendance record not found.' });
@@ -408,9 +396,6 @@ const updateAttendance = async (req, res) => {
  */
 const deleteAttendance = async (req, res) => {
     try {
-        if (req.employeeRole !== 'admin') {
-            return res.status(403).json({ error: 'Permission denied. Admins only.' });
-        }
         await Attendance.findByIdAndDelete(req.params.id);
         res.json({ message: 'Attendance record deleted successfully.' });
     } catch (err) {

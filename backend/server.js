@@ -266,6 +266,7 @@ app.use('/api/sandi', require('./routes/sandiRoutes'));
 app.use('/api/loyalty', require('./routes/loyaltyRoutes'));
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/exports', exportRoutes);
+app.use('/api/danger-zone', require('./routes/dangerZoneRoutes'));
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {
     if (err.code === 'EBADCSRFTOKEN') {

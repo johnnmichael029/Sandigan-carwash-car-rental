@@ -19,9 +19,6 @@ const getHolidays = async (req, res) => {
 const createHoliday = async (req, res) => {
     try {
         const { dateStr, name, type } = req.body;
-        if (req.employeeRole !== 'admin') {
-            return res.status(403).json({ error: 'Admins only' });
-        }
 
         // Check if its same date holiday
         const existingHolidayDate = await Holiday.findOne({ dateStr });
@@ -47,9 +44,6 @@ const createHoliday = async (req, res) => {
  */
 const updateHoliday = async (req, res) => {
     try {
-        if (req.employeeRole !== 'admin') {
-            return res.status(403).json({ error: 'Admins only' });
-        }
         const { dateStr, name, type } = req.body;
         const holiday = await Holiday.findById(req.params.id);
         if (!holiday) return res.status(404).json({ error: 'Holiday not found' });
@@ -90,9 +84,6 @@ const updateHoliday = async (req, res) => {
  */
 const deleteHoliday = async (req, res) => {
     try {
-        if (req.employeeRole !== 'admin') {
-            return res.status(403).json({ error: 'Admins only' });
-        }
         const holiday = await Holiday.findById(req.params.id);
         if (holiday) {
             // AUTO-SYNC: Clear holiday status from attendance records for this date

@@ -8,8 +8,10 @@ import { TableSkeleton, InventorySkeleton } from '../../SkeletonLoaders';
 import deleteIcon from '../../../assets/icon/delete.png';
 import VehicleTypeSettings from './VehicleTypeSettings';
 import PaymentSettingsManager from './PaymentSettingsManager';
+import DangerZone from '../shared/DangerZone';
 
 const ServiceSettingsPage = ({ user, isDark }) => {
+    const isSuperAdmin = user?.role === 'super_admin';
     // ── SWR Data Fetching (static configs — 1hr dedupe) ───────────────────────
     const { data: pricingData, isLoading: loadingPricing, mutate: mutatePricing } = useSWR('/pricing', swrFetcher, SWR_CONFIG_STATIC);
     const { data: fleetData, isLoading: loadingFleet, mutate: mutateFleet } = useSWR('/rental-fleet/admin', swrFetcher, SWR_CONFIG_STATIC);
@@ -316,6 +318,22 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                     >
                         Payment Methods
                     </button>
+
+                    {/* Danger Zone — Super Admin only */}
+                    {isSuperAdmin && (
+                        <button
+                            className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'danger' ? 'shadow-sm fw-bold' : 'text-muted'}`}
+                            onClick={() => setActiveTab('danger')}
+                            style={{
+                                fontSize: '0.85rem',
+                                background: activeTab === 'danger' ? '#ef444422' : 'transparent',
+                                color: activeTab === 'danger' ? '#ef4444' : '#ef4444aa',
+                                border: activeTab === 'danger' ? '1px solid #ef444433' : 'none'
+                            }}
+                        >
+                            ⚠️ Danger Zone
+                        </button>
+                    )}
 
                 </div>
             </div>
@@ -732,6 +750,11 @@ const ServiceSettingsPage = ({ user, isDark }) => {
             {/* Payment Methods Tab */}
             {activeTab === 'payment' && (
                 <PaymentSettingsManager isDark={isDark} />
+            )}
+
+            {/* Danger Zone Tab — Super Admin only */}
+            {activeTab === 'danger' && isSuperAdmin && (
+                <DangerZone />
             )}
 
             {/* Modals */}
