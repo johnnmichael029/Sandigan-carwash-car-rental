@@ -12,6 +12,7 @@ import attendanceIcon from '../../../assets/icon/attendance.png';
 import payrollIcon from '../../../assets/icon/payroll.png';
 
 import getPaginationRange from '../getPaginationRange';
+import ExportButton from '../shared/ExportButton';
 import analyticsIcon from '../../../assets/icon/analytics.png';
 import staffIcon from '../../../assets/icon/staff.png';
 import detailerIcon from '../../../assets/icon/detailers.png';
@@ -347,8 +348,8 @@ const HRISPage = ({ user, isDark }) => {
         data: swrEmployees,
         isLoading: swrEmpLoading,
         mutate: mutateEmployees
-    } = useSWR('/employees', swrFetcher, { 
-        ...SWR_CONFIG, 
+    } = useSWR('/employees', swrFetcher, {
+        ...SWR_CONFIG,
         dedupingInterval: 0 // Allow immediate re-fetching via mutateEmployees()
     });
 
@@ -1132,11 +1133,12 @@ const HRISPage = ({ user, isDark }) => {
             {/* Header */}
             <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4 flex-wrap gap-3">
                 <div>
-                    <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>Human Resources</h4>
-                    <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Manage staff accounts and detailer payroll</p>
+                    <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>Workforce</h4>
+                    <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Manage staff, payroll and attendance records</p>
                 </div>
 
-                <div className="d-flex gap-2">
+                <div className="d-flex align-items-center gap-2">
+                    <ExportButton user={user} departmentKey="Workforce" label="Export Data" />
                     {/* Pending bills badge on Settings button */}
                     <div className="btn-group p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
                         <button onClick={() => setHrTab('directory')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${hrTab === 'directory' ? 'shadow-sm fw-bold' : 'text-muted'}`} style={{ background: hrTab === 'directory' ? 'var(--theme-card-bg)' : 'transparent', color: hrTab === 'directory' ? 'var(--theme-content-text)' : 'inherit' }}>
@@ -1184,9 +1186,9 @@ const HRISPage = ({ user, isDark }) => {
                                 Fix Missing IDs
                             </button>
                             <PermissionGate user={user} department="Workforce" action="create">
-                            <button onClick={() => openAdd()} className="btn btn-record-expenses brand-primary btn-sm px-3 shadow-sm rounded-3">
-                                + Add Employee
-                            </button>
+                                <button onClick={() => openAdd()} className="btn btn-record-expenses brand-primary btn-sm px-3 shadow-sm rounded-3">
+                                    + Add Employee
+                                </button>
                             </PermissionGate>
                         </div>
                     )}
@@ -1414,15 +1416,15 @@ const HRISPage = ({ user, isDark }) => {
                                                                 <img src={detailerHistoryIcon} alt="History" style={{ width: 18 }} />
                                                             </button>
                                                             <PermissionGate user={user} department="Workforce" action="update">
-                                                            <button onClick={(e) => { e.stopPropagation(); openEdit(emp); }} className="btn btn-sm border-0 bg-transparent p-1 me-1" title="Edit">
-                                                                <img src={editIcon} alt="Edit" style={{ width: 18 }} />
-                                                            </button>
+                                                                <button onClick={(e) => { e.stopPropagation(); openEdit(emp); }} className="btn btn-sm border-0 bg-transparent p-1 me-1" title="Edit">
+                                                                    <img src={editIcon} alt="Edit" style={{ width: 18 }} />
+                                                                </button>
                                                             </PermissionGate>
                                                             {!isSelf && (
                                                                 <PermissionGate user={user} department="Workforce" action="delete">
-                                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteEmployee(emp); }} className="btn btn-sm border-0 bg-transparent p-1" title="Remove">
-                                                                    <img src={deleteIcon} alt="Delete" style={{ width: 18 }} />
-                                                                </button>
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteEmployee(emp); }} className="btn btn-sm border-0 bg-transparent p-1" title="Remove">
+                                                                        <img src={deleteIcon} alt="Delete" style={{ width: 18 }} />
+                                                                    </button>
                                                                 </PermissionGate>
                                                             )}
                                                         </td>

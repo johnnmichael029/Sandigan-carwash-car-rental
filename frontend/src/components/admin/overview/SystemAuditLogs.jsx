@@ -31,6 +31,8 @@ import employeeIcon from '../../../assets/icon/employee.png';
 import refreshIcon from '../../../assets/icon/refresh.png';
 import settingsIcon from '../../../assets/icon/setting.png';
 
+import ExportButton from '../shared/ExportButton';
+
 const ACTION_META = {
     booking_created: { icon: bookingsIcon, color: '#23A0CE' },
     booking_status_changed: { icon: updateIcon, color: '#f59e0b' },
@@ -61,7 +63,7 @@ const ACTION_META = {
     setting_updated: { icon: settingsIcon, color: '#64748b' },
 };
 
-const ActivityLogPage = ({ isDark }) => {
+const ActivityLogPage = ({ user, isDark }) => {
     // ── SWR Data Fetching ──────────────────────────────────────────────────────
     const { data: logsData, isLoading, mutate: mutateLogs } = useSWR('/activity-logs', swrFetcher, SWR_CONFIG);
     const logs = logsData || [];
@@ -153,6 +155,7 @@ const ActivityLogPage = ({ isDark }) => {
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>{todayDate} — Full Audit Trail</p>
                 </div>
                 <div className="d-flex gap-2">
+                    <ExportButton user={user} datasetKey="audit-logs" title="System Audit Logs" label="Export Audit Log" />
                     <button onClick={markAllRead} className="btn btn-sm btn-outline-secondary" style={{ fontSize: '0.8rem' }}>Mark all read</button>
                     <button onClick={deleteAll} className="btn btn-sm btn-outline-danger" style={{ fontSize: '0.8rem' }}>Clear all</button>
                 </div>

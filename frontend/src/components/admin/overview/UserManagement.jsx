@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { API_BASE, authHeaders } from '../../../api/config';
 import TopHeader from '../TopHeader';
@@ -9,7 +9,7 @@ import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 
 const DEPARTMENTS = ['Finance', 'Inventory', 'Operations', 'Workforce', 'Clientele'];
-const ACTIONS = ['read', 'create', 'update', 'delete'];
+const ACTIONS = ['read', 'create', 'update', 'delete', 'export'];
 const ROLE_OPTIONS = ['super_admin', 'admin', 'department_staff', 'employee', 'detailer'];
 
 const ROLE_BADGE = {

@@ -205,7 +205,7 @@ const AdminDashboard = () => {
     const renderContent = () => {
         switch (toggleActive) {
             case 'dashboard': return <AdminOverview user={user} onNavigate={setToggleActive} isDark={isDark} />;
-            case 'activity-log': return <ActivityLogPage isDark={isDark} />;
+            case 'activity-log': return <ActivityLogPage user={user} isDark={isDark} />;
             case 'finance': return guardedRender('finance', <FinancePage user={user} onNavigate={setToggleActive} isDark={isDark} />);
             case 'hris': return guardedRender('hris', <HRISPage user={user} isDark={isDark} />);
             case 'inventory': return guardedRender('inventory', <InventoryPage user={user} isDark={isDark} />);

@@ -18,6 +18,7 @@ import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 import getPaginationRange from '../getPaginationRange';
 import PermissionGate from '../../PermissionGate';
+import ExportButton from '../shared/ExportButton';
 import { hasPermission } from '../../../utils/permissions';
 import sandiganLogo from '../../../assets/logo/sandigan-logo.png';
 
@@ -410,10 +411,11 @@ const CRMPage = ({ user, isDark }) => {
             {/* Header */}
             <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
                 <div>
-                    <h4 className="mb-0 font-poppins" style={{ fontWeight: 700, color: 'var(--theme-content-text)' }}>Client Relations (CRM)</h4>
-                    <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Track client loyalty, lifetime value, and retention</p>
+                    <h4 className="mb-0 font-poppins" style={{ fontWeight: 700, color: 'var(--theme-content-text)' }}>Clientele</h4>
+                    <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Manage client data and loyalty programs</p>
                 </div>
                 <div className="d-flex gap-2">
+                    <ExportButton user={user} departmentKey="Clientele" label="Export Data" />
                     <PermissionGate user={user} department="Clientele" action="create">
                         <button
                             onClick={handleSync}
@@ -631,12 +633,12 @@ const CRMPage = ({ user, isDark }) => {
                                     {selectedClient.email !== 'walkin@example.com' && (
                                         <div className="d-flex gap-2">
                                             <PermissionGate user={user} department="Clientele" action="update">
-                                            <button onClick={handleOpenEdit} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
-                                                <img src={editIcon} style={{ width: '16px' }} alt="Edit Icon" /></button>
+                                                <button onClick={handleOpenEdit} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
+                                                    <img src={editIcon} style={{ width: '16px' }} alt="Edit Icon" /></button>
                                             </PermissionGate>
                                             <PermissionGate user={user} department="Clientele" action="delete">
-                                            <button onClick={handleDeleteClient} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
-                                                <img src={deleteIcon} style={{ width: '16px' }} alt="Delete Icon" /></button>
+                                                <button onClick={handleDeleteClient} className="btn border-0 bg-transparent px-3 d-flex justify-content-center align-items-center">
+                                                    <img src={deleteIcon} style={{ width: '16px' }} alt="Delete Icon" /></button>
                                             </PermissionGate>
                                         </div>
                                     )}
@@ -730,7 +732,7 @@ const CRMPage = ({ user, isDark }) => {
                                                 <div className="p-3 rounded-3" style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.22)' }}>
                                                     {hasPendingReward ? (
                                                         <div className="text-center py-2 rounded-3" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }}>
-                                                             <div style={{ fontSize: '1.2rem' }}>🎁</div>
+                                                            <div style={{ fontSize: '1.2rem' }}>🎁</div>
                                                             <div className="fw-bold text-success" style={{ fontSize: '0.82rem' }}>Reward Ready to Claim!</div>
                                                             <div className="small text-muted" style={{ fontSize: '0.72rem' }}>{config.rewardName}</div>
                                                         </div>

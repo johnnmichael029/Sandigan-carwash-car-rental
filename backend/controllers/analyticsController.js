@@ -7,9 +7,9 @@ const Membership = require('../models/membershipModel');
 const Employee = require('../models/employeeModel');
 const RentalFleet = require('../models/rentalFleetModel');
 
-// GET /api/analytics/dashboard
-exports.getDashboardAnalytics = async (req, res) => {
-    try {
+// Builds the full dashboard analytics object (reused by the export engine)
+const buildDashboardAnalytics = async () => {
+    {
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -435,8 +435,7 @@ exports.getDashboardAnalytics = async (req, res) => {
 
         const financialOverviewFormatted = Object.values(financialMap);
 
-        // Send aggregated response
-        res.json({
+        return {
             success: true,
             kpis: {
                 todayRevenue,
@@ -493,10 +492,18 @@ exports.getDashboardAnalytics = async (req, res) => {
                 monthlyOverview: financialOverviewFormatted,
                 expenseCategories: expenseCategoryAgg.map(e => ({ category: e._id || 'Other', total: e.total }))
             }
-        });
+        };
+    }
+};
 
+// GET /api/analytics/dashboard
+const getDashboardAnalytics = async (req, res) => {
+    try {
+        res.json(await buildDashboardAnalytics());
     } catch (error) {
         console.error('[ANALYTICS_ERROR]', error);
         res.status(500).json({ success: false, error: error.message || 'Failed to fetch analytics data' });
     }
 };
+
+module.exports = { getDashboardAnalytics, buildDashboardAnalytics };

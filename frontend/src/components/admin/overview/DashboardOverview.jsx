@@ -7,6 +7,7 @@ import { swrFetcher, SWR_CONFIG } from '../../../api/swrFetcher';
 import { ChartSkeleton, KPICardSkeleton } from '../../SkeletonLoaders';
 import TopHeader from '../TopHeader';
 import SandiAssistant from './SandiAssistant';
+import ExportButton from '../shared/ExportButton';
 import revenueIcon from '../../../assets/icon/revenue.png';
 import allTimeRevenueIcon from '../../../assets/icon/all-time-revenue.png';
 import bookingsIcon from '../../../assets/icon/order.png';
@@ -177,9 +178,9 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                 }
             </div>
 
-            {/* Modern Tab Header */}
+            {/* Modern Tab Header with Export Button */}
             <div className="card border-0 shadow-sm rounded-4 mb-4" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
-                <div className="card-body p-2">
+                <div className="card-body p-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
                     <div className="d-flex flex-wrap gap-2">
                         {[
                             { id: 'overview', label: 'Executive Overview', icon: 'bi-grid-1x2-fill' },
@@ -203,6 +204,9 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                                 {tab.label}
                             </button>
                         ))}
+                    </div>
+                    <div className="me-2">
+                        <ExportButton user={user} label="Export Business Data" variant="btn-save" />
                     </div>
                 </div>
             </div>
@@ -695,7 +699,12 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                 let healthBg = 'rgba(34, 197, 94, 0.12)';
                 let healthDesc = 'Optimal financial stability. Revenue comfortably covers operating expenses.';
 
-                if (healthScore >= 80) {
+                if (finRev === 0 && finExp === 0) {
+                    healthGrade = 'Start of Month Baseline';
+                    healthColor = '#f59e0b';
+                    healthBg = 'rgba(245, 158, 11, 0.12)';
+                    healthDesc = 'New month initialization. No revenue or expenses recorded yet for this calendar month.';
+                } else if (healthScore >= 80) {
                     healthGrade = 'Excellent & Strong';
                     healthColor = '#22c55e';
                     healthBg = 'rgba(34, 197, 94, 0.12)';

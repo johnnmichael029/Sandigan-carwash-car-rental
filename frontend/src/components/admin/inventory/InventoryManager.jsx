@@ -23,6 +23,7 @@ import leftArrowIcon from '../../../assets/icon/left-arrow.png';
 import rightArrowIcon from '../../../assets/icon/right-arrow.png';
 import productOrderIcon from '../../../assets/icon/product-order.png';
 import PermissionGate from '../../PermissionGate';
+import ExportButton from '../shared/ExportButton';
 
 const InventoryPage = ({ user, isDark }) => {
     // ── SWR Data Fetching ──────────────────────────────────────────────────────
@@ -141,6 +142,7 @@ const InventoryPage = ({ user, isDark }) => {
                 </div>
 
                 <div className="d-flex gap-3 align-items-center">
+                    <ExportButton user={user} departmentKey="Inventory" label="Export Data" />
                     <PermissionGate user={user} department="Inventory" action="update">
                         <button onClick={() => setShowCategoryManager(true)} className="btn btn-sm btn-outline-secondary px-3 rounded-pill shadow-sm category-tags">
                             <i className="bi bi-tags"></i> Tag Library

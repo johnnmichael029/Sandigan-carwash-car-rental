@@ -13,6 +13,7 @@ import SharedSearchBar from '../shared/SharedSearchBar';
 import { filterDataBySearch } from '../shared/searchUtils';
 import PermissionGate from '../../PermissionGate';
 import { hasPermission } from '../../../utils/permissions';
+import ExportButton from '../shared/ExportButton';
 
 import netProfitIcon from '../../../assets/icon/net-profit.png';
 import operationCostIcon from '../../../assets/icon/operation-cost.png';
@@ -623,7 +624,8 @@ const FinancePage = ({ user, onNavigate, isDark }) => {
                     <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>Finance & Accounting</h4>
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Automated Receivables, Expenses, and Profit Tracking</p>
                 </div>
-                <div className="d-flex gap-2">
+                <div className="d-flex align-items-center gap-2">
+                    <ExportButton user={user} departmentKey="Finance" label="Export Data" />
                     <div className="btn-group p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
                         <button onClick={() => setActiveTab('overview')} className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-1 ${activeTab === 'overview' ? 'btn-white shadow-sm fw-bold' : 'text-muted'}`} style={{ background: activeTab === 'overview' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'overview' ? 'var(--theme-content-text)' : 'inherit' }}>
                             Overview</button>

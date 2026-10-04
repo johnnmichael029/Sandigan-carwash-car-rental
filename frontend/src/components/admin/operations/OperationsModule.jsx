@@ -10,6 +10,7 @@ import bayIcon from '../../../assets/icon/bay.png';
 import assetIcon from '../../../assets/icon/asset.png';
 import maintenanceIcon from '../../../assets/icon/maintenance.png';
 import PermissionGate from '../../PermissionGate';
+import ExportButton from '../shared/ExportButton';
 
 const OperationsModule = ({ user, isDark }) => {
     // ── SWR Data Fetching ──────────────────────────────────────────────────────
@@ -99,8 +100,9 @@ const OperationsModule = ({ user, isDark }) => {
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Bay scheduling, asset tracking & maintenance management</p>
                 </div>
 
-                {/* Tab Navigation matching HRIS design */}
-                <div className="d-flex gap-2 p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
+                <div className="d-flex align-items-center gap-2">
+                    <ExportButton user={user} departmentKey="Operations" label="Export Data" />
+                    <div className="d-flex gap-2 p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
                     <button
                         className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'bays' ? 'shadow-sm fw-bold' : 'text-muted'}`}
                         onClick={() => setActiveTab('bays')}
@@ -126,6 +128,7 @@ const OperationsModule = ({ user, isDark }) => {
                     </button>
                 </div>
             </div>
+        </div>
 
             {/* KPI Cards */}
             {isLoading ? (
