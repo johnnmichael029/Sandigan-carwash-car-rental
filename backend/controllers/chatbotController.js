@@ -62,7 +62,7 @@ const chat = async (req, res) => {
 
         // Initialize the model with system instruction and tools
         const model = genAI.getGenerativeModel({
-            model: "gemini-flash-latest",
+            model: "gemini-1.5-flash-latest",
             systemInstruction: systemPrompt,
             tools: tools
         });

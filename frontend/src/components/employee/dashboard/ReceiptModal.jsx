@@ -139,25 +139,54 @@ const ReceiptModal = ({ booking, onClose, isDark }) => {
                             )}
                         </div>
 
-                        <div className="pt-2 border-top" style={{ borderTop: '2px solid #333 !important' }}>
-                            {booking.discountAmount > 0 && (
-                                <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.8rem' }}>
-                                    <span>SMC DISCOUNT</span>
-                                    <span>-₱{booking.discountAmount.toLocaleString()}</span>
+                        {(() => {
+                            const totalAmount = booking.estimatedTotal || booking.totalPrice || 0;
+                            const vatableSales = totalAmount > 0 ? totalAmount / 1.12 : 0;
+                            const vatAmount = totalAmount > 0 ? totalAmount - vatableSales : 0;
+
+                            return (
+                                <div className="pt-2 border-top" style={{ borderTop: '2px solid #333 !important' }}>
+                                    {booking.discountAmount > 0 && (
+                                        <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.75rem' }}>
+                                            <span>SMC DISCOUNT</span>
+                                            <span>-₱{booking.discountAmount.toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                    {booking.promoDiscount > 0 && (
+                                        <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.75rem' }}>
+                                            <span>PROMO DISCOUNT</span>
+                                            <span>-₱{booking.promoDiscount.toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                    <div className="d-flex justify-content-between fw-bold mb-2" style={{ fontSize: '1.05rem' }}>
+                                        <span>TOTAL AMOUNT DUE</span>
+                                        <span>₱{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+
+                                    {/* BIR 12% VAT Breakdown */}
+                                    <div className="py-2 border-top border-bottom my-2" style={{ fontSize: '0.7rem', borderColor: '#ccc' }}>
+                                        <div className="d-flex justify-content-between mb-1">
+                                            <span>VATable Sales:</span>
+                                            <span>₱{vatableSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                        </div>
+                                        <div className="d-flex justify-content-between mb-1">
+                                            <span>VAT Amount (12%):</span>
+                                            <span>₱{vatAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                        </div>
+                                        <div className="d-flex justify-content-between mb-1 opacity-75">
+                                            <span>VAT-Exempt Sales:</span>
+                                            <span>₱0.00</span>
+                                        </div>
+                                        <div className="d-flex justify-content-between opacity-75">
+                                            <span>Zero-Rated Sales:</span>
+                                            <span>₱0.00</span>
+                                        </div>
+                                    </div>
+
+                                    <p className="text-center mt-2 text-uppercase fw-bold mb-0" style={{ fontSize: '0.8rem', letterSpacing: '4px', opacity: 0.8 }}>*** PAID ***</p>
                                 </div>
-                            )}
-                            {booking.promoDiscount > 0 && (
-                                <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.8rem' }}>
-                                    <span>PROMO DISCOUNT</span>
-                                    <span>-₱{booking.promoDiscount.toLocaleString()}</span>
-                                </div>
-                            )}
-                            <div className="d-flex justify-content-between fw-bold" style={{ fontSize: '1.1rem' }}>
-                                <span>TOTAL</span>
-                                <span>₱{(booking.estimatedTotal || booking.totalPrice)?.toLocaleString()}</span>
-                            </div>
-                            <p className="text-center mt-2 text-uppercase fw-bold" style={{ fontSize: '0.8rem', letterSpacing: '4px', opacity: 0.8 }}>*** PAID ***</p>
-                        </div>
+                            );
+                        })()}
 
                         <div className="text-center mt-4">
                             <div className="d-flex justify-content-center mb-2">

@@ -196,10 +196,10 @@ const InventoryPage = ({ user, isDark }) => {
                                 <div className="col-6 col-md-3" key={i}><KPICardSkeleton /></div>
                             ))
                             : [
-                                { title: 'Total Items', value: items.length, color: '#f59e0b', bg: 'linear-gradient(135deg,#f59e0b15,#f59e0b05)', dot: '#f59e0b', icon: '📦', desc: 'Unique products' },
-                                { title: 'Low Stock Alerts', value: lowStockItems.length, color: '#ef4444', bg: 'linear-gradient(135deg,#ef444415,#ef444405)', dot: '#ef4444', icon: '⚠️', desc: 'Action required' },
-                                { title: 'Inventory Value', value: `₱${items.reduce((acc, obj) => acc + (obj.currentStock * obj.costPerUnit), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: '#22c55e', bg: 'linear-gradient(135deg,#22c55e15,#22c55e05)', dot: '#22c55e', icon: '💰', desc: 'Estimated capital cost' },
-                                { title: 'Monthly Consumption', value: `₱${analytics.reduce((acc, obj) => acc + obj.totalCost, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: '#23A0CE', bg: 'linear-gradient(135deg,#23A0CE15,#23A0CE05)', dot: '#23A0CE', icon: '📉', desc: 'Outbound resources (30 Days)' },
+                                { title: 'Total Items', value: items.length, color: '#f59e0b', bg: 'linear-gradient(135deg,#f59e0b15,#f59e0b05)', dot: '#f59e0b', icon: <i className="bi bi-box-seam-fill"></i>, desc: 'Unique products' },
+                                { title: 'Low Stock Alerts', value: lowStockItems.length, color: '#ef4444', bg: 'linear-gradient(135deg,#ef444415,#ef444405)', dot: '#ef4444', icon: <i className="bi bi-exclamation-triangle-fill"></i>, desc: 'Action required' },
+                                { title: 'Inventory Value', value: `₱${items.reduce((acc, obj) => acc + (obj.currentStock * obj.costPerUnit), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: '#22c55e', bg: 'linear-gradient(135deg,#22c55e15,#22c55e05)', dot: '#22c55e', icon: <i className="bi bi-cash-stack"></i>, desc: 'Estimated capital cost' },
+                                { title: 'Monthly Consumption', value: `₱${analytics.reduce((acc, obj) => acc + obj.totalCost, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: '#23A0CE', bg: 'linear-gradient(135deg,#23A0CE15,#23A0CE05)', dot: '#23A0CE', icon: <i className="bi bi-graph-down-arrow"></i>, desc: 'Outbound resources (30 Days)' },
                             ].map((card, i) => (
                                 <div className="col-6 col-md-3" key={i}>
                                     <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden" style={{ background: '#fff' }}>

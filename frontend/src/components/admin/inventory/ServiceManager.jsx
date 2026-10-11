@@ -9,6 +9,7 @@ import deleteIcon from '../../../assets/icon/delete.png';
 import VehicleTypeSettings from './VehicleTypeSettings';
 import PaymentSettingsManager from './PaymentSettingsManager';
 import DangerZone from '../shared/DangerZone';
+import AdminModalWrapper from '../shared/AdminModalWrapper';
 
 const ServiceSettingsPage = ({ user, isDark }) => {
     const isSuperAdmin = user?.role === 'super_admin';
@@ -39,6 +40,11 @@ const ServiceSettingsPage = ({ user, isDark }) => {
 
     // Global Settings Modals State
     const [showVehicleTypeModal, setShowVehicleTypeModal] = useState(false);
+
+    // Sync Add-on Descriptions Modal State
+    const [showSyncAddonsModal, setShowSyncAddonsModal] = useState(false);
+    const [syncTargetScope, setSyncTargetScope] = useState('ALL');
+    const [selectedVehicleIds, setSelectedVehicleIds] = useState([]);
 
     const handleSelectVehicle = (v) => {
         setSelectedVehicle(v);
@@ -164,7 +170,150 @@ const ServiceSettingsPage = ({ user, isDark }) => {
         } catch (err) {
             console.error("Pricing Save Error:", err);
             const errMsg = err.response?.data?.error || 'Failed to save changes. Please try again.';
-            Swal.fire('Save Failed', errMsg, 'error');
+            Swal.fire({
+                title: 'Save Failed',
+                text: errMsg,
+                icon: 'error',
+                background: 'var(--theme-modal-bg)',
+                color: 'var(--theme-content-text)',
+                confirmButtonColor: '#f43f5e'
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleOpenSyncAddonsModal = () => {
+        if (!editingDoc || !editingDoc.addons || editingDoc.addons.length === 0) {
+            Swal.fire({
+                title: 'No Add-ons',
+                text: 'There are no add-ons defined in this vehicle to copy descriptions from.',
+                icon: 'info',
+                background: 'var(--theme-modal-bg)',
+                color: 'var(--theme-content-text)',
+                confirmButtonColor: '#002525'
+            });
+            return;
+        }
+
+        const otherVehicles = vehicles.filter(v => v._id !== editingDoc._id);
+        if (otherVehicles.length === 0) {
+            Swal.fire({
+                title: 'No Other Vehicles',
+                text: 'There are no other vehicle types to copy descriptions to.',
+                icon: 'info',
+                background: 'var(--theme-modal-bg)',
+                color: 'var(--theme-content-text)',
+                confirmButtonColor: '#002525'
+            });
+            return;
+        }
+
+        setSyncTargetScope('ALL');
+        setSelectedVehicleIds([]);
+        setShowSyncAddonsModal(true);
+    };
+
+    const handleToggleVehicle = (id) => {
+        setSelectedVehicleIds(prev =>
+            prev.includes(id) ? prev.filter(vId => vId !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAllSpecific = () => {
+        const otherVehicles = vehicles.filter(v => v._id !== editingDoc?._id);
+        if (selectedVehicleIds.length === otherVehicles.length) {
+            setSelectedVehicleIds([]);
+        } else {
+            setSelectedVehicleIds(otherVehicles.map(v => v._id));
+        }
+    };
+
+    const handleToggleGroup = (groupList) => {
+        const groupIds = groupList.map(v => v._id);
+        const allChecked = groupIds.every(id => selectedVehicleIds.includes(id));
+        if (allChecked) {
+            setSelectedVehicleIds(prev => prev.filter(id => !groupIds.includes(id)));
+        } else {
+            setSelectedVehicleIds(prev => Array.from(new Set([...prev, ...groupIds])));
+        }
+    };
+
+    const handleExecuteSyncAddons = async () => {
+        const otherVehicles = vehicles.filter(v => v._id !== editingDoc._id);
+        if (otherVehicles.length === 0) return;
+
+        let targetsToUpdate = [];
+        if (syncTargetScope === 'ALL') {
+            targetsToUpdate = otherVehicles;
+        } else {
+            targetsToUpdate = otherVehicles.filter(v => selectedVehicleIds.includes(v._id));
+        }
+
+        if (targetsToUpdate.length === 0) {
+            Swal.fire({
+                title: 'No Vehicles Selected',
+                text: 'Please select at least one vehicle with the checkmark.',
+                icon: 'warning',
+                background: 'var(--theme-modal-bg)',
+                color: 'var(--theme-content-text)',
+                confirmButtonColor: '#f43f5e'
+            });
+            return;
+        }
+
+        // Map descriptions by addon name (case-insensitive match)
+        const descMap = {};
+        editingDoc.addons.forEach(a => {
+            if (a.name && a.name.trim()) {
+                descMap[a.name.trim().toLowerCase()] = a.description || '';
+            }
+        });
+
+        setIsSaving(true);
+        setShowSyncAddonsModal(false);
+        try {
+            let updatedCount = 0;
+
+            for (const v of targetsToUpdate) {
+                const updatedAddons = (v.addons || []).map(addon => {
+                    const key = (addon.name || '').trim().toLowerCase();
+                    if (key in descMap) {
+                        return { ...addon, description: descMap[key] };
+                    }
+                    return addon;
+                });
+
+                await axios.put(`${API_BASE}/pricing/${v._id}`, {
+                    ...v,
+                    addons: updatedAddons
+                }, { headers: authHeaders(), withCredentials: true });
+
+                updatedCount++;
+            }
+
+            await mutatePricing();
+            Swal.fire({
+                title: 'Descriptions Applied!',
+                text: `Successfully updated add-on descriptions for ${updatedCount} vehicle(s).`,
+                icon: 'success',
+                toast: true,
+                position: 'top-end',
+                timer: 3500,
+                showConfirmButton: false,
+                background: '#002525',
+                color: '#FAFAFA'
+            });
+        } catch (err) {
+            console.error('Failed to sync add-on descriptions:', err);
+            Swal.fire({
+                title: 'Error',
+                text: 'Failed to apply descriptions to target vehicles.',
+                icon: 'error',
+                background: 'var(--theme-modal-bg)',
+                color: 'var(--theme-content-text)',
+                confirmButtonColor: '#f43f5e'
+            });
         } finally {
             setIsSaving(false);
         }
@@ -513,7 +662,20 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                                     <div className="mb-4">
                                         <div className="d-flex justify-content-between align-items-center mb-3">
                                             <h6 className="fw-bold mb-0" style={{ color: "var(--brand-primary)" }}>➕ Add-ons &amp; Extras</h6>
-                                            <button onClick={() => addServiceOrAddon('addons')} className="btn btn-sm btn-save rounded-pill text-white shadow-sm">+ Add Item</button>
+                                            <div className="d-flex gap-2">
+                                                {/* Only show on the FIRST vehicle in the list */}
+                                                {vehicles.length > 0 && vehicles[0]?._id === editingDoc._id && (
+                                                    <button
+                                                        onClick={handleOpenSyncAddonsModal}
+                                                        className="btn btn-sm btn-outline-info rounded-pill shadow-sm d-flex align-items-center gap-1 font-poppins"
+                                                        title="Apply add-on descriptions from this first vehicle to all or selected vehicles"
+                                                        style={{ fontSize: '0.8rem', fontWeight: 600 }}
+                                                    >
+                                                        📋 Apply Descriptions to All Vehicles
+                                                    </button>
+                                                )}
+                                                <button onClick={() => addServiceOrAddon('addons')} className="btn btn-sm btn-save rounded-pill text-white shadow-sm">+ Add Item</button>
+                                            </div>
                                         </div>
                                         {(!editingDoc.addons || editingDoc.addons.length === 0) ? <p className="text-muted small">No add-ons defined.</p> : (
                                             <div className="table-responsive">
@@ -766,6 +928,136 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                     onUpdate={fetchVehicleTypes}
                 />
             )}
+
+            {/* Sync Addons Modal */}
+            <AdminModalWrapper show={showSyncAddonsModal} onClose={() => setShowSyncAddonsModal(false)} size="md">
+                <div className="modal-content rounded-4 shadow border-0" style={{ background: 'var(--theme-modal-bg)', color: 'var(--theme-content-text)' }}>
+                    <div className="modal-header border-bottom py-3 px-4 d-flex justify-content-between align-items-center" style={{ borderColor: 'var(--theme-border-color)' }}>
+                        <h5 className="modal-title font-poppins fw-bold mb-0 text-dark-secondary">Apply Add-on Descriptions</h5>
+                        <button type="button" className="btn-close shadow-none" onClick={() => setShowSyncAddonsModal(false)}></button>
+                    </div>
+                    <div className="modal-body p-4">
+                        <p className="small text-muted mb-4 font-poppins">
+                            Copy descriptions of all add-ons from <strong>{editingDoc?.vehicleType}</strong> to other vehicles.
+                            Only descriptions will be updated; prices will remain unchanged.
+                        </p>
+
+                        <div className="mb-3">
+                            <label className="form-label font-poppins fw-bold small text-muted">Apply To:</label>
+                            <select
+                                className="form-select form-select-sm"
+                                value={syncTargetScope}
+                                onChange={(e) => setSyncTargetScope(e.target.value)}
+                            >
+                                <option value="ALL">All Other Vehicles ({vehicles.filter(v => v._id !== editingDoc?._id).length} vehicles)</option>
+                                <option value="SPECIFIC">Select Specific Vehicles (Choose multiple)...</option>
+                            </select>
+                        </div>
+
+                        {syncTargetScope === 'SPECIFIC' && (
+                            <div className="mb-3">
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                    <label className="form-label font-poppins fw-bold small text-muted mb-0">
+                                        Select Target Vehicles ({selectedVehicleIds.length} of {vehicles.filter(v => v._id !== editingDoc?._id).length} selected):
+                                    </label>
+                                    <button
+                                        type="button"
+                                        className="btn btn-link btn-sm text-decoration-none p-0"
+                                        style={{ fontSize: '0.8rem', color: '#23A0CE' }}
+                                        onClick={handleSelectAllSpecific}
+                                    >
+                                        {selectedVehicleIds.length === vehicles.filter(v => v._id !== editingDoc?._id).length
+                                            ? 'Deselect All'
+                                            : 'Select All'}
+                                    </button>
+                                </div>
+
+                                <div
+                                    className="p-2 rounded-3 border"
+                                    style={{
+                                        maxHeight: '260px',
+                                        overflowY: 'auto',
+                                        background: 'rgba(255, 255, 255, 0.03)',
+                                        borderColor: 'var(--theme-border-color)'
+                                    }}
+                                >
+                                    {(() => {
+                                        const targetVehicles = vehicles.filter(v => v._id !== editingDoc?._id);
+                                        const grouped = targetVehicles.reduce((acc, v) => {
+                                            const groupKey = v.brandGroup?.trim() || 'General Categories';
+                                            if (!acc[groupKey]) acc[groupKey] = [];
+                                            acc[groupKey].push(v);
+                                            return acc;
+                                        }, {});
+
+                                        return Object.entries(grouped).map(([groupName, groupList]) => {
+                                            const allGroupChecked = groupList.length > 0 && groupList.every(v => selectedVehicleIds.includes(v._id));
+
+                                            return (
+                                                <div key={groupName} className="mb-3">
+                                                    <div className="d-flex justify-content-between align-items-center mb-1 px-1 pb-1 border-bottom border-secondary border-opacity-10">
+                                                        <span className="font-poppins fw-bold text-muted small text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+                                                            {groupName} <span className="opacity-75">({groupList.length})</span>
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-link btn-sm text-decoration-none p-0"
+                                                            style={{ fontSize: '0.72rem', color: '#23A0CE' }}
+                                                            onClick={() => handleToggleGroup(groupList)}
+                                                        >
+                                                            {allGroupChecked ? 'Deselect Category' : 'Select Category'}
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="d-flex flex-column gap-1">
+                                                        {groupList.map(v => {
+                                                            const isChecked = selectedVehicleIds.includes(v._id);
+                                                            return (
+                                                                <div
+                                                                    key={v._id}
+                                                                    onClick={() => handleToggleVehicle(v._id)}
+                                                                    className={`d-flex align-items-center justify-content-between p-2 rounded-2 cursor-pointer transition-all ${isChecked
+                                                                        ? 'bg-info bg-opacity-10 border border-info border-opacity-50'
+                                                                        : ''
+                                                                        }`}
+                                                                    style={{ cursor: 'pointer', transition: '0.15s' }}
+                                                                >
+                                                                    <div className="d-flex align-items-center gap-2">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className="form-check-input m-0 cursor-pointer"
+                                                                            checked={isChecked}
+                                                                            onChange={() => handleToggleVehicle(v._id)}
+                                                                        />
+                                                                        <span className={`font-poppins small ${isChecked ? 'fw-bold text-info' : ''}`}>
+                                                                            {v.vehicleType}
+                                                                        </span>
+                                                                    </div>
+                                                                    {isChecked && (
+                                                                        <span className="text-info small fw-bold">✓</span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div className="modal-footer border-top py-3 px-4 d-flex justify-content-end gap-2" style={{ borderColor: 'var(--theme-border-color)' }}>
+                        <button type="button" className="btn btn-sm btn-light rounded-pill px-4 font-poppins" onClick={() => setShowSyncAddonsModal(false)}>
+                            Cancel
+                        </button>
+                        <button type="button" className="btn btn-sm btn-save rounded-pill text-white px-4 shadow-sm font-poppins" onClick={handleExecuteSyncAddons} disabled={isSaving}>
+                            {isSaving ? 'Applying...' : 'Apply Descriptions'}
+                        </button>
+                    </div>
+                </div>
+            </AdminModalWrapper>
         </div>
     );
 };

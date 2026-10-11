@@ -66,7 +66,7 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
             label: 'All-Time Revenue',
             value: `₱${(kpis.allTimeRevenue || 0).toLocaleString()}`,
             desc: "Cumulative total revenue",
-            icon: <img src={allTimeRevenueIcon} alt="All Time Revenue" style={{ width: '22px' }} />,
+            icon: <img src={allTimeRevenueIcon} alt="All Time Revenue" style={{ width: '22px', color: '#23A0CE' }} />,
             color: '#23A0CE',
             bg: 'linear-gradient(135deg,#23A0CE15,#23A0CE05)'
         },
@@ -90,7 +90,7 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
             label: 'Month Net Profit',
             value: `₱${(kpis.netProfitMonth || 0).toLocaleString()}`,
             desc: "Revenue minus expenses",
-            icon: <i className="bi bi-cash-stack text-success" style={{ fontSize: '1.2rem' }}></i>,
+            icon: <i className="bi bi-cash-coin" style={{ fontSize: '1.2rem', color: kpis.netProfitMonth >= 0 ? '#22c55e' : '#ef4444' }}></i>,
             color: kpis.netProfitMonth >= 0 ? '#22c55e' : '#ef4444',
             bg: 'linear-gradient(135deg,#22c55e15,#22c55e05)'
         },
@@ -98,7 +98,7 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
             label: 'Active Memberships',
             value: kpis.activeMemberships || 0,
             desc: "SMC & Loyalty cardholders",
-            icon: <i className="bi bi-card-heading text-primary" style={{ fontSize: '1.2rem' }}></i>,
+            icon: <i className="bi bi-person-lines-fill" style={{ fontSize: '1.2rem', color: '#3b82f6' }} ></i>,
             color: '#3b82f6',
             bg: 'linear-gradient(135deg,#3b82f615,#3b82f605)'
         },
@@ -184,12 +184,12 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                     <div className="d-flex flex-wrap gap-2">
                         {[
                             { id: 'overview', label: 'Executive Overview', icon: 'bi-grid-1x2-fill' },
-                            { id: 'revenue', label: 'Revenue Analytics', icon: 'bi-graph-up-arrow' },
+                            { id: 'revenue', label: 'Revenue Analytics', icon: 'bi-bar-chart-fill' },
                             { id: 'carwash', label: 'Carwash Operations', icon: 'bi-droplet-fill' },
                             { id: 'carRental', label: 'Car Rental Fleet', icon: 'bi-car-front-fill' },
                             { id: 'customers', label: 'Customers & SMC', icon: 'bi-people-fill' },
                             { id: 'workforce', label: 'Workforce Leaderboard', icon: 'bi-person-badge-fill' },
-                            { id: 'finance', label: 'Financial Health', icon: 'bi-wallet2' },
+                            { id: 'finance', label: 'Financial Health', icon: 'bi-wallet-fill' },
                         ].map(tab => (
                             <button
                                 key={tab.id}
