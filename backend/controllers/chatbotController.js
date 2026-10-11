@@ -62,7 +62,7 @@ const chat = async (req, res) => {
 
         // Initialize the model with system instruction and tools
         const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash-latest",
+            model: "gemini-2.5-flash-lite-preview-06-17",
             systemInstruction: systemPrompt,
             tools: tools
         });
@@ -151,7 +151,8 @@ const chat = async (req, res) => {
 
     } catch (error) {
         console.error("SANDIBOT Error:", error);
-        res.status(500).json({ reply: "I am having too many requests right now. Please come back again after 15 mins." });
+        console.error("SANDIBOT Error Detail:", error?.message || error);
+        res.status(500).json({ reply: "Hi! I'm currently unavailable. For assistance, please call us or visit our Services page. Thank you! 😊" });
     }
 };
 
