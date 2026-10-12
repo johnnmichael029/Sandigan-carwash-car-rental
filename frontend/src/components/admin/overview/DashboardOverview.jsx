@@ -49,11 +49,14 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
 
     const kpis = analyticsData?.kpis || {};
     const revenue = analyticsData?.revenue || { trend: [], byCategory: [] };
-    const carwash = analyticsData?.carwash || { servicePopularity: [], vehicleTypeDistribution: [], bookingFunnel: [], locationSplit: [] };
+    const carwash = analyticsData?.carwash || { servicePopularity: [], addonDistribution: [], vehicleTypeDistribution: [], bookingFunnel: [], locationSplit: [] };
     const carRental = analyticsData?.carRental || { trend: [], topVehicles: [], durationDistribution: [], statusBreakdown: [], fleetUtilization: {} };
     const customer = analyticsData?.customer || { growthTrend: [], memberships: {}, repeatVsFirstTime: [] };
     const workforce = analyticsData?.workforce || { leaderboard: [], busyHours: [] };
     const finance = analyticsData?.finance || { monthlyOverview: [], expenseCategories: [] };
+
+    // Carwash Washes Comparison Filter ('month' for Month-over-Month, 'year' for Year-over-Year)
+    const [washComparisonPeriod, setWashComparisonPeriod] = useState('month');
 
     // Vehicle Category Drill-down Filter (e.g. ALL, Sedan, SUV, etc.)
     const [selectedVehicleCategory, setSelectedVehicleCategory] = useState('ALL');
@@ -77,6 +80,10 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
     const totalCategoryRevenue = useMemo(() => {
         return (revenue.byCategory || []).reduce((acc, c) => acc + (c.total || 0), 0);
     }, [revenue.byCategory]);
+
+    const totalAddonsCount = useMemo(() => {
+        return (carwash.addonDistribution || []).reduce((acc, curr) => acc + (curr.total || 0), 0);
+    }, [carwash.addonDistribution]);
 
     // Colors
     const COLORS = ['#23A0CE', '#22c55e', '#a855f7', '#f59e0b', '#ec4899', '#3b82f6', '#14b8a6', '#f97316', '#6366f1', '#eab308'];
@@ -498,12 +505,54 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
             {/* 3. CARWASH OPERATIONS TAB */}
             {activeTab === 'carwash' && (
                 <div className="row g-4">
-                    {/* Service Popularity */}
+                    {/* Service Popularity (Month vs Month / Year vs Year) */}
                     <div className="col-12 col-xl-6">
                         <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
-                            <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>Top Washes & Packages (This Month vs Last Month)</h6>
-                            <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Volume of services requested</p>
-                            {isLoading ? <ChartSkeleton /> : (
+                            <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                                <div>
+                                    <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>
+                                        {washComparisonPeriod === 'month' ? 'Top Washes & Packages (This Month vs Last Month)' : 'Top Washes & Packages (This Year vs Last Year)'}
+                                    </h6>
+                                    <p className="text-muted mb-0" style={{ fontSize: '0.8rem' }}>Volume of wash services requested</p>
+                                </div>
+                                <div
+                                    className="d-flex align-items-center p-1 rounded-pill border shadow-sm"
+                                    style={{
+                                        backgroundColor: isDark ? '#1e293b' : '#f8fafc',
+                                        borderColor: 'var(--theme-content-border)'
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => setWashComparisonPeriod('month')}
+                                        className="btn btn-sm py-1 px-3 rounded-pill fw-semibold border-0"
+                                        style={{
+                                            fontSize: '0.72rem',
+                                            backgroundColor: washComparisonPeriod === 'month' ? '#23A0CE' : 'transparent',
+                                            color: washComparisonPeriod === 'month' ? '#ffffff' : 'var(--theme-content-text)'
+                                        }}
+                                    >
+                                        Month
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setWashComparisonPeriod('year')}
+                                        className="btn btn-sm py-1 px-3 rounded-pill fw-semibold border-0"
+                                        style={{
+                                            fontSize: '0.72rem',
+                                            backgroundColor: washComparisonPeriod === 'year' ? '#23A0CE' : 'transparent',
+                                            color: washComparisonPeriod === 'year' ? '#ffffff' : 'var(--theme-content-text)'
+                                        }}
+                                    >
+                                        This Year vs Last Year
+                                    </button>
+                                </div>
+                            </div>
+                            {isLoading ? <ChartSkeleton /> : (carwash.servicePopularity || []).length === 0 ? (
+                                <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 280, fontSize: '0.85rem' }}>
+                                    No wash services recorded in this period.
+                                </div>
+                            ) : (
                                 <div style={{ height: 280, width: '100%' }}>
                                     <ResponsiveContainer>
                                         <BarChart data={carwash.servicePopularity} layout="vertical">
@@ -511,10 +560,88 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                                             <XAxis type="number" tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }} />
                                             <YAxis type="category" dataKey="service" width={110} tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }} />
                                             <Tooltip content={<CustomTooltip />} />
-                                            <Bar dataKey="thisMonth" name="This Month" fill="#23A0CE" radius={[0, 4, 4, 0]} />
-                                            <Bar dataKey="lastMonth" name="Last Month" fill="#94a3b8" radius={[0, 4, 4, 0]} />
+                                            <Legend verticalAlign="top" height={36} />
+                                            {washComparisonPeriod === 'month' ? (
+                                                <>
+                                                    <Bar dataKey="thisMonth" name="This Month" fill="#23A0CE" radius={[0, 4, 4, 0]} />
+                                                    <Bar dataKey="lastMonth" name="Last Month" fill="#94a3b8" radius={[0, 4, 4, 0]} />
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Bar dataKey="thisYear" name="This Year" fill="#23A0CE" radius={[0, 4, 4, 0]} />
+                                                    <Bar dataKey="lastYear" name="Last Year" fill="#94a3b8" radius={[0, 4, 4, 0]} />
+                                                </>
+                                            )}
                                         </BarChart>
                                     </ResponsiveContainer>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Add-on Services Distribution */}
+                    <div className="col-12 col-xl-6">
+                        <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
+                            <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                                <div>
+                                    <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>
+                                        Add-ons & Upgrades Distribution
+                                    </h6>
+                                    <p className="text-muted mb-0" style={{ fontSize: '0.8rem' }}>
+                                        {totalAddonsCount} add-on upgrades requested (Armor, Buffing, Wax, Detailing, etc.)
+                                    </p>
+                                </div>
+                                <span className="badge rounded-pill px-3 py-2" style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', fontSize: '0.72rem', fontWeight: 600 }}>
+                                    <i className="bi bi-stars me-1"></i> Add-ons
+                                </span>
+                            </div>
+                            {isLoading ? <ChartSkeleton /> : (carwash.addonDistribution || []).length === 0 ? (
+                                <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 280, fontSize: '0.85rem' }}>
+                                    No add-on services recorded yet.
+                                </div>
+                            ) : (
+                                <div className="row align-items-center g-3">
+                                    <div className="col-12 col-sm-6" style={{ height: 280 }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={carwash.addonDistribution}
+                                                    dataKey="total"
+                                                    nameKey="addon"
+                                                    innerRadius={50}
+                                                    outerRadius={80}
+                                                    paddingAngle={3}
+                                                >
+                                                    {(carwash.addonDistribution || []).map((entry, index) => (
+                                                        <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip content={<CustomTooltip />} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div className="col-12 col-sm-6">
+                                        <div className="d-flex flex-column gap-2" style={{ maxHeight: 270, overflowY: 'auto', paddingRight: 4 }}>
+                                            {(carwash.addonDistribution || []).map((item, idx) => (
+                                                <div key={idx} className="p-2 rounded-3 border" style={{ borderColor: 'var(--theme-content-border)', backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}>
+                                                    <div className="d-flex justify-content-between align-items-center mb-1">
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: COLORS[idx % COLORS.length] }}></span>
+                                                            <span className="fw-semibold font-poppins text-truncate" style={{ fontSize: '0.82rem', maxWidth: 120, color: 'var(--theme-content-text)' }} title={item.addon}>
+                                                                {item.addon}
+                                                            </span>
+                                                        </div>
+                                                        <span className="fw-bold text-success" style={{ fontSize: '0.85rem' }}>
+                                                            {item.total} <span className="text-muted fw-normal" style={{ fontSize: '0.72rem' }}>({item.percentage}%)</span>
+                                                        </span>
+                                                    </div>
+                                                    <div className="progress" style={{ height: 4 }}>
+                                                        <div className="progress-bar" style={{ backgroundColor: COLORS[idx % COLORS.length], width: `${item.percentage}%` }}></div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -632,7 +759,7 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                     </div>
 
                     {/* Location Split */}
-                    <div className="col-12 col-xl-6">
+                    <div className="col-12 col-xl-12">
                         <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
                             <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>In-Store vs Home Service Split</h6>
                             <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Service location breakdown</p>
@@ -767,9 +894,18 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                     {/* Top Rented Fleet Vehicles */}
                     <div className="col-12 col-xl-6">
                         <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
-                            <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>Most Popular Fleet Vehicles</h6>
-                            <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Ranked by number of rentals</p>
-                            {isLoading ? <ChartSkeleton /> : (
+                            <div className="d-flex align-items-center justify-content-between mb-1 flex-wrap gap-2">
+                                <h6 className="fw-bold font-poppins mb-0" style={{ color: 'var(--theme-content-text)' }}>Most Popular Fleet Vehicles</h6>
+                                <span className="badge rounded-pill px-2 py-1" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', fontSize: '0.72rem' }}>
+                                    <i className="bi bi-trophy-fill me-1"></i> Top Highlighted
+                                </span>
+                            </div>
+                            <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Ranked by number of rentals (top vehicle highlighted)</p>
+                            {isLoading ? <ChartSkeleton /> : (carRental.topVehicles || []).length === 0 ? (
+                                <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 280, fontSize: '0.85rem' }}>
+                                    No rental vehicles recorded in this period.
+                                </div>
+                            ) : (
                                 <div style={{ height: 280, width: '100%' }}>
                                     <ResponsiveContainer>
                                         <BarChart data={carRental.topVehicles}>
@@ -777,7 +913,17 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                                             <XAxis dataKey="name" tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }} axisLine={false} />
                                             <YAxis tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#64748b' }} axisLine={false} />
                                             <Tooltip content={<CustomTooltip />} />
-                                            <Bar dataKey="rentals" name="Total Rentals" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="rentals" name="Total Rentals" radius={[4, 4, 0, 0]}>
+                                                {(() => {
+                                                    const maxRentals = Math.max(...(carRental.topVehicles || []).map(v => v.rentals || 0), 0);
+                                                    return (carRental.topVehicles || []).map((entry, index) => (
+                                                        <Cell
+                                                            key={index}
+                                                            fill={entry.rentals === maxRentals && maxRentals > 0 ? '#f59e0b' : (isDark ? '#475569' : '#cbd5e1')}
+                                                        />
+                                                    ));
+                                                })()}
+                                            </Bar>
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
@@ -887,7 +1033,7 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                     </div>
 
                     {/* First-time vs Repeat Customers */}
-                    <div className="col-12 col-xl-8">
+                    <div className="col-12 col-xl-12">
                         <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
                             <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>First-Time vs Repeat Customers</h6>
                             <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Retention analytics from booking history</p>

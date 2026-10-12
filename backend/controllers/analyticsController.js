@@ -18,7 +18,13 @@ const buildDashboardAnalytics = async (filter = {}) => {
         const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        const startOfThisYear = new Date(now.getFullYear(), 0, 1);
+        const startOfLastYear = new Date(now.getFullYear() - 1, 0, 1);
+        const endOfLastYear = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
         const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+        const RENTAL_SERVICE_NAMES = ['Car Rental', 'Rental', 'Rental Fleet', 'car rental', 'rental', 'rental fleet'];
+        const BASE_WASH_NAMES = ['Regular Wash', 'Premium Wash', 'Wash', 'Armor Wash', 'Wax Wash', 'Basic Wash', 'Quick Wash'];
 
         let trendStartDate = twelveMonthsAgo;
         let trendEndDate = now;
@@ -55,8 +61,8 @@ const buildDashboardAnalytics = async (filter = {}) => {
             revenueByCategoryAgg,
 
             // 3. Carwash Analytics
-            servicePopularityThisMonth,
-            servicePopularityLastMonth,
+            washesPopularityAgg,
+            addonsPopularityAgg,
             vehicleTypeAgg,
             bookingFunnelAgg,
             locationSplitAgg,
@@ -99,7 +105,8 @@ const buildDashboardAnalytics = async (filter = {}) => {
             Booking.countDocuments({
                 createdAt: { $gte: startOfToday },
                 status: { $ne: 'Cancelled' },
-                $or: [{ isRental: false }, { isRental: { $exists: false } }]
+                $or: [{ isRental: false }, { isRental: { $exists: false } }],
+                serviceType: { $nin: RENTAL_SERVICE_NAMES }
             }),
             CarRental.countDocuments({ status: { $in: ['Active', 'Confirmed', 'Pending'] } }),
             Expense.aggregate([
@@ -195,35 +202,158 @@ const buildDashboardAnalytics = async (filter = {}) => {
             ]),
 
             // --- 3. Carwash Analytics ---
+            // 3.1 Base Washes & Packages (Month-over-Month & Year-over-Year comparison)
             Booking.aggregate([
                 {
                     $match: {
-                        createdAt: { $gte: startOfThisMonth },
                         status: { $ne: 'Cancelled' },
                         $or: [{ isRental: false }, { isRental: { $exists: false } }]
                     }
                 },
                 { $unwind: '$serviceType' },
-                { $group: { _id: '$serviceType', count: { $sum: 1 } } },
-                { $sort: { count: -1 } },
-                { $limit: 8 }
+                {
+                    $match: {
+                        serviceType: {
+                            $nin: RENTAL_SERVICE_NAMES,
+                            $in: BASE_WASH_NAMES
+                        }
+                    }
+                },
+                {
+                    $group: {
+                        _id: '$serviceType',
+                        total: { $sum: 1 },
+                        thisMonth: {
+                            $sum: { $cond: [{ $gte: ['$createdAt', startOfThisMonth] }, 1, 0] }
+                        },
+                        lastMonth: {
+                            $sum: {
+                                $cond: [
+                                    {
+                                        $and: [
+                                            { $gte: ['$createdAt', startOfLastMonth] },
+                                            { $lte: ['$createdAt', endOfLastMonth] }
+                                        ]
+                                    },
+                                    1,
+                                    0
+                                ]
+                            }
+                        },
+                        thisYear: {
+                            $sum: { $cond: [{ $gte: ['$createdAt', startOfThisYear] }, 1, 0] }
+                        },
+                        lastYear: {
+                            $sum: {
+                                $cond: [
+                                    {
+                                        $and: [
+                                            { $gte: ['$createdAt', startOfLastYear] },
+                                            { $lte: ['$createdAt', endOfLastYear] }
+                                        ]
+                                    },
+                                    1,
+                                    0
+                                ]
+                            }
+                        },
+                        filtered: {
+                            $sum: {
+                                $cond: [
+                                    {
+                                        $and: [
+                                            { $gte: ['$createdAt', trendStartDate] },
+                                            { $lte: ['$createdAt', trendEndDate] }
+                                        ]
+                                    },
+                                    1,
+                                    0
+                                ]
+                            }
+                        }
+                    }
+                },
+                { $sort: { total: -1 } },
+                { $limit: 10 }
             ]),
+            // 3.2 Add-ons & Upgrades Distribution
             Booking.aggregate([
                 {
                     $match: {
-                        createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth },
                         status: { $ne: 'Cancelled' },
                         $or: [{ isRental: false }, { isRental: { $exists: false } }]
                     }
                 },
                 { $unwind: '$serviceType' },
-                { $group: { _id: '$serviceType', count: { $sum: 1 } } }
+                {
+                    $match: {
+                        serviceType: {
+                            $nin: [...RENTAL_SERVICE_NAMES, ...BASE_WASH_NAMES]
+                        }
+                    }
+                },
+                {
+                    $group: {
+                        _id: '$serviceType',
+                        total: { $sum: 1 },
+                        thisMonth: {
+                            $sum: { $cond: [{ $gte: ['$createdAt', startOfThisMonth] }, 1, 0] }
+                        },
+                        lastMonth: {
+                            $sum: {
+                                $cond: [
+                                    {
+                                        $and: [
+                                            { $gte: ['$createdAt', startOfLastMonth] },
+                                            { $lte: ['$createdAt', endOfLastMonth] }
+                                        ]
+                                    },
+                                    1,
+                                    0
+                                ]
+                            }
+                        },
+                        thisYear: {
+                            $sum: { $cond: [{ $gte: ['$createdAt', startOfThisYear] }, 1, 0] }
+                        },
+                        lastYear: {
+                            $sum: {
+                                $cond: [
+                                    {
+                                        $and: [
+                                            { $gte: ['$createdAt', startOfLastYear] },
+                                            { $lte: ['$createdAt', endOfLastYear] }
+                                        ]
+                                    },
+                                    1,
+                                    0
+                                ]
+                            }
+                        },
+                        filtered: {
+                            $sum: {
+                                $cond: [
+                                    {
+                                        $and: [
+                                            { $gte: ['$createdAt', trendStartDate] },
+                                            { $lte: ['$createdAt', trendEndDate] }
+                                        ]
+                                    },
+                                    1,
+                                    0
+                                ]
+                            }
+                        }
+                    }
+                },
+                { $sort: { total: -1 } }
             ]),
             Booking.aggregate([
                 {
                     $match: {
                         status: { $ne: 'Cancelled' },
-                        $or: [{ isRental: false }, { isRental: { $exists: false } }]
+                        $or: [{ isRental: false }, { isRental: { $exists: false } }],
+                        serviceType: { $nin: RENTAL_SERVICE_NAMES }
                     }
                 },
                 { $group: { _id: '$vehicleType', count: { $sum: 1 } } },
@@ -232,7 +362,8 @@ const buildDashboardAnalytics = async (filter = {}) => {
             Booking.aggregate([
                 {
                     $match: {
-                        $or: [{ isRental: false }, { isRental: { $exists: false } }]
+                        $or: [{ isRental: false }, { isRental: { $exists: false } }],
+                        serviceType: { $nin: RENTAL_SERVICE_NAMES }
                     }
                 },
                 { $group: { _id: '$status', count: { $sum: 1 } } }
@@ -241,7 +372,8 @@ const buildDashboardAnalytics = async (filter = {}) => {
                 {
                     $match: {
                         status: { $ne: 'Cancelled' },
-                        $or: [{ isRental: false }, { isRental: { $exists: false } }]
+                        $or: [{ isRental: false }, { isRental: { $exists: false } }],
+                        serviceType: { $nin: RENTAL_SERVICE_NAMES }
                     }
                 },
                 {
@@ -439,16 +571,28 @@ const buildDashboardAnalytics = async (filter = {}) => {
             retail: item.retail
         }));
 
-        // Service Popularity Map with Last Month comparison
-        const lastMonthMap = {};
-        servicePopularityLastMonth.forEach(item => {
-            lastMonthMap[item._id] = item.count;
-        });
-
-        const servicePopularityFormatted = servicePopularityThisMonth.map(item => ({
+        // Format Washes Popularity (Supports Month comparison, Year comparison, and Filtered)
+        const servicePopularityFormatted = washesPopularityAgg.map(item => ({
             service: item._id,
-            thisMonth: item.count,
-            lastMonth: lastMonthMap[item._id] || 0
+            thisMonth: item.thisMonth || 0,
+            lastMonth: item.lastMonth || 0,
+            thisYear: item.thisYear || 0,
+            lastYear: item.lastYear || 0,
+            filtered: item.filtered || 0,
+            total: item.total || 0
+        }));
+
+        // Format Add-on Services Distribution & Usage Breakdown
+        const totalAddonsCount = addonsPopularityAgg.reduce((sum, item) => sum + (item.total || 0), 0);
+        const addonDistributionFormatted = addonsPopularityAgg.map(item => ({
+            addon: item._id,
+            total: item.total || 0,
+            thisMonth: item.thisMonth || 0,
+            lastMonth: item.lastMonth || 0,
+            thisYear: item.thisYear || 0,
+            lastYear: item.lastYear || 0,
+            filtered: item.filtered || 0,
+            percentage: totalAddonsCount > 0 ? Math.round(((item.total || 0) / totalAddonsCount) * 100) : 0
         }));
 
         // Format Car Rental Monthly Trend
@@ -561,6 +705,7 @@ const buildDashboardAnalytics = async (filter = {}) => {
             },
             carwash: {
                 servicePopularity: servicePopularityFormatted,
+                addonDistribution: addonDistributionFormatted,
                 vehicleTypeDistribution: vehicleTypeDistributionFormatted,
                 vehicleCategoryDetails,
                 bookingFunnel: bookingFunnelAgg.map(f => ({ status: f._id || 'Unknown', count: f.count })),
