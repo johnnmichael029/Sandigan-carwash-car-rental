@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import '../../../css/style.css';
 import useSWR from 'swr';
 import { io } from 'socket.io-client';
@@ -40,8 +40,27 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
     const workforce = analyticsData?.workforce || { leaderboard: [], busyHours: [] };
     const finance = analyticsData?.finance || { monthlyOverview: [], expenseCategories: [] };
 
+    // Vehicle Category Drill-down Filter (e.g. ALL, Sedan, SUV, etc.)
+    const [selectedVehicleCategory, setSelectedVehicleCategory] = useState('ALL');
+
+    // Compute active data to display: either high-level categories or specific models for a selected category
+    const activeVehicleDistribution = useMemo(() => {
+        if (selectedVehicleCategory === 'ALL') {
+            return carwash.vehicleTypeDistribution || [];
+        }
+        const subModels = carwash.vehicleCategoryDetails?.[selectedVehicleCategory] || [];
+        return subModels.map(m => ({
+            type: m.model,
+            count: m.count
+        }));
+    }, [carwash, selectedVehicleCategory]);
+
+    const activeVehicleTotal = useMemo(() => {
+        return activeVehicleDistribution.reduce((acc, curr) => acc + (curr.count || 0), 0);
+    }, [activeVehicleDistribution]);
+
     // Colors
-    const COLORS = ['#23A0CE', '#22c55e', '#a855f7', '#f59e0b', '#ec4899', '#3b82f6', '#10b981'];
+    const COLORS = ['#23A0CE', '#22c55e', '#a855f7', '#f59e0b', '#ec4899', '#3b82f6', '#14b8a6', '#f97316', '#6366f1', '#eab308'];
     const STATUS_COLORS = { 'Pending': '#f59e0b', 'Confirmed': '#23A0CE', 'Queued': '#a855f7', 'In-Progress': '#f97316', 'Completed': '#22c55e', 'Cancelled': '#f43f5e', 'Active': '#10b981', 'Returned': '#06b6d4' };
 
     // KPI Cards Data
@@ -342,14 +361,77 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                     {/* Vehicle Type Distribution */}
                     <div className="col-12 col-xl-6">
                         <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
-                            <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>Vehicle Type Distribution</h6>
-                            <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Sedans vs SUVs vs Motorcycles vs Vans</p>
-                            {isLoading ? <ChartSkeleton /> : (
+                            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                                <div>
+                                    <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>
+                                        {selectedVehicleCategory === 'ALL' ? 'Vehicle Type Distribution' : `${selectedVehicleCategory} Distribution`}
+                                    </h6>
+                                    <p className="text-muted mb-0" style={{ fontSize: '0.8rem' }}>
+                                        {selectedVehicleCategory === 'ALL'
+                                            ? 'Sedans vs SUVs vs Motorcycles vs Vans'
+                                            : `Model breakdown (${activeVehicleTotal} bookings)`}
+                                    </p>
+                                </div>
+                                <div className="d-flex align-items-center gap-2">
+                                    <select
+                                        className="form-select form-select-sm shadow-none"
+                                        value={selectedVehicleCategory}
+                                        onChange={(e) => setSelectedVehicleCategory(e.target.value)}
+                                        style={{
+                                            width: 'auto',
+                                            minWidth: '140px',
+                                            fontSize: '0.78rem',
+                                            fontWeight: 600,
+                                            backgroundColor: isDark ? '#1e293b' : '#f8fafc',
+                                            color: 'var(--theme-content-text)',
+                                            borderColor: 'var(--theme-content-border)',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <option value="ALL">All Categories</option>
+                                        {(carwash.vehicleTypeDistribution || []).map((entry) => (
+                                            <option key={entry.type} value={entry.type}>
+                                                {entry.type} ({entry.count})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {selectedVehicleCategory !== 'ALL' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedVehicleCategory('ALL')}
+                                            className="btn btn-sm btn-outline-secondary py-1 px-2 d-flex align-items-center gap-1"
+                                            style={{ fontSize: '0.72rem', borderRadius: '8px', whiteSpace: 'nowrap' }}
+                                            title="View all categories"
+                                        >
+                                            <i className="bi bi-arrow-counterclockwise"></i> Reset
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            {isLoading ? <ChartSkeleton /> : activeVehicleDistribution.length === 0 ? (
+                                <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 280, fontSize: '0.85rem' }}>
+                                    No vehicles found for this category.
+                                </div>
+                            ) : (
                                 <div style={{ height: 280, width: '100%' }}>
                                     <ResponsiveContainer>
                                         <PieChart>
-                                            <Pie data={carwash.vehicleTypeDistribution} dataKey="count" nameKey="type" innerRadius={55} outerRadius={85} paddingAngle={4}>
-                                                {carwash.vehicleTypeDistribution.map((entry, index) => (
+                                            <Pie
+                                                data={activeVehicleDistribution}
+                                                dataKey="count"
+                                                nameKey="type"
+                                                innerRadius={55}
+                                                outerRadius={85}
+                                                paddingAngle={4}
+                                                onClick={(entry) => {
+                                                    if (selectedVehicleCategory === 'ALL' && entry?.type) {
+                                                        setSelectedVehicleCategory(entry.type);
+                                                    }
+                                                }}
+                                                style={{ cursor: selectedVehicleCategory === 'ALL' ? 'pointer' : 'default' }}
+                                            >
+                                                {activeVehicleDistribution.map((entry, index) => (
                                                     <Cell key={index} fill={COLORS[index % COLORS.length]} />
                                                 ))}
                                             </Pie>

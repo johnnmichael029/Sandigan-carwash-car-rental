@@ -7,6 +7,129 @@ const Membership = require('../models/membershipModel');
 const Employee = require('../models/employeeModel');
 const RentalFleet = require('../models/rentalFleetModel');
 
+// Standardize vehicle models and names into unified category groupings
+const mapToVehicleCategory = (rawType) => {
+    if (!rawType || typeof rawType !== 'string') return 'Other';
+    const trimmed = rawType.trim();
+    const lower = trimmed.toLowerCase();
+
+    // 1. Motorcycles & Bikes
+    if (
+        lower.includes('cc') ||
+        lower.includes('bike') ||
+        lower.includes('motorcycle') ||
+        lower.includes('tricycle') ||
+        lower.includes('scooter')
+    ) {
+        return 'Motorcycle';
+    }
+
+    // 2. Pick-up Trucks
+    if (
+        lower.includes('pick up') ||
+        lower.includes('pickup') ||
+        lower.includes('pick-up') ||
+        lower.includes('hilux') ||
+        lower.includes('navara') ||
+        lower.includes('ranger') ||
+        lower.includes('d-max') ||
+        lower.includes('dmax')
+    ) {
+        return 'Pick-up';
+    }
+
+    // 3. Vans
+    if (
+        lower.includes('van') ||
+        lower.includes('hiace') ||
+        lower.includes('urvan') ||
+        lower.includes('alphard') ||
+        lower.includes('starex') ||
+        lower.includes('commuter') ||
+        lower.includes('travis')
+    ) {
+        return 'Van';
+    }
+
+    // 4. SUVs
+    if (
+        lower.includes('suv') ||
+        lower.includes('fortuner') ||
+        lower.includes('montero') ||
+        lower.includes('everest') ||
+        lower.includes('terra') ||
+        lower.includes('pajero') ||
+        lower.includes('prado') ||
+        lower.includes('land cruiser')
+    ) {
+        return 'SUV';
+    }
+
+    // 5. MPV / AUV
+    if (
+        lower.includes('mpv') ||
+        lower.includes('mvp') ||
+        lower.includes('auv') ||
+        lower.includes('innova') ||
+        lower.includes('ertiga') ||
+        lower.includes('veloz') ||
+        lower.includes('avanza') ||
+        lower.includes('xpander') ||
+        lower.includes('x-pander') ||
+        lower.includes('crosswind') ||
+        lower.includes('adventure') ||
+        lower.includes('l300') ||
+        lower.includes('livina') ||
+        lower.includes('crossover') ||
+        lower.includes('cuv')
+    ) {
+        return 'MPV / AUV';
+    }
+
+    // 6. Hatchback / Compact
+    if (
+        lower.includes('hatchback') ||
+        lower.includes('compact') ||
+        lower.includes('wigo') ||
+        lower.includes('brio') ||
+        lower.includes('yaris') ||
+        lower.includes('swift')
+    ) {
+        return 'Hatchback / Compact';
+    }
+
+    // 7. Sedans
+    if (
+        lower.includes('sedan') ||
+        lower.includes('civic') ||
+        lower.includes('vios') ||
+        lower.includes('city') ||
+        lower.includes('altis') ||
+        lower.includes('corolla') ||
+        lower.includes('mirage') ||
+        lower.includes('accent') ||
+        lower.includes('almera')
+    ) {
+        return 'Sedan';
+    }
+
+    // 8. Jeep / Utility
+    if (lower.includes('jeep') || lower.includes('owner') || lower.includes('wrangler')) {
+        return 'Jeep / Utility';
+    }
+
+    // 9. Brands fallback (e.g. Changan)
+    if (lower.includes('changan')) {
+        return 'Sedan';
+    }
+
+    if (lower === 'unknown' || lower === 'unspecified') {
+        return 'Other';
+    }
+
+    return trimmed;
+};
+
 // Builds the full dashboard analytics object (reused by the export engine)
 const buildDashboardAnalytics = async () => {
     {
@@ -74,6 +197,7 @@ const buildDashboardAnalytics = async () => {
             ]),
             Booking.countDocuments({
                 createdAt: { $gte: startOfToday },
+                status: { $ne: 'Cancelled' },
                 $or: [{ isRental: false }, { isRental: { $exists: false } }]
             }),
             CarRental.countDocuments({ status: { $in: ['Active', 'Confirmed', 'Pending'] } }),
@@ -86,6 +210,7 @@ const buildDashboardAnalytics = async () => {
                 {
                     $match: {
                         createdAt: { $gte: startOfThisMonth },
+                        status: { $ne: 'Cancelled' },
                         detailer: { $ne: '', $exists: true, $nin: [null, ''] }
                     }
                 },
@@ -144,6 +269,8 @@ const buildDashboardAnalytics = async () => {
             Booking.aggregate([
                 {
                     $match: {
+                        createdAt: { $gte: startOfThisMonth },
+                        status: { $ne: 'Cancelled' },
                         $or: [{ isRental: false }, { isRental: { $exists: false } }]
                     }
                 },
@@ -156,6 +283,7 @@ const buildDashboardAnalytics = async () => {
                 {
                     $match: {
                         createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth },
+                        status: { $ne: 'Cancelled' },
                         $or: [{ isRental: false }, { isRental: { $exists: false } }]
                     }
                 },
@@ -165,6 +293,7 @@ const buildDashboardAnalytics = async () => {
             Booking.aggregate([
                 {
                     $match: {
+                        status: { $ne: 'Cancelled' },
                         $or: [{ isRental: false }, { isRental: { $exists: false } }]
                     }
                 },
@@ -182,6 +311,7 @@ const buildDashboardAnalytics = async () => {
             Booking.aggregate([
                 {
                     $match: {
+                        status: { $ne: 'Cancelled' },
                         $or: [{ isRental: false }, { isRental: { $exists: false } }]
                     }
                 },
@@ -287,6 +417,7 @@ const buildDashboardAnalytics = async () => {
             Booking.aggregate([
                 {
                     $match: {
+                        status: { $ne: 'Cancelled' },
                         detailer: { $ne: '', $exists: true, $nin: [null, ''] }
                     }
                 },
@@ -303,6 +434,7 @@ const buildDashboardAnalytics = async () => {
             Booking.aggregate([
                 {
                     $match: {
+                        status: { $ne: 'Cancelled' },
                         $or: [{ isRental: false }, { isRental: { $exists: false } }]
                     }
                 },
@@ -435,6 +567,30 @@ const buildDashboardAnalytics = async () => {
 
         const financialOverviewFormatted = Object.values(financialMap);
 
+        // Standardize and group Vehicle Types into clean categories + sub-model breakdown
+        const vehicleCategoryMap = {};
+        const vehicleCategoryDetails = {};
+
+        vehicleTypeAgg.forEach(v => {
+            const rawModel = v._id || 'Other';
+            const category = mapToVehicleCategory(rawModel);
+            vehicleCategoryMap[category] = (vehicleCategoryMap[category] || 0) + v.count;
+
+            if (!vehicleCategoryDetails[category]) {
+                vehicleCategoryDetails[category] = [];
+            }
+            vehicleCategoryDetails[category].push({ model: rawModel, count: v.count });
+        });
+
+        // Sort sub-models inside each category by count descending
+        Object.keys(vehicleCategoryDetails).forEach(cat => {
+            vehicleCategoryDetails[cat].sort((a, b) => b.count - a.count);
+        });
+
+        const vehicleTypeDistributionFormatted = Object.entries(vehicleCategoryMap)
+            .map(([type, count]) => ({ type, count }))
+            .sort((a, b) => b.count - a.count);
+
         return {
             success: true,
             kpis: {
@@ -454,7 +610,8 @@ const buildDashboardAnalytics = async () => {
             },
             carwash: {
                 servicePopularity: servicePopularityFormatted,
-                vehicleTypeDistribution: vehicleTypeAgg.map(v => ({ type: v._id || 'Unknown', count: v.count })),
+                vehicleTypeDistribution: vehicleTypeDistributionFormatted,
+                vehicleCategoryDetails,
                 bookingFunnel: bookingFunnelAgg.map(f => ({ status: f._id || 'Unknown', count: f.count })),
                 locationSplit: locationSplitAgg.map(l => ({ location: l._id || 'In-Store', count: l.count }))
             },
