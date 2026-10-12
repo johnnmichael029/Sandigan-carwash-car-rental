@@ -18,6 +18,11 @@ const vehicleTypeSchema = new mongoose.Schema({
     textColor: {
         type: String,
         default: '#FFFFFF'
+    },
+    category: {
+        type: String,
+        default: 'Sedan',
+        trim: true
     }
 }, { timestamps: true });
 

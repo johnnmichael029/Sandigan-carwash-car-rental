@@ -442,55 +442,67 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                     <h4 className="mb-0 font-poppins text-dark-secondary" style={{ fontWeight: 700 }}>Service Settings</h4>
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Configure car wash pricing and rental fleet.</p>
                 </div>
-                {/* Tab Navigation matching HRIS design */}
-                <div className="d-flex gap-2 p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
+                <div className="d-flex align-items-center gap-2 flex-wrap">
                     <button
-                        className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'wash' ? 'shadow-sm fw-bold' : 'text-muted'}`}
-                        onClick={() => setActiveTab('wash')}
-                        style={{ fontSize: '0.85rem', background: activeTab === 'wash' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'wash' ? 'var(--theme-content-text)' : 'inherit' }}
+                        type="button"
+                        onClick={() => setShowVehicleTypeModal(true)}
+                        className="btn btn-sm btn-outline-secondary px-3 py-2 rounded-pill shadow-sm d-flex align-items-center gap-2"
+                        style={{ fontSize: '0.82rem', fontWeight: 600 }}
                     >
-
-                        Car Wash Pricing
+                        <i className="bi bi-tags-fill text-primary"></i>
+                        Vehicle Types Library
                     </button>
-                    <button
-                        className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'rental' ? 'shadow-sm fw-bold' : 'text-muted'}`}
-                        onClick={() => setActiveTab('rental')}
-                        style={{ fontSize: '0.85rem', background: activeTab === 'rental' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'rental' ? 'var(--theme-content-text)' : 'inherit' }}
-                    >
-
-                        Car Rental Fleet
-                    </button>
-                    <button
-                        className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'payment' ? 'shadow-sm fw-bold' : 'text-muted'}`}
-                        onClick={() => setActiveTab('payment')}
-                        style={{ fontSize: '0.85rem', background: activeTab === 'payment' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'payment' ? 'var(--theme-content-text)' : 'inherit' }}
-                    >
-                        Payment Methods
-                    </button>
-
-                    {/* Danger Zone — Super Admin only */}
-                    {isSuperAdmin && (
+                    {/* Tab Navigation matching HRIS design */}
+                    <div className="d-flex gap-2 p-1 rounded-3" style={{ background: 'var(--theme-input-bg)' }}>
                         <button
-                            className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'danger' ? 'shadow-sm fw-bold' : 'text-muted'}`}
-                            onClick={() => setActiveTab('danger')}
-                            style={{
-                                fontSize: '0.85rem',
-                                background: activeTab === 'danger' ? '#ef444422' : 'transparent',
-                                color: activeTab === 'danger' ? '#ef4444' : '#ef4444aa',
-                                border: activeTab === 'danger' ? '1px solid #ef444433' : 'none'
-                            }}
+                            className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'wash' ? 'shadow-sm fw-bold' : 'text-muted'}`}
+                            onClick={() => setActiveTab('wash')}
+                            style={{ fontSize: '0.85rem', background: activeTab === 'wash' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'wash' ? 'var(--theme-content-text)' : 'inherit' }}
                         >
-                            ⚠️ Danger Zone
-                        </button>
-                    )}
 
+                            Car Wash Pricing
+                        </button>
+                        <button
+                            className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'rental' ? 'shadow-sm fw-bold' : 'text-muted'}`}
+                            onClick={() => setActiveTab('rental')}
+                            style={{ fontSize: '0.85rem', background: activeTab === 'rental' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'rental' ? 'var(--theme-content-text)' : 'inherit' }}
+                        >
+
+                            Car Rental Fleet
+                        </button>
+                        <button
+                            className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'payment' ? 'shadow-sm fw-bold' : 'text-muted'}`}
+                            onClick={() => setActiveTab('payment')}
+                            style={{ fontSize: '0.85rem', background: activeTab === 'payment' ? 'var(--theme-card-bg)' : 'transparent', color: activeTab === 'payment' ? 'var(--theme-content-text)' : 'inherit' }}
+                        >
+                            Payment Methods
+                        </button>
+
+                        {/* Danger Zone — Super Admin only */}
+                        {isSuperAdmin && (
+                            <button
+                                className={`btn btn-sm px-3 border-0 d-flex align-items-center gap-2 rounded-2 ${activeTab === 'danger' ? 'shadow-sm fw-bold' : 'text-muted'}`}
+                                onClick={() => setActiveTab('danger')}
+                                style={{
+                                    fontSize: '0.85rem',
+                                    background: activeTab === 'danger' ? '#ef444422' : 'transparent',
+                                    color: activeTab === 'danger' ? '#ef4444' : '#ef4444aa',
+                                    border: activeTab === 'danger' ? '1px solid #ef444433' : 'none'
+                                }}
+                            >
+                                ⚠️ Danger Zone
+                            </button>
+                        )}
+
+                    </div>
                 </div>
             </div>
 
             {/* Content Container */}
             {activeTab === 'wash' && (
                 <div className="row g-4">
-                    <div className="col-12 mb-2 d-flex justify-content-end">
+                    <div className="col-12 mb-2 d-flex justify-content-end gap-2">
+
                         <button onClick={handleCreateVehicle} className="btn btn-save rounded-3 text-white fw-bold shadow-sm">
                             + Add Wash Vehicle Map
                         </button>
@@ -731,7 +743,8 @@ const ServiceSettingsPage = ({ user, isDark }) => {
             {/* RENTAL FLEET TAB */}
             {activeTab === 'rental' && (
                 <div className="row g-4">
-                    <div className="col-12 mb-2 d-flex justify-content-end">
+                    <div className="col-12 mb-2 d-flex justify-content-end gap-2">
+
                         <button onClick={handleCreateFleetVehicle} className="btn btn-save rounded-3 text-white fw-bold shadow-sm">
                             + Add Rental Vehicle
                         </button>

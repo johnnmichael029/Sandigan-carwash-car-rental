@@ -20,8 +20,23 @@ import {
 const AdminOverview = ({ user, onNavigate, isDark }) => {
     const [activeTab, setActiveTab] = useState('overview');
 
+    // ── Date Range Filter State ────────────────────────────────────────────────
+    const [revenueDateFrom, setRevenueDateFrom] = useState('');
+    const [revenueDateTo, setRevenueDateTo] = useState('');
+
+    const dashboardUrl = useMemo(() => {
+        const params = new URLSearchParams();
+        if (revenueDateFrom) params.append('startDate', revenueDateFrom);
+        if (revenueDateTo) params.append('endDate', revenueDateTo);
+        const qs = params.toString();
+        return `/analytics/dashboard${qs ? `?${qs}` : ''}`;
+    }, [revenueDateFrom, revenueDateTo]);
+
     // ── Fetch aggregated analytics data from dedicated backend endpoint ────────
-    const { data: analyticsData, isLoading, mutate } = useSWR('/analytics/dashboard', swrFetcher, SWR_CONFIG);
+    const { data: analyticsData, isLoading, mutate } = useSWR(dashboardUrl, swrFetcher, {
+        ...SWR_CONFIG,
+        dedupingInterval: 1000 // 1s deduping so date range switches update immediately
+    });
 
     // ── Real-time Socket Updates ───────────────────────────────────────────────
     useEffect(() => {
@@ -58,6 +73,10 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
     const activeVehicleTotal = useMemo(() => {
         return activeVehicleDistribution.reduce((acc, curr) => acc + (curr.count || 0), 0);
     }, [activeVehicleDistribution]);
+
+    const totalCategoryRevenue = useMemo(() => {
+        return (revenue.byCategory || []).reduce((acc, c) => acc + (c.total || 0), 0);
+    }, [revenue.byCategory]);
 
     // Colors
     const COLORS = ['#23A0CE', '#22c55e', '#a855f7', '#f59e0b', '#ec4899', '#3b82f6', '#14b8a6', '#f97316', '#6366f1', '#eab308'];
@@ -238,8 +257,62 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                     {/* Revenue Trend Overview */}
                     <div className="col-12 col-xl-8">
                         <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
-                            <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>6-Month Revenue Trend</h6>
-                            <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Combined earnings across Carwash & Car Rentals</p>
+                            <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+                                <div>
+                                    <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>
+                                        {revenueDateFrom || revenueDateTo ? 'Revenue Trend (Filtered)' : '6-Month Revenue Trend'}
+                                    </h6>
+                                    <p className="text-muted mb-0" style={{ fontSize: '0.8rem' }}>Monthly combined earnings across Carwash & Car Rentals</p>
+                                </div>
+                                <div className="d-flex align-items-center gap-2">
+                                    <div
+                                        className="d-flex align-items-center gap-1 p-1 rounded-pill border shadow-sm px-3"
+                                        style={{
+                                            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                                            borderColor: 'var(--theme-content-border)'
+                                        }}
+                                    >
+                                        <input
+                                            type="date"
+                                            className="form-control form-control-sm border-0 bg-transparent p-0"
+                                            style={{
+                                                width: 110,
+                                                fontSize: '0.75rem',
+                                                outline: 'none',
+                                                boxShadow: 'none',
+                                                color: 'var(--theme-content-text)'
+                                            }}
+                                            value={revenueDateFrom}
+                                            onChange={e => setRevenueDateFrom(e.target.value)}
+                                        />
+                                        <span className="text-muted small">→</span>
+                                        <input
+                                            type="date"
+                                            className="form-control form-control-sm border-0 bg-transparent p-0"
+                                            style={{
+                                                width: 110,
+                                                fontSize: '0.75rem',
+                                                outline: 'none',
+                                                boxShadow: 'none',
+                                                color: 'var(--theme-content-text)'
+                                            }}
+                                            value={revenueDateTo}
+                                            onChange={e => setRevenueDateTo(e.target.value)}
+                                        />
+                                    </div>
+                                    {(revenueDateFrom || revenueDateTo) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setRevenueDateFrom(''); setRevenueDateTo(''); }}
+                                            className="btn btn-sm btn-outline-secondary py-1 px-2 d-flex align-items-center gap-1"
+                                            style={{ fontSize: '0.72rem', borderRadius: '8px', whiteSpace: 'nowrap' }}
+                                            title="Reset date filter"
+                                        >
+                                            <i className="bi bi-arrow-counterclockwise"></i> Reset
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                             {isLoading ? <ChartSkeleton /> : (
                                 <div style={{ height: 280, width: '100%' }}>
                                     <ResponsiveContainer>
@@ -265,9 +338,26 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                     {/* Carwash vs Rental Revenue Split */}
                     <div className="col-12 col-xl-4">
                         <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
-                            <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>Revenue Sources Split</h6>
-                            <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Distribution of current month earnings</p>
-                            {isLoading ? <ChartSkeleton /> : (
+                            <div className="d-flex align-items-center justify-content-between mb-1 flex-wrap gap-2">
+                                <h6 className="fw-bold font-poppins mb-0" style={{ color: 'var(--theme-content-text)' }}>
+                                    {revenueDateFrom || revenueDateTo ? 'Revenue Sources Split (Filtered)' : 'Revenue Sources Split'}
+                                </h6>
+                                {(revenueDateFrom || revenueDateTo) && (
+                                    <span className="badge rounded-pill" style={{ backgroundColor: 'rgba(35, 160, 206, 0.15)', color: '#23A0CE', fontSize: '0.72rem', padding: '4px 8px' }}>
+                                        Filtered
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>
+                                {revenueDateFrom || revenueDateTo
+                                    ? `Distribution of earnings in selected period (₱${totalCategoryRevenue.toLocaleString()})`
+                                    : 'Distribution of earnings by category'}
+                            </p>
+                            {isLoading ? <ChartSkeleton /> : (revenue.byCategory || []).length === 0 ? (
+                                <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 280, fontSize: '0.85rem' }}>
+                                    No revenue recorded in this period.
+                                </div>
+                            ) : (
                                 <div style={{ height: 280, width: '100%' }}>
                                     <ResponsiveContainer>
                                         <PieChart>
@@ -292,8 +382,62 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                 <div className="row g-4">
                     <div className="col-12 col-xl-8">
                         <div className="p-4 rounded-4 shadow-sm" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
-                            <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>Carwash vs Car Rental vs Retail Breakdown</h6>
-                            <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Detailed breakdown of revenue by division</p>
+                            <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+                                <div>
+                                    <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>
+                                        {revenueDateFrom || revenueDateTo ? 'Carwash vs Car Rental vs Retail Breakdown (Filtered)' : 'Carwash vs Car Rental vs Retail Breakdown'}
+                                    </h6>
+                                    <p className="text-muted mb-0" style={{ fontSize: '0.8rem' }}>Detailed breakdown of revenue by division</p>
+                                </div>
+                                <div className="d-flex align-items-center gap-2">
+                                    <div
+                                        className="d-flex align-items-center gap-1 p-1 rounded-pill border shadow-sm px-3"
+                                        style={{
+                                            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                                            borderColor: 'var(--theme-content-border)'
+                                        }}
+                                    >
+                                        <input
+                                            type="date"
+                                            className="form-control form-control-sm border-0 bg-transparent p-0"
+                                            style={{
+                                                width: 110,
+                                                fontSize: '0.75rem',
+                                                outline: 'none',
+                                                boxShadow: 'none',
+                                                color: 'var(--theme-content-text)'
+                                            }}
+                                            value={revenueDateFrom}
+                                            onChange={e => setRevenueDateFrom(e.target.value)}
+                                        />
+                                        <span className="text-muted small">→</span>
+                                        <input
+                                            type="date"
+                                            className="form-control form-control-sm border-0 bg-transparent p-0"
+                                            style={{
+                                                width: 110,
+                                                fontSize: '0.75rem',
+                                                outline: 'none',
+                                                boxShadow: 'none',
+                                                color: 'var(--theme-content-text)'
+                                            }}
+                                            value={revenueDateTo}
+                                            onChange={e => setRevenueDateTo(e.target.value)}
+                                        />
+                                    </div>
+                                    {(revenueDateFrom || revenueDateTo) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setRevenueDateFrom(''); setRevenueDateTo(''); }}
+                                            className="btn btn-sm btn-outline-secondary py-1 px-2 d-flex align-items-center gap-1"
+                                            style={{ fontSize: '0.72rem', borderRadius: '8px', whiteSpace: 'nowrap' }}
+                                            title="Reset date filter"
+                                        >
+                                            <i className="bi bi-arrow-counterclockwise"></i> Reset
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                             {isLoading ? <ChartSkeleton /> : (
                                 <div style={{ height: 320, width: '100%' }}>
                                     <ResponsiveContainer>
@@ -314,19 +458,37 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                     </div>
                     <div className="col-12 col-xl-4">
                         <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
-                            <h6 className="fw-bold font-poppins mb-3" style={{ color: 'var(--theme-content-text)' }}>Revenue Categories</h6>
+                            <div className="d-flex align-items-center justify-content-between mb-1 flex-wrap gap-2">
+                                <h6 className="fw-bold font-poppins mb-0" style={{ color: 'var(--theme-content-text)' }}>
+                                    {revenueDateFrom || revenueDateTo ? 'Revenue Categories (Filtered)' : 'Revenue Categories'}
+                                </h6>
+                                {(revenueDateFrom || revenueDateTo) && (
+                                    <span className="badge rounded-pill" style={{ backgroundColor: 'rgba(35, 160, 206, 0.15)', color: '#23A0CE', fontSize: '0.72rem', padding: '4px 8px' }}>
+                                        Filtered
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-muted mb-3" style={{ fontSize: '0.8rem' }}>
+                                {revenueDateFrom || revenueDateTo
+                                    ? `Total: ₱${totalCategoryRevenue.toLocaleString()} in selected period`
+                                    : 'Category performance breakdown'}
+                            </p>
                             <div className="d-flex flex-column gap-3">
-                                {revenue.byCategory.map((cat, idx) => (
-                                    <div key={idx} className="p-3 rounded-3 border" style={{ borderColor: 'var(--theme-content-border)' }}>
-                                        <div className="d-flex justify-content-between align-items-center mb-1">
-                                            <span className="fw-semibold font-poppins" style={{ fontSize: '0.9rem', color: 'var(--theme-content-text)' }}>{cat.category}</span>
-                                            <span className="fw-bold text-success" style={{ fontSize: '0.95rem' }}>₱{(cat.total || 0).toLocaleString()}</span>
+                                {revenue.byCategory.length === 0 ? (
+                                    <div className="py-4 text-center text-muted small">No revenue recorded in this period.</div>
+                                ) : (
+                                    revenue.byCategory.map((cat, idx) => (
+                                        <div key={idx} className="p-3 rounded-3 border" style={{ borderColor: 'var(--theme-content-border)' }}>
+                                            <div className="d-flex justify-content-between align-items-center mb-1">
+                                                <span className="fw-semibold font-poppins" style={{ fontSize: '0.9rem', color: 'var(--theme-content-text)' }}>{cat.category}</span>
+                                                <span className="fw-bold text-success" style={{ fontSize: '0.95rem' }}>₱{(cat.total || 0).toLocaleString()}</span>
+                                            </div>
+                                            <div className="progress" style={{ height: 6 }}>
+                                                <div className="progress-bar" style={{ backgroundColor: COLORS[idx % COLORS.length], width: `${Math.min(100, (cat.total / (totalCategoryRevenue || 1)) * 100)}%` }}></div>
+                                            </div>
                                         </div>
-                                        <div className="progress" style={{ height: 6 }}>
-                                            <div className="progress-bar" style={{ backgroundColor: COLORS[idx % COLORS.length], width: `${Math.min(100, (cat.total / (kpis.monthRevenue || 1)) * 100)}%` }}></div>
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))
+                                )}
                             </div>
                         </div>
                     </div>
@@ -524,8 +686,62 @@ const AdminOverview = ({ user, onNavigate, isDark }) => {
                     {/* Rental Revenue Trend */}
                     <div className="col-12 col-xl-6">
                         <div className="p-4 rounded-4 shadow-sm h-100" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-content-border)' }}>
-                            <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>Rental Revenue Trend</h6>
-                            <p className="text-muted mb-4" style={{ fontSize: '0.8rem' }}>Monthly earnings from car rentals</p>
+                            <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+                                <div>
+                                    <h6 className="fw-bold font-poppins mb-1" style={{ color: 'var(--theme-content-text)' }}>
+                                        {revenueDateFrom || revenueDateTo ? 'Rental Revenue Trend (Filtered)' : 'Rental Revenue Trend'}
+                                    </h6>
+                                    <p className="text-muted mb-0" style={{ fontSize: '0.8rem' }}>Monthly earnings from car rentals</p>
+                                </div>
+                                <div className="d-flex align-items-center gap-2">
+                                    <div
+                                        className="d-flex align-items-center gap-1 p-1 rounded-pill border shadow-sm px-3"
+                                        style={{
+                                            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                                            borderColor: 'var(--theme-content-border)'
+                                        }}
+                                    >
+                                        <input
+                                            type="date"
+                                            className="form-control form-control-sm border-0 bg-transparent p-0"
+                                            style={{
+                                                width: 110,
+                                                fontSize: '0.75rem',
+                                                outline: 'none',
+                                                boxShadow: 'none',
+                                                color: 'var(--theme-content-text)'
+                                            }}
+                                            value={revenueDateFrom}
+                                            onChange={e => setRevenueDateFrom(e.target.value)}
+                                        />
+                                        <span className="text-muted small">→</span>
+                                        <input
+                                            type="date"
+                                            className="form-control form-control-sm border-0 bg-transparent p-0"
+                                            style={{
+                                                width: 110,
+                                                fontSize: '0.75rem',
+                                                outline: 'none',
+                                                boxShadow: 'none',
+                                                color: 'var(--theme-content-text)'
+                                            }}
+                                            value={revenueDateTo}
+                                            onChange={e => setRevenueDateTo(e.target.value)}
+                                        />
+                                    </div>
+                                    {(revenueDateFrom || revenueDateTo) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setRevenueDateFrom(''); setRevenueDateTo(''); }}
+                                            className="btn btn-sm btn-outline-secondary py-1 px-2 d-flex align-items-center gap-1"
+                                            style={{ fontSize: '0.72rem', borderRadius: '8px', whiteSpace: 'nowrap' }}
+                                            title="Reset date filter"
+                                        >
+                                            <i className="bi bi-arrow-counterclockwise"></i> Reset
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                             {isLoading ? <ChartSkeleton /> : (
                                 <div style={{ height: 280, width: '100%' }}>
                                     <ResponsiveContainer>

@@ -6,139 +6,37 @@ const Customer = require('../models/customerModel');
 const Membership = require('../models/membershipModel');
 const Employee = require('../models/employeeModel');
 const RentalFleet = require('../models/rentalFleetModel');
-
-// Standardize vehicle models and names into unified category groupings
-const mapToVehicleCategory = (rawType) => {
-    if (!rawType || typeof rawType !== 'string') return 'Other';
-    const trimmed = rawType.trim();
-    const lower = trimmed.toLowerCase();
-
-    // 1. Motorcycles & Bikes
-    if (
-        lower.includes('cc') ||
-        lower.includes('bike') ||
-        lower.includes('motorcycle') ||
-        lower.includes('tricycle') ||
-        lower.includes('scooter')
-    ) {
-        return 'Motorcycle';
-    }
-
-    // 2. Pick-up Trucks
-    if (
-        lower.includes('pick up') ||
-        lower.includes('pickup') ||
-        lower.includes('pick-up') ||
-        lower.includes('hilux') ||
-        lower.includes('navara') ||
-        lower.includes('ranger') ||
-        lower.includes('d-max') ||
-        lower.includes('dmax')
-    ) {
-        return 'Pick-up';
-    }
-
-    // 3. Vans
-    if (
-        lower.includes('van') ||
-        lower.includes('hiace') ||
-        lower.includes('urvan') ||
-        lower.includes('alphard') ||
-        lower.includes('starex') ||
-        lower.includes('commuter') ||
-        lower.includes('travis')
-    ) {
-        return 'Van';
-    }
-
-    // 4. SUVs
-    if (
-        lower.includes('suv') ||
-        lower.includes('fortuner') ||
-        lower.includes('montero') ||
-        lower.includes('everest') ||
-        lower.includes('terra') ||
-        lower.includes('pajero') ||
-        lower.includes('prado') ||
-        lower.includes('land cruiser')
-    ) {
-        return 'SUV';
-    }
-
-    // 5. MPV / AUV
-    if (
-        lower.includes('mpv') ||
-        lower.includes('mvp') ||
-        lower.includes('auv') ||
-        lower.includes('innova') ||
-        lower.includes('ertiga') ||
-        lower.includes('veloz') ||
-        lower.includes('avanza') ||
-        lower.includes('xpander') ||
-        lower.includes('x-pander') ||
-        lower.includes('crosswind') ||
-        lower.includes('adventure') ||
-        lower.includes('l300') ||
-        lower.includes('livina') ||
-        lower.includes('crossover') ||
-        lower.includes('cuv')
-    ) {
-        return 'MPV / AUV';
-    }
-
-    // 6. Hatchback / Compact
-    if (
-        lower.includes('hatchback') ||
-        lower.includes('compact') ||
-        lower.includes('wigo') ||
-        lower.includes('brio') ||
-        lower.includes('yaris') ||
-        lower.includes('swift')
-    ) {
-        return 'Hatchback / Compact';
-    }
-
-    // 7. Sedans
-    if (
-        lower.includes('sedan') ||
-        lower.includes('civic') ||
-        lower.includes('vios') ||
-        lower.includes('city') ||
-        lower.includes('altis') ||
-        lower.includes('corolla') ||
-        lower.includes('mirage') ||
-        lower.includes('accent') ||
-        lower.includes('almera')
-    ) {
-        return 'Sedan';
-    }
-
-    // 8. Jeep / Utility
-    if (lower.includes('jeep') || lower.includes('owner') || lower.includes('wrangler')) {
-        return 'Jeep / Utility';
-    }
-
-    // 9. Brands fallback (e.g. Changan)
-    if (lower.includes('changan')) {
-        return 'Sedan';
-    }
-
-    if (lower === 'unknown' || lower === 'unspecified') {
-        return 'Other';
-    }
-
-    return trimmed;
-};
+const VehicleType = require('../models/vehicleTypeModel');
+const { mapToVehicleCategory } = require('../utils/vehicleCategorizer');
 
 // Builds the full dashboard analytics object (reused by the export engine)
-const buildDashboardAnalytics = async () => {
+const buildDashboardAnalytics = async (filter = {}) => {
     {
+        const { startDate, endDate } = filter || {};
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
         const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+        let trendStartDate = twelveMonthsAgo;
+        let trendEndDate = now;
+
+        if (startDate) {
+            const s = new Date(startDate);
+            if (!isNaN(s.getTime())) {
+                s.setHours(0, 0, 0, 0);
+                trendStartDate = s;
+            }
+        }
+        if (endDate) {
+            const e = new Date(endDate);
+            if (!isNaN(e.getTime())) {
+                e.setHours(23, 59, 59, 999);
+                trendEndDate = e;
+            }
+        }
 
         // Run queries in parallel for high performance
         const [
@@ -181,7 +79,10 @@ const buildDashboardAnalytics = async () => {
 
             // 7. Finance Analytics
             monthlyFinancialsAgg,
-            expenseCategoryAgg
+            expenseCategoryAgg,
+
+            // 8. Vehicle Types Library (for dynamic categorization)
+            dbVehicleTypes
         ] = await Promise.all([
             // --- 1. KPI Queries ---
             Revenue.aggregate([
@@ -221,7 +122,25 @@ const buildDashboardAnalytics = async () => {
 
             // --- 2. Revenue Analytics ---
             Revenue.aggregate([
-                { $match: { date: { $gte: twelveMonthsAgo } } },
+                { $match: { date: { $gte: trendStartDate, $lte: trendEndDate } } },
+                {
+                    $project: {
+                        date: 1,
+                        amount: 1,
+                        category: {
+                            $switch: {
+                                branches: [
+                                    { case: { $in: ['$category', ['Service', 'Car Wash', 'Carwash', 'Wash']] }, then: 'Service' },
+                                    { case: { $in: ['$category', ['Rental', 'Rental Fleet', 'Car Rental', 'Rental Fee']] }, then: 'Rental' },
+                                    { case: { $in: ['$category', ['Retail', 'Retails', 'Merchandise', 'Product']] }, then: 'Retail' },
+                                    { case: { $in: ['$category', ['Membership', 'Memberships', 'SMC']] }, then: 'Membership' },
+                                    { case: { $in: ['$category', ['Mixed']] }, then: 'Mixed' }
+                                ],
+                                default: '$category'
+                            }
+                        }
+                    }
+                },
                 {
                     $group: {
                         _id: {
@@ -231,26 +150,18 @@ const buildDashboardAnalytics = async () => {
                         total: { $sum: '$amount' },
                         carwash: {
                             $sum: {
-                                $cond: [
-                                    { $in: ['$category', ['Service', 'Car Wash', 'Carwash', 'Wash']] },
-                                    '$amount',
-                                    0
-                                ]
+                                $cond: [{ $eq: ['$category', 'Service'] }, '$amount', 0]
                             }
                         },
                         rental: {
                             $sum: {
-                                $cond: [
-                                    { $in: ['$category', ['Car Rental', 'Rental', 'Rental Fee']] },
-                                    '$amount',
-                                    0
-                                ]
+                                $cond: [{ $eq: ['$category', 'Rental'] }, '$amount', 0]
                             }
                         },
                         retail: {
                             $sum: {
                                 $cond: [
-                                    { $in: ['$category', ['Retail', 'Product', 'Membership', 'SMC']] },
+                                    { $in: ['$category', ['Retail', 'Membership', 'Mixed']] },
                                     '$amount',
                                     0
                                 ]
@@ -261,6 +172,24 @@ const buildDashboardAnalytics = async () => {
                 { $sort: { '_id.year': 1, '_id.month': 1 } }
             ]),
             Revenue.aggregate([
+                { $match: { date: { $gte: trendStartDate, $lte: trendEndDate } } },
+                {
+                    $project: {
+                        amount: 1,
+                        category: {
+                            $switch: {
+                                branches: [
+                                    { case: { $in: ['$category', ['Service', 'Car Wash', 'Carwash', 'Wash']] }, then: 'Service' },
+                                    { case: { $in: ['$category', ['Rental', 'Rental Fleet', 'Car Rental', 'Rental Fee']] }, then: 'Rental' },
+                                    { case: { $in: ['$category', ['Retail', 'Retails', 'Merchandise', 'Product']] }, then: 'Retail' },
+                                    { case: { $in: ['$category', ['Membership', 'Memberships', 'SMC']] }, then: 'Membership' },
+                                    { case: { $in: ['$category', ['Mixed']] }, then: 'Mixed' }
+                                ],
+                                default: '$category'
+                            }
+                        }
+                    }
+                },
                 { $group: { _id: '$category', total: { $sum: '$amount' } } },
                 { $sort: { total: -1 } }
             ]),
@@ -331,7 +260,12 @@ const buildDashboardAnalytics = async () => {
 
             // --- 4. Car Rental Analytics ---
             CarRental.aggregate([
-                { $match: { status: { $ne: 'Cancelled' } } },
+                {
+                    $match: {
+                        status: { $ne: 'Cancelled' },
+                        ...(startDate || endDate ? { createdAt: { $gte: trendStartDate, $lte: trendEndDate } } : {})
+                    }
+                },
                 {
                     $group: {
                         _id: {
@@ -345,7 +279,12 @@ const buildDashboardAnalytics = async () => {
                 { $sort: { '_id.year': 1, '_id.month': 1 } }
             ]),
             CarRental.aggregate([
-                { $match: { status: { $ne: 'Cancelled' } } },
+                {
+                    $match: {
+                        status: { $ne: 'Cancelled' },
+                        ...(startDate || endDate ? { createdAt: { $gte: trendStartDate, $lte: trendEndDate } } : {})
+                    }
+                },
                 {
                     $group: {
                         _id: '$vehicleName',
@@ -471,7 +410,8 @@ const buildDashboardAnalytics = async () => {
             Expense.aggregate([
                 { $group: { _id: '$category', total: { $sum: '$amount' } } },
                 { $sort: { total: -1 } }
-            ])
+            ]),
+            VehicleType.find({}).lean()
         ]);
 
         // Helper for Month labels
@@ -567,13 +507,24 @@ const buildDashboardAnalytics = async () => {
 
         const financialOverviewFormatted = Object.values(financialMap);
 
+        // Dynamic lookup table from DB VehicleType collection
+        const dbVehicleCategoryMap = {};
+        if (Array.isArray(dbVehicleTypes)) {
+            dbVehicleTypes.forEach(vt => {
+                if (vt.name && vt.category) {
+                    dbVehicleCategoryMap[vt.name.trim().toLowerCase()] = vt.category.trim();
+                }
+            });
+        }
+
         // Standardize and group Vehicle Types into clean categories + sub-model breakdown
         const vehicleCategoryMap = {};
         const vehicleCategoryDetails = {};
 
         vehicleTypeAgg.forEach(v => {
             const rawModel = v._id || 'Other';
-            const category = mapToVehicleCategory(rawModel);
+            const lower = rawModel.trim().toLowerCase();
+            const category = dbVehicleCategoryMap[lower] || mapToVehicleCategory(rawModel);
             vehicleCategoryMap[category] = (vehicleCategoryMap[category] || 0) + v.count;
 
             if (!vehicleCategoryDetails[category]) {
@@ -656,7 +607,8 @@ const buildDashboardAnalytics = async () => {
 // GET /api/analytics/dashboard
 const getDashboardAnalytics = async (req, res) => {
     try {
-        res.json(await buildDashboardAnalytics());
+        const { startDate, endDate } = req.query;
+        res.json(await buildDashboardAnalytics({ startDate, endDate }));
     } catch (error) {
         console.error('[ANALYTICS_ERROR]', error);
         res.status(500).json({ success: false, error: error.message || 'Failed to fetch analytics data' });
