@@ -54,12 +54,13 @@ const PromotionsPage = ({ isDark, user }) => {
     // Modal State
     const [showModal, setShowModal] = useState(false);
     const [editingPromo, setEditingPromo] = useState(null);
-    const [promoForm, setPromoForm] = useState({
+    const defaultPromoForm = {
         code: '', description: '', discountType: 'Percentage', discountValue: '',
         validFrom: new Date().toISOString().split('T')[0],
         validUntil: '', useType: 'Infinite', minSpend: 0, isActive: true,
         maxUsage: 0
-    });
+    };
+    const [promoForm, setPromoForm] = useState(defaultPromoForm);
     const [isSaving, setIsSaving] = useState(false);
 
     const fetchData = async (search = '') => {
@@ -117,11 +118,18 @@ const PromotionsPage = ({ isDark, user }) => {
         e.preventDefault();
         setIsSaving(true);
         try {
+            // Coerce numeric fields to avoid string comparison issues on the backend
+            const payload = {
+                ...promoForm,
+                discountValue: Number(promoForm.discountValue),
+                minSpend: Number(promoForm.minSpend) || 0,
+                maxUsage: Number(promoForm.maxUsage) || 0,
+            };
             if (editingPromo) {
-                await axios.patch(`${API_BASE}/promotions/update/${editingPromo._id}`, promoForm, { headers: authHeaders(), withCredentials: true });
+                await axios.patch(`${API_BASE}/promotions/update/${editingPromo._id}`, payload, { headers: authHeaders(), withCredentials: true });
                 Swal.fire({ title: 'Promo Updated!', icon: 'success', toast: true, position: 'top-end', background: '#002525', color: '#FAFAFA', timer: 2000, showConfirmButton: false });
             } else {
-                await axios.post(`${API_BASE}/promotions/create`, promoForm, { headers: authHeaders(), withCredentials: true });
+                await axios.post(`${API_BASE}/promotions/create`, payload, { headers: authHeaders(), withCredentials: true });
                 Swal.fire({ title: 'Promo Created!', icon: 'success', toast: true, position: 'top-end', background: '#002525', color: '#FAFAFA', timer: 2000, showConfirmButton: false });
             }
             setShowModal(false);
@@ -165,7 +173,7 @@ const PromotionsPage = ({ isDark, user }) => {
                     <p className="mb-0 text-dark-gray400 font-poppins" style={{ fontSize: '0.85rem' }}>Coupons, Discounts & Membership Records</p>
                 </div>
                 <PermissionGate user={user} department="Clientele" action="create">
-                    <button onClick={() => { setEditingPromo(null); setShowModal(true); }} className="btn btn-save rounded-3 text-white fw-bold shadow-sm">
+                    <button onClick={() => { setEditingPromo(null); setPromoForm(defaultPromoForm); setShowModal(true); }} className="btn btn-save rounded-3 text-white fw-bold shadow-sm">
                         + Create New Promo
                     </button>
                 </PermissionGate>
@@ -214,7 +222,7 @@ const PromotionsPage = ({ isDark, user }) => {
                                             </span>
                                             <div className="d-flex gap-2">
                                                 <PermissionGate user={user} department="Clientele" action="update">
-                                                    <button onClick={() => { setEditingPromo(p); setPromoForm({ ...p, validFrom: p.validFrom.split('T')[0], validUntil: p.validUntil.split('T')[0], maxUsage: p.maxUsage || 0 }); setShowModal(true); }} className="btn btn-sm border-0 p-1">
+                                                    <button onClick={() => { setEditingPromo(p); setPromoForm({ ...p, validFrom: p.validFrom ? new Date(p.validFrom).toISOString().split('T')[0] : '', validUntil: p.validUntil ? new Date(p.validUntil).toISOString().split('T')[0] : '', maxUsage: p.maxUsage || 0 }); setShowModal(true); }} className="btn btn-sm border-0 p-1">
                                                         <img src={editIcon} style={{ width: 16 }} alt="Edit" title='Edit Promo' />
                                                     </button>
                                                 </PermissionGate>

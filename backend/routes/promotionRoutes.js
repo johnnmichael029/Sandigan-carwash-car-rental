@@ -17,8 +17,8 @@ router.get('/all', cache('promo', 180), promotionController.getAllPromotions);
 router.get('/mine', requireCustomerAuth, promotionController.getMyVouchers);
 router.post('/claim', requireCustomerAuth, promotionController.claimPromotion);
 
-// Validate promo code — cached 60s (same code checked repeatedly during bookings)
-router.post('/validate', cache('promo', 60), promotionController.validatePromoCode);
+// Validate promo code — NOT cached; must always check live expiry and usage counts
+router.post('/validate', promotionController.validatePromoCode);
 
 // Admin / Clientele Mutations
 router.post('/create', requireAuth, requirePermission('Clientele', 'create'), invalidatePromos, promotionController.createPromotion);
