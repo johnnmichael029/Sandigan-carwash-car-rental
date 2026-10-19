@@ -83,7 +83,7 @@ app.use(cors({
 // 1. Login limiter
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 10 attempts
+    max: 100, // 100 attempts
     message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
     standardHeaders: true, legacyHeaders: false,
     validate: { xForwardedForHeader: false },
@@ -92,7 +92,7 @@ const loginLimiter = rateLimit({
 // 2. Booking creation limiter
 const bookingLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 5, // 5 requests
+    max: 20, // 5 requests
     message: { error: 'Too many booking requests. Please try again later.' },
     standardHeaders: true, legacyHeaders: false,
     validate: { xForwardedForHeader: false },
