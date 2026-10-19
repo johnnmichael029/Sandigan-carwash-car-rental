@@ -1100,6 +1100,74 @@ const renewSMC = async (req, res) => {
     }
 };
 
+// Link an existing SMC card directly to a customer profile
+const linkSMC = async (req, res) => {
+    try {
+        const { smcId } = req.params;
+        const { customerId, firstName, lastName, phone, email } = req.body;
+
+        const Membership = require('../models/membershipModel');
+        const card = await Membership.findOne({ cardId: smcId.toUpperCase().trim() });
+        if (!card) return res.status(404).json({ error: 'Membership card not found' });
+
+        let customer = null;
+        if (customerId) {
+            customer = await Customer.findById(customerId);
+        } else if (email && email.trim()) {
+            customer = await Customer.findOne({ email: email.toLowerCase().trim() });
+        } else if (firstName && lastName) {
+            customer = await Customer.findOne({ firstName: firstName.trim(), lastName: lastName.trim() });
+        }
+
+        if (!customer) {
+            return res.status(404).json({ error: 'Customer not found to link.' });
+        }
+
+        // Guard 1: Do not allow linking if target customer already has an active SMC card
+        if ((customer.hasSMC || customer.smcId) && customer.smcId !== card.cardId) {
+            return res.status(400).json({ error: `Customer already has an active SMC card (${customer.smcId}). Cannot link another SMC.` });
+        }
+
+        // Guard 2: Do not allow linking if the card is already assigned to a different customer
+        if (card.isAssigned && card.customerId && card.customerId.toString() !== customer._id.toString()) {
+            return res.status(400).json({ error: `This SMC card (${card.cardId}) is already assigned to another customer (${card.customerName || 'different customer'}).` });
+        }
+
+        // Link card to customer
+        customer.hasSMC = true;
+        customer.smcId = card.cardId;
+        if (card.expiryDate) {
+            customer.smcExpiryDate = card.expiryDate;
+        }
+        if (card.issuedDate) {
+            customer.smcIssuedDate = card.issuedDate;
+        }
+        if (!customer.tags.includes('SMC')) {
+            customer.tags.push('SMC');
+        }
+        await customer.save();
+
+        // Update card
+        card.customerId = customer._id;
+        card.customerName = `${customer.firstName} ${customer.lastName}`;
+        card.isAssigned = true;
+        await card.save();
+
+        // Invalidate CRM cache
+        const { invalidatePrefixes } = require('../utils/cache');
+        invalidatePrefixes('crm');
+
+        res.json({
+            message: `Successfully linked ${card.cardId} to ${customer.firstName} ${customer.lastName}`,
+            card,
+            customer
+        });
+    } catch (err) {
+        console.error('[SMC-Link] Error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     getAllCustomers,
     getCustomerStats,
@@ -1119,5 +1187,6 @@ module.exports = {
     getSMCForBooking,
     getSMCConfig,
     getAllMemberships,
-    renewSMC
+    renewSMC,
+    linkSMC
 };

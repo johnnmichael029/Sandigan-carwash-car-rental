@@ -26,6 +26,7 @@ router.delete('/:id', requireAuth, requirePermission('Clientele', 'delete'), inv
 router.get('/booking/:bookingId/smc', requireAuth, requirePermission('Clientele', 'read', ['employee', 'detailer']), cache('crm', 60), crmController.getSMCForBooking);
 router.get('/memberships/all', requireAuth, requirePermission('Clientele', 'read', ['employee', 'detailer']), cache('crm', 90), crmController.getAllMemberships);
 router.post('/renew/:smcId', requireAuth, requirePermission('Clientele', 'update', ['employee', 'detailer']), invalidateCRM, crmController.renewSMC);
+router.post('/link-card/:smcId', requireAuth, requirePermission('Clientele', 'update', ['employee', 'detailer']), invalidateCRM, crmController.linkSMC);
 router.get('/card/:smcId', requireAuth, requirePermission('Clientele', 'read', ['employee', 'detailer']), cache('crm', 60), crmController.getSMCByCardId);
 router.get('/config/smc', requireAuth, requirePermission('Clientele', 'read', ['employee', 'detailer']), cache('crm', 300), crmController.getSMCConfig);
 router.post('/:id/smc', requireAuth, requirePermission('Clientele', 'create', ['employee', 'detailer']), invalidateCRM, crmController.issueSMC);
