@@ -19,6 +19,7 @@ import * as FileSystem from 'expo-file-system';
 import BookingDetailModal from '../components/BookingDetailModal';
 import CustomAlertModal from '../components/CustomAlertModal';
 import RentalTermsModal from '../components/RentalTermsModal';
+import RentalRangeDatePickerModal from '../components/RentalRangeDatePickerModal';
 import { GCASH_QR_FALLBACK_BASE64 } from '../constants/fallbackQr';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -36,14 +37,17 @@ const RentalScreen = ({ navigation }) => {
     // ── Form state ──
     const [selectedRentalVehicle, setSelectedRentalVehicle] = useState(null);
     const [rentalStartDate, setRentalStartDate] = useState('');
-    const [rentalDurationDays, setRentalDurationDays] = useState('1');
+    const [returnDate, setReturnDate] = useState('');
+    const [pickupTime, setPickupTime] = useState('08:00 AM');
+    const [rentalDurationDays, setRentalDurationDays] = useState('0');
     const [destination, setDestination] = useState('');
     const [address, setAddress] = useState('');
     // Steps: 1=Details, 2=Requirements+Terms, 3=Payment, 4=Confirm
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [pickupDate, setPickupDate] = useState(new Date());
+    const [showRangeModal, setShowRangeModal] = useState(false);
+    const [vehicleBookedDates, setVehicleBookedDates] = useState([]);
+    const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
 
     // ── Terms State ──
     const [termsAccepted, setTermsAccepted] = useState(false);
@@ -75,9 +79,12 @@ const RentalScreen = ({ navigation }) => {
             setStep(1);
             setSelectedRentalVehicle(null);
             setRentalStartDate('');
-            setRentalDurationDays('1');
+            setReturnDate('');
+            setPickupTime('08:00 AM');
+            setRentalDurationDays('0');
             setDestination('');
             setAddress('');
+            setVehicleBookedDates([]);
             setAppliedPromo(null);
             setTermsAccepted(false);
             setReqAck(false);
@@ -124,8 +131,9 @@ const RentalScreen = ({ navigation }) => {
 
     // ── Price ──
     const getPrice = () => {
-        if (!selectedRentalVehicle || !rentalDurationDays) return null;
-        return selectedRentalVehicle.pricePerDay * (parseInt(rentalDurationDays) || 1);
+        const days = parseInt(rentalDurationDays, 10);
+        if (!selectedRentalVehicle || !days || days <= 0) return null;
+        return selectedRentalVehicle.pricePerDay * days;
     };
     const finalPrice = getPrice();
 
@@ -138,7 +146,31 @@ const RentalScreen = ({ navigation }) => {
     const downPaymentAmount = Math.round(discountedPrice * (downPaymentPct / 100));
 
     // ── Handlers ──
-    const handleVehicleSelect = (vt) => setSelectedRentalVehicle(vt);
+    const fetchVehicleAvailability = async (vehicleId) => {
+        if (!vehicleId) {
+            setVehicleBookedDates([]);
+            return;
+        }
+        setIsLoadingAvailability(true);
+        try {
+            const res = await axios.get(`${CAR_RENTAL_URL}/calendar-availability?vehicleId=${vehicleId}`);
+            const booked = res.data.bookedDates ? Object.keys(res.data.bookedDates) : [];
+            setVehicleBookedDates(booked);
+        } catch (err) {
+            console.error('Failed to load rental availability:', err);
+            setVehicleBookedDates([]);
+        } finally {
+            setIsLoadingAvailability(false);
+        }
+    };
+
+    const handleVehicleSelect = (vt) => {
+        setSelectedRentalVehicle(vt);
+        setRentalStartDate('');
+        setReturnDate('');
+        setRentalDurationDays('0');
+        fetchVehicleAvailability(vt._id);
+    };
 
     const fetchMyVouchers = async () => {
         try {
@@ -275,8 +307,12 @@ const RentalScreen = ({ navigation }) => {
 
     // ── Submit ──
     const handleSubmit = () => {
-        if (!selectedRentalVehicle || !rentalStartDate || !rentalDurationDays || !destination || !address) {
-            Toast.show({ type: 'error', text1: 'Incomplete', text2: 'Please fill in all fields including your address.' });
+        if (!selectedRentalVehicle || !rentalStartDate || !returnDate || !destination || !address) {
+            Toast.show({ type: 'error', text1: 'Incomplete', text2: 'Please fill in all fields including pick-up and return dates.' });
+            return;
+        }
+        if (parseInt(rentalDurationDays, 10) <= 0) {
+            Toast.show({ type: 'error', text1: 'Dates Required', text2: 'Please choose valid rental dates on the calendar.' });
             return;
         }
         if (selectedPaymentMethod?.type !== 'counter') {
@@ -292,18 +328,13 @@ const RentalScreen = ({ navigation }) => {
         setAlertData({
             visible: true,
             title: 'Confirm Rental?',
-            message: `Request a ${selectedRentalVehicle.vehicleName} for ${rentalDurationDays} day${rentalDurationDays > 1 ? 's' : ''} starting ${rentalStartDate}?`,
+            message: `Request a ${selectedRentalVehicle.vehicleName} for ${rentalDurationDays} day${rentalDurationDays > 1 ? 's' : ''} starting ${rentalStartDate} at ${pickupTime}?`,
             type: 'confirm',
             onConfirm: handleConfirmedSubmit
         });
     };
 
     const handleConfirmedSubmit = async () => {
-        const start = new Date(rentalStartDate);
-        const returnDateObj = new Date(start);
-        returnDateObj.setDate(returnDateObj.getDate() + parseInt(rentalDurationDays));
-        const returnDate = returnDateObj.toISOString().split('T')[0];
-
         const isCounter = selectedPaymentMethod?.type === 'counter';
         const paymentPayload = selectedPaymentMethod ? {
             method: selectedPaymentMethod.label,
@@ -322,12 +353,14 @@ const RentalScreen = ({ navigation }) => {
                 address: address.trim(),
                 vehicleId: selectedRentalVehicle._id,
                 rentalStartDate,
-                returnDate,
+                returnDate: returnDate || rentalStartDate,
+                pickupTime,
+                rentalDurationDays: parseInt(rentalDurationDays, 10),
                 destination: destination.trim(),
                 totalPrice: discountedPrice || 0,
                 promoCode: appliedPromo?.code || null,
                 promoDiscount: discountAmount || 0,
-                notes: 'Mobile App booking',
+                notes: `Mobile App booking (${pickupTime})`,
                 requirementsAcknowledged: true,
                 downPaymentAmount,
                 downPaymentPercent: downPaymentPct,
@@ -341,8 +374,12 @@ const RentalScreen = ({ navigation }) => {
             setStep(1);
             setSelectedRentalVehicle(null);
             setRentalStartDate('');
-            setRentalDurationDays('1');
+            setReturnDate('');
+            setPickupTime('08:00 AM');
+            setRentalDurationDays('0');
             setDestination('');
+            setAddress('');
+            setVehicleBookedDates([]);
             setAppliedPromo(null);
             setTermsAccepted(false);
             setReqAck(false);
@@ -449,33 +486,52 @@ const RentalScreen = ({ navigation }) => {
 
                         {selectedRentalVehicle && (
                             <View style={styles.inputSection}>
-                                <Text style={styles.inputLabel}>Pick-up Date</Text>
-                                <TouchableOpacity style={[styles.inputField, { justifyContent: 'center' }]} onPress={() => setShowDatePicker(true)}>
-                                    <Text style={{ color: rentalStartDate ? COLORS.text : COLORS.textMuted, fontSize: 14 }}>
-                                        {rentalStartDate || 'Tap to select a date...'}
-                                    </Text>
-                                </TouchableOpacity>
-                                {showDatePicker && (
-                                    <DateTimePicker
-                                        value={pickupDate}
-                                        mode="date"
-                                        display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                                        minimumDate={new Date()}
-                                        onChange={(event, selectedDate) => {
-                                            setShowDatePicker(Platform.OS === 'ios');
-                                            if (selectedDate) {
-                                                setPickupDate(selectedDate);
-                                                const y = selectedDate.getFullYear();
-                                                const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
-                                                const d = String(selectedDate.getDate()).padStart(2, '0');
-                                                setRentalStartDate(`${y}-${m}-${d}`);
-                                            }
-                                        }}
-                                    />
+                                {/* Booked dates warning banner */}
+                                {vehicleBookedDates.length > 0 && (
+                                    <View style={styles.bookedWarningCard}>
+                                        <Text style={styles.bookedWarningText}>
+                                            ⚠️ <Text style={{ fontWeight: '800' }}>Reserved Dates on Calendar:</Text> {vehicleBookedDates.length} day(s) already booked for this vehicle — marked in red.
+                                        </Text>
+                                    </View>
                                 )}
 
-                                <Text style={styles.inputLabel}>Duration (Days)</Text>
-                                <TextInput style={styles.inputField} placeholder="1" keyboardType="numeric" placeholderTextColor={COLORS.textMuted} value={rentalDurationDays} onChangeText={setRentalDurationDays} />
+                                {/* Pick-up Date & Time (Range Calendar Trigger) */}
+                                <Text style={styles.inputLabel}>Pick-up Date &amp; Time</Text>
+                                <TouchableOpacity
+                                    style={[styles.inputField, styles.datePickerTrigger]}
+                                    onPress={() => setShowRangeModal(true)}
+                                    activeOpacity={0.8}
+                                >
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                        <Text style={{ fontSize: 18 }}>📅</Text>
+                                        <Text style={{ color: rentalStartDate ? COLORS.text : COLORS.textMuted, fontSize: 14, fontWeight: rentalStartDate ? '700' : '400' }}>
+                                            {rentalStartDate ? `${rentalStartDate} — ${pickupTime}` : 'Choose Pick-up Date & Time...'}
+                                        </Text>
+                                    </View>
+                                    <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: '700' }}>
+                                        {rentalStartDate ? 'Change' : 'Select'}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {/* Return Date (Auto-filled / Read-only) */}
+                                <Text style={styles.inputLabel}>Return Date</Text>
+                                <View style={[styles.inputField, styles.lockedField]}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                        <Text style={{ fontSize: 16, opacity: 0.6 }}>🔒</Text>
+                                        <Text style={{ color: returnDate ? COLORS.text : COLORS.textMuted, fontSize: 14 }}>
+                                            {returnDate ? `${returnDate} — ${pickupTime}` : 'Auto-filled after date selection'}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* Rental Duration Badge */}
+                                {parseInt(rentalDurationDays, 10) > 0 && (
+                                    <View style={styles.durationBadge}>
+                                        <Text style={styles.durationBadgeText}>
+                                            🗓️ {rentalDurationDays} Day{parseInt(rentalDurationDays, 10) > 1 ? 's' : ''} Rental Duration
+                                        </Text>
+                                    </View>
+                                )}
 
                                 <Text style={styles.inputLabel}>Destination</Text>
                                 <TextInput style={styles.inputField} placeholder="e.g. Tagaytay City, Metro Manila" placeholderTextColor={COLORS.textMuted} value={destination} onChangeText={setDestination} />
@@ -485,7 +541,7 @@ const RentalScreen = ({ navigation }) => {
                             </View>
                         )}
 
-                        {selectedRentalVehicle && rentalDurationDays && rentalStartDate && destination && address && (
+                        {selectedRentalVehicle && parseInt(rentalDurationDays, 10) > 0 && rentalStartDate && destination && address && (
                             <View style={styles.pricePreview}>
                                 <Text style={styles.pricePreviewLabel}>Estimated Total</Text>
                                 <Text style={styles.pricePreviewValue}>{finalPrice !== null ? `₱${finalPrice.toLocaleString()}` : 'Contact for price'}</Text>
@@ -493,9 +549,9 @@ const RentalScreen = ({ navigation }) => {
                         )}
 
                         <TouchableOpacity
-                            style={[styles.nextButton, (!selectedRentalVehicle || !rentalDurationDays || !rentalStartDate || !destination || !address) && styles.nextButtonDisabled]}
+                            style={[styles.nextButton, (!selectedRentalVehicle || parseInt(rentalDurationDays, 10) <= 0 || !rentalStartDate || !returnDate || !destination || !address) && styles.nextButtonDisabled]}
                             onPress={() => {
-                                if (selectedRentalVehicle && rentalStartDate && rentalDurationDays && destination && address) setStep(2);
+                                if (selectedRentalVehicle && rentalStartDate && returnDate && parseInt(rentalDurationDays, 10) > 0 && destination && address) setStep(2);
                             }}
                         >
                             <Text style={styles.nextButtonText}>Continue →</Text>
@@ -702,8 +758,9 @@ const RentalScreen = ({ navigation }) => {
                         <Text style={styles.stepTitle}>Review Your Rental</Text>
                         <View style={styles.summaryCard}>
                             <SummaryRow label="Vehicle:" value={selectedRentalVehicle?.vehicleName} />
-                            <SummaryRow label="Pick-up Date:" value={rentalStartDate} />
-                            <SummaryRow label="Duration:" value={`${rentalDurationDays} day${rentalDurationDays > 1 ? 's' : ''}`} />
+                            <SummaryRow label="Pick-up:" value={`${rentalStartDate} (${pickupTime})`} />
+                            <SummaryRow label="Return:" value={`${returnDate} (${pickupTime})`} />
+                            <SummaryRow label="Duration:" value={`${rentalDurationDays} day${parseInt(rentalDurationDays, 10) > 1 ? 's' : ''}`} />
                             <SummaryRow label="Destination:" value={destination} />
                             <SummaryRow label="Address:" value={address} />
                             <SummaryRow label="Name:" value={`${userInfo?.firstName} ${userInfo?.lastName}`} />
@@ -817,6 +874,23 @@ const RentalScreen = ({ navigation }) => {
                 onAccept={() => { setTermsAccepted(true); setShowTermsModal(false); }}
             />
 
+            {/* ── Range Date & Time Picker Modal ── */}
+            <RentalRangeDatePickerModal
+                visible={showRangeModal}
+                onClose={() => setShowRangeModal(false)}
+                startDate={rentalStartDate}
+                endDate={returnDate}
+                pickupTime={pickupTime}
+                bookedDates={vehicleBookedDates}
+                onConfirm={({ startDate, endDate, pickupTime: time, durationDays }) => {
+                    setRentalStartDate(startDate);
+                    setReturnDate(endDate);
+                    setPickupTime(time);
+                    setRentalDurationDays(String(durationDays));
+                }}
+                COLORS={COLORS}
+            />
+
             {/* ── Success Modal ── */}
             <BookingDetailModal
                 visible={!!successModalData}
@@ -883,6 +957,45 @@ const getStyles = (COLORS) => StyleSheet.create({
     inputSection: { marginBottom: 16 },
     inputLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 8, marginTop: 12 },
     inputField: { backgroundColor: COLORS.cardBackground, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 14, color: COLORS.text },
+    datePickerTrigger: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    lockedField: {
+        backgroundColor: COLORS.background || 'rgba(0,0,0,0.2)',
+        opacity: 0.85,
+    },
+    durationBadge: {
+        backgroundColor: COLORS.primary + '18',
+        borderWidth: 1,
+        borderColor: COLORS.primary + '40',
+        borderRadius: 20,
+        paddingVertical: 6,
+        paddingHorizontal: 14,
+        alignSelf: 'flex-start',
+        marginTop: 10,
+        marginBottom: 4,
+    },
+    durationBadgeText: {
+        color: COLORS.primary,
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    bookedWarningCard: {
+        backgroundColor: 'rgba(234,179,8,0.12)',
+        borderWidth: 1,
+        borderColor: 'rgba(234,179,8,0.3)',
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 6,
+        marginTop: 8,
+    },
+    bookedWarningText: {
+        fontSize: 12,
+        color: '#facc15',
+        lineHeight: 18,
+    },
 
     // Price Preview
     pricePreview: { backgroundColor: COLORS.primary + '12', borderRadius: 12, padding: 14, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: COLORS.primary + '30', marginTop: 10 },
