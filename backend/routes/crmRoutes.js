@@ -15,21 +15,21 @@ router.put('/tags/:tagId', requireAuth, requirePermission('Clientele', 'update')
 router.delete('/tags/:tagId', requireAuth, requirePermission('Clientele', 'delete'), invalidateCRM, crmController.deleteTag);
 
 // Customer CRUD
-router.get('/', requireAuth, requirePermission('Clientele', 'read'), cache('crm', 90), crmController.getAllCustomers);
-router.post('/', requireAuth, requirePermission('Clientele', 'create'), invalidateCRM, crmController.createCustomer);
+router.get('/', requireAuth, requirePermission('Clientele', 'read', ['employee', 'detailer']), cache('crm', 90), crmController.getAllCustomers);
+router.post('/', requireAuth, requirePermission('Clientele', 'create', ['employee', 'detailer']), invalidateCRM, crmController.createCustomer);
 router.post('/sync', requireAuth, requirePermission('Clientele', 'create'), invalidateCRM, crmController.syncBookingsToCRM);
-router.get('/validate-smc/:smcId', requireAuth, requirePermission('Clientele', 'read'), cache('crm', 60), crmController.validateSMC);
-router.get('/:id', requireAuth, requirePermission('Clientele', 'read'), crmController.getCustomerStats);
+router.get('/validate-smc/:smcId', requireAuth, requirePermission('Clientele', 'read', ['employee', 'detailer']), cache('crm', 60), crmController.validateSMC);
+router.get('/:id', requireAuth, requirePermission('Clientele', 'read', ['employee', 'detailer']), crmController.getCustomerStats);
 
-router.put('/:id', requireAuth, requirePermission('Clientele', 'update'), invalidateCRM, crmController.updateCustomerCRM);
+router.put('/:id', requireAuth, requirePermission('Clientele', 'update', ['employee', 'detailer']), invalidateCRM, crmController.updateCustomerCRM);
 router.delete('/:id', requireAuth, requirePermission('Clientele', 'delete'), invalidateCRM, crmController.deleteCustomer);
-router.get('/booking/:bookingId/smc', requireAuth, requirePermission('Clientele', 'read'), cache('crm', 60), crmController.getSMCForBooking);
-router.get('/memberships/all', requireAuth, requirePermission('Clientele', 'read'), cache('crm', 90), crmController.getAllMemberships);
-router.post('/renew/:smcId', requireAuth, requirePermission('Clientele', 'update'), invalidateCRM, crmController.renewSMC);
-router.get('/card/:smcId', requireAuth, requirePermission('Clientele', 'read'), cache('crm', 60), crmController.getSMCByCardId);
-router.get('/config/smc', requireAuth, requirePermission('Clientele', 'read'), cache('crm', 300), crmController.getSMCConfig);
-router.post('/:id/smc', requireAuth, requirePermission('Clientele', 'create'), invalidateCRM, crmController.issueSMC);
-router.post('/:id/loyalty', requireAuth, requirePermission('Clientele', 'create'), invalidateCRM, crmController.issueLoyaltyCard);
+router.get('/booking/:bookingId/smc', requireAuth, requirePermission('Clientele', 'read', ['employee', 'detailer']), cache('crm', 60), crmController.getSMCForBooking);
+router.get('/memberships/all', requireAuth, requirePermission('Clientele', 'read', ['employee', 'detailer']), cache('crm', 90), crmController.getAllMemberships);
+router.post('/renew/:smcId', requireAuth, requirePermission('Clientele', 'update', ['employee', 'detailer']), invalidateCRM, crmController.renewSMC);
+router.get('/card/:smcId', requireAuth, requirePermission('Clientele', 'read', ['employee', 'detailer']), cache('crm', 60), crmController.getSMCByCardId);
+router.get('/config/smc', requireAuth, requirePermission('Clientele', 'read', ['employee', 'detailer']), cache('crm', 300), crmController.getSMCConfig);
+router.post('/:id/smc', requireAuth, requirePermission('Clientele', 'create', ['employee', 'detailer']), invalidateCRM, crmController.issueSMC);
+router.post('/:id/loyalty', requireAuth, requirePermission('Clientele', 'create', ['employee', 'detailer']), invalidateCRM, crmController.issueLoyaltyCard);
 
 module.exports = router;
 

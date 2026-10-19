@@ -1706,7 +1706,7 @@ const Book = () => {
                                                         </h5>
                                                         <p className="small mb-1" style={{ color: '#94a3b8' }}>
                                                             {selectedPaymentMethod?.type === 'counter'
-                                                                ? 'See you at the counter! Please present your Reference ID upon arrival.'
+                                                                ? 'See you at the counter! Please present your Reference ID upon arrival and you will receive an email confirmation.'
                                                                 : 'Our staff will verify your payment screenshot shortly. You will receive an email confirmation.'}
                                                         </p>
                                                         <div className="p-3 rounded-2 my-3" style={{ background: 'rgba(74,222,128,0.07)', border: '1px dashed rgba(74,222,128,0.25)' }}>

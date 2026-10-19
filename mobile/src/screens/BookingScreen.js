@@ -15,7 +15,7 @@ import Skeleton from '../components/Skeleton';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import BookingDetailModal from '../components/BookingDetailModal';
 import CustomAlertModal from '../components/CustomAlertModal';
 import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
