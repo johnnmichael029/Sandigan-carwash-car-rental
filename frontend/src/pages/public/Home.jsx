@@ -5,6 +5,7 @@ import SandiBot from '../../components/public/SandiBot';
 import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import { io } from 'socket.io-client';
 import { API_BASE, SOCKET_URL } from '../../api/config';
 import '../../css/style.css';
@@ -1457,72 +1458,147 @@ const RoadmapSection = () => (
 /* ═══════════════════════════════════════════
    SECTION 4: CONTACT
 ═══════════════════════════════════════════ */
-const ContactSection = () => (
-    <section id="contact" className="contact-section py-5">
-        <div className="container py-5">
+const ContactSection = () => {
+    const [formData, setFormData] = useState({ fullName: '', email: '', message: '' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-            {/* Heading */}
-            <div className="text-center mb-5">
-                <div className="section-badge d-flex justify-content-center gap-2 mb-2">
-                    <img src={fluentbubblewhite} alt="" aria-hidden="true" />
-                    <h6 className="text-uppercase fst-italic fw-light mb-0">Get in Touch</h6>
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!formData.fullName.trim()) {
+            return Swal.fire({
+                title: 'Name Required',
+                text: 'Please enter your full name.',
+                icon: 'warning',
+                confirmButtonColor: '#23A0CE'
+            });
+        }
+        if (!formData.email.trim() || !formData.email.includes('@')) {
+            return Swal.fire({
+                title: 'Valid Email Required',
+                text: 'Please enter a valid email address so we can reply to you.',
+                icon: 'warning',
+                confirmButtonColor: '#23A0CE'
+            });
+        }
+        if (!formData.message.trim()) {
+            return Swal.fire({
+                title: 'Message Required',
+                text: 'Please enter your inquiry or message.',
+                icon: 'warning',
+                confirmButtonColor: '#23A0CE'
+            });
+        }
+
+        setIsSubmitting(true);
+        try {
+            const res = await axios.post(`${API_BASE}/contact`, formData);
+            Swal.fire({
+                title: 'Message Sent!',
+                text: res.data?.message || 'Thank you! Your message has been sent to our team.',
+                icon: 'success',
+                confirmButtonColor: '#23A0CE'
+            });
+            setFormData({ fullName: '', email: '', message: '' });
+        } catch (err) {
+            Swal.fire({
+                title: 'Failed to Send',
+                text: err.response?.data?.error || 'Unable to send message right now. Please try again later.',
+                icon: 'error',
+                confirmButtonColor: '#23A0CE'
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <section id="contact" className="contact-section py-5">
+            <div className="container py-5">
+
+                {/* Heading */}
+                <div className="text-center mb-5">
+                    <div className="section-badge d-flex justify-content-center gap-2 mb-2">
+                        <img src={fluentbubblewhite} alt="" aria-hidden="true" />
+                        <h6 className="text-uppercase fst-italic fw-light mb-0">Get in Touch</h6>
+                    </div>
+                    <h1 className="fw-bold hero-title display-5">
+                        Contact <span className="brand-accent">Sandigan</span>
+                    </h1>
+                    <div className="mx-auto mt-3" style={{ height: '3px', width: '60px', borderRadius: '2px', background: 'var(--brand-accent)' }} />
                 </div>
-                <h1 className="fw-bold hero-title display-5">
-                    Contact <span className="brand-accent">Sandigan</span>
-                </h1>
-                <div className="mx-auto mt-3" style={{ height: '3px', width: '60px', borderRadius: '2px', background: 'var(--brand-accent)' }} />
-            </div>
 
-            {/* Form */}
-            <div className="row justify-content-center">
-                <div className="col-lg-7 col-md-9">
-                    <form className="form-container p-4 p-md-5">
-                        <div className="mb-4">
-                            <label htmlFor="contact-name" className="form-label fw-semibold">Full Name</label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                id="contact-name"
-                                placeholder="Juan dela Cruz"
-                                autoComplete="name"
-                            />
-                        </div>
-                        <div className="mb-4">
-                            <label htmlFor="contact-email" className="form-label fw-semibold">Email</label>
-                            <input
-                                type="email"
-                                className="form-control"
-                                id="contact-email"
-                                placeholder="email@example.com"
-                                autoComplete="email"
-                            />
-                        </div>
-                        <div className="mb-4">
-                            <label htmlFor="contact-message" className="form-label fw-semibold">Message</label>
-                            <textarea
-                                className="form-control"
-                                id="contact-message"
-                                rows="5"
-                                placeholder="How can we help you?"
-                                style={{ background: 'transparent', border: 'var(--input-border)', color: 'var(--text-primary)', resize: 'vertical' }}
-                            />
-                        </div>
-                        <div className="d-grid">
-                            <button
-                                type="submit"
-                                className="btn btn-primary btn-lg text-white"
-                                style={{ borderRadius: '12px', height: '3.25rem', border: 'none' }}
-                            >
-                                Send Message
-                            </button>
-                        </div>
-                    </form>
+                {/* Form */}
+                <div className="row justify-content-center">
+                    <div className="col-lg-7 col-md-9">
+                        <form className="form-container p-4 p-md-5" onSubmit={handleSubmit}>
+                            <div className="mb-4">
+                                <label htmlFor="contact-name" className="form-label fw-semibold">Full Name</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    id="contact-name"
+                                    placeholder="Juan dela Cruz"
+                                    autoComplete="name"
+                                    value={formData.fullName}
+                                    onChange={e => setFormData({ ...formData, fullName: e.target.value })}
+                                    disabled={isSubmitting}
+                                    required
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <label htmlFor="contact-email" className="form-label fw-semibold">Email</label>
+                                <input
+                                    type="email"
+                                    className="form-control"
+                                    id="contact-email"
+                                    placeholder="email@example.com"
+                                    autoComplete="email"
+                                    value={formData.email}
+                                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                    disabled={isSubmitting}
+                                    required
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <label htmlFor="contact-message" className="form-label fw-semibold">Message</label>
+                                <textarea
+                                    className="form-control"
+                                    id="contact-message"
+                                    rows="5"
+                                    placeholder="How can we help you?"
+                                    style={{ background: 'transparent', border: 'var(--input-border)', color: 'var(--text-primary)', resize: 'vertical' }}
+                                    value={formData.message}
+                                    onChange={e => setFormData({ ...formData, message: e.target.value })}
+                                    disabled={isSubmitting}
+                                    required
+                                />
+                            </div>
+                            <div className="d-grid">
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary btn-lg text-white d-flex align-items-center justify-content-center gap-2"
+                                    style={{ borderRadius: '12px', height: '3.25rem', border: 'none' }}
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                            <span>Sending Message...</span>
+                                        </>
+                                    ) : (
+                                        <span>Send Message</span>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-            </div>
 
-        </div>
-    </section>
-);
+            </div>
+        </section>
+    );
+};
+
 
 
 /* ═══════════════════════════════════════════

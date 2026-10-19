@@ -899,11 +899,27 @@ const Book = () => {
                                                                                         </div>
 
                                                                                         {/* Checklist */}
-                                                                                        <ul className="list-unstyled mb-0 mt-2 pe-1" style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.8)' }}>
+                                                                                        <ul className="list-unstyled mb-0 mt-2 pe-1" style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)' }}>
                                                                                             {pkg.inclusions.map((item, idx) => (
-                                                                                                <li key={idx} className="d-flex align-items-start gap-1 mb-1">
-                                                                                                    ✅
-                                                                                                    <span>{typeof item === 'string' ? item.replace(/^\d+\.\s*/, '') : item}</span>
+                                                                                                <li key={idx} className="d-flex align-items-start gap-2 mb-1">
+                                                                                                    <span
+                                                                                                        className="d-flex align-items-center justify-content-center flex-shrink-0"
+                                                                                                        style={{
+                                                                                                            width: 16,
+                                                                                                            height: 16,
+                                                                                                            borderRadius: 4,
+                                                                                                            backgroundColor: isSelected ? '#23A0CE' : 'rgba(255, 255, 255, 0.15)',
+                                                                                                            color: '#fff',
+                                                                                                            fontSize: '9px',
+                                                                                                            fontWeight: 900,
+                                                                                                            marginTop: 2,
+                                                                                                            lineHeight: 1,
+                                                                                                            userSelect: 'none'
+                                                                                                        }}
+                                                                                                    >
+                                                                                                        ✓
+                                                                                                    </span>
+                                                                                                    <span style={{ lineHeight: 1.45 }}>{typeof item === 'string' ? item.replace(/^\d+\.\s*/, '') : item}</span>
                                                                                                 </li>
                                                                                             ))}
                                                                                         </ul>

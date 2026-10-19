@@ -617,6 +617,106 @@ const sendRentalPickupReminderEmail = async (rental) => {
   }
 };
 
+// ─── Contact Form Notifications ─────────────────────────────────────────────
+
+/**
+ * Send notification to Admin when a customer submits the Contact Us form.
+ */
+const sendContactNotificationToAdmin = async ({ fullName, email, message }) => {
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+  if (!adminEmail) {
+    console.warn('[Email] No ADMIN_EMAIL or EMAIL_USER configured to receive contact inquiries.');
+    return { success: false, error: 'No admin email configured' };
+  }
+
+  const content = `
+    <h2 style="font-size:20px; font-weight:700; color:#f1f5f9; margin-bottom:6px;">
+      📩 New Website Inquiry
+    </h2>
+    <p style="font-size:14px; color:#94a3b8; margin-bottom:24px;">
+      A customer has submitted a message via the Sandigan contact form.
+    </p>
+
+    <table class="details-table" width="100%" cellpadding="0" cellspacing="0"
+      style="background:#13131c; border:1px solid #2d2d3f; border-radius:12px; margin-bottom:24px;">
+      ${row('Sender Name', fullName)}
+      ${row('Email Address', `<a href="mailto:${email}" style="color:#23A0CE; font-weight:600;">${email}</a>`)}
+      ${row('Date & Time', formatDate(new Date()))}
+    </table>
+
+    <div style="background:#13131c; border-left:4px solid #23A0CE; border-radius:0 10px 10px 0; padding:18px 20px; margin-bottom:24px;">
+      <p style="font-size:12px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">
+        Customer Message:
+      </p>
+      <p style="font-size:14px; color:#f1f5f9; line-height:1.7; white-space:pre-wrap;">${message}</p>
+    </div>
+
+    <p style="font-size:13px; color:#64748b; line-height:1.6;">
+      💡 <strong>Quick Reply:</strong> You can click "Reply" directly in your email client to respond to <strong>${email}</strong>.
+    </p>
+  `;
+
+  const html = wrapInShell(content, `New message from ${fullName}: "${message.slice(0, 60)}..."`);
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: adminEmail,
+      replyTo: email,
+      subject: `📩 [Website Inquiry] Message from ${fullName}`,
+      html,
+    });
+    console.log(`✅ [Email] Contact inquiry forwarded to admin (${adminEmail}) from ${email}`);
+    return { success: true };
+  } catch (err) {
+    console.error(`❌ [Email] Failed to forward contact inquiry to admin:`, err.message);
+    return { success: false, error: err.message };
+  }
+};
+
+/**
+ * Send automated confirmation receipt to customer.
+ */
+const sendContactAcknowledgementToCustomer = async ({ fullName, email, message }) => {
+  if (!email) return { success: false };
+
+  const content = `
+    <h2 style="font-size:20px; font-weight:700; color:#f1f5f9; margin-bottom:6px;">
+      Thank You for Reaching Out, ${fullName}!
+    </h2>
+    <p style="font-size:14px; color:#94a3b8; margin-bottom:24px;">
+      We have received your message and our team will get back to you as soon as possible.
+    </p>
+
+    <div style="background:#13131c; border:1px solid #2d2d3f; border-radius:12px; padding:18px 20px; margin-bottom:24px;">
+      <p style="font-size:12px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">
+        Summary of Your Message:
+      </p>
+      <p style="font-size:14px; color:#cbd5e1; line-height:1.7; white-space:pre-wrap;">${message}</p>
+    </div>
+
+    <p style="font-size:13px; color:#64748b; line-height:1.6;">
+      For urgent inquiries, you may also reach us directly at <strong>+63 948 066 9935</strong> or visit our shop during operating hours.
+    </p>
+  `;
+
+  const html = wrapInShell(content, `We have received your inquiry, ${fullName}.`);
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: email,
+      subject: `Message Received | Sandigan Carwash & Rental`,
+      html,
+    });
+    console.log(`✅ [Email] Contact acknowledgement sent to ${email}`);
+    return { success: true };
+  } catch (err) {
+    console.error(`❌ [Email] Failed to send contact acknowledgement to ${email}:`, err.message);
+    return { success: false, error: err.message };
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -624,5 +724,8 @@ module.exports = {
   sendRentalConfirmation,
   sendPaymentVerifiedEmail,
   sendPaymentRejectedEmail,
-  sendRentalPickupReminderEmail
+  sendRentalPickupReminderEmail,
+  sendContactNotificationToAdmin,
+  sendContactAcknowledgementToCustomer
 };
+

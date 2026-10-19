@@ -133,8 +133,12 @@ const MeScreen = () => {
                             <Text style={styles.smcPromoTitle}>Unlock Premium Perks!</Text>
                             <Text style={styles.smcPromoDesc}>Get unlimited discounts with SMC.</Text>
                         </View>
-                        <TouchableOpacity style={styles.smcPromoBtn}>
-                            <Text style={styles.smcPromoBtnText}>Apply Now</Text>
+                        <TouchableOpacity
+                            style={styles.smcPromoBtn}
+                            activeOpacity={0.7}
+                            onPress={() => Toast.show({ type: 'info', text1: 'Coming Soon', text2: 'Online SMC membership application will be available soon!' })}
+                        >
+                            <Text style={styles.smcPromoBtnText}>Coming Soon</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -455,15 +459,18 @@ const getStyles = (COLORS, isDarkMode) => StyleSheet.create({
         color: COLORS.textMuted,
     },
     smcPromoBtn: {
-        backgroundColor: '#23A0CE',
-        paddingHorizontal: 14,
-        paddingVertical: 8,
+        backgroundColor: isDarkMode ? 'rgba(35, 160, 206, 0.18)' : 'rgba(35, 160, 206, 0.12)',
+        borderWidth: 1,
+        borderColor: isDarkMode ? 'rgba(35, 160, 206, 0.5)' : '#23A0CE',
+        paddingHorizontal: 12,
+        paddingVertical: 7,
         borderRadius: 8,
     },
     smcPromoBtnText: {
-        color: '#fff',
-        fontSize: 12,
+        color: '#23A0CE',
+        fontSize: 11,
         fontWeight: '700',
+        letterSpacing: 0.3,
     },
     // Modal Styles
     modalOverlay: {

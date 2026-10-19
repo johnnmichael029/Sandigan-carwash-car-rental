@@ -107,6 +107,15 @@ const rentalLimiter = rateLimit({
     validate: { xForwardedForHeader: false },
 });
 
+// 2c. Contact form submission limiter
+const contactLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // 10 contact messages per 15 minutes
+    message: { error: 'Too many messages sent. Please wait a few minutes before trying again.' },
+    standardHeaders: true, legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
+});
+
 // 3. General API limiter
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -209,6 +218,10 @@ const csrfMiddleware = (req, res, next) => {
     if (req.path === '/api/employees/login' && req.body?.source === 'mobile') {
         return next();
     }
+    // 3. Public contact form submission
+    if (req.path === '/api/contact' && req.method === 'POST') {
+        return next();
+    }
     doubleCsrfProtection(req, res, next);
 };
 
@@ -267,6 +280,8 @@ app.use('/api/loyalty', require('./routes/loyaltyRoutes'));
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/exports', exportRoutes);
 app.use('/api/danger-zone', require('./routes/dangerZoneRoutes'));
+app.post('/api/contact', contactLimiter);
+app.use('/api/contact', require('./routes/inquiryRoutes'));
 // --- Custom Error Handler for CSRF and other Errors ---
 app.use((err, req, res, next) => {
     if (err.code === 'EBADCSRFTOKEN') {

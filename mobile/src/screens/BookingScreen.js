@@ -133,7 +133,7 @@ const WASH_PACKAGES_DATA = {
         {
             name: 'Regular Wash',
             description: 'Essential wash & vacuum clean',
-            ratesDisplay: 'S: ₱150 | M: ₱200 | L: ₱250 | XL: ₱300',
+            rates: { S: 150, M: 200, L: 250, XL: 300, Motorcycle: 150 },
             inclusions: ['Vacuum Cleaning', 'Body Wash', 'Tire Black Dressing', 'Glass Cleaning'],
             category: 'premium'
         },
@@ -141,14 +141,15 @@ const WASH_PACKAGES_DATA = {
             name: 'Premium Wash',
             badge: 'BEST VALUE',
             description: 'Deep clean + hydrophobic spray wax protection',
-            ratesDisplay: 'S: ₱230 | M: ₱300 | L: ₱350 | XL: ₱500',
+            rates: { S: 230, M: 300, L: 350, XL: 500, Motorcycle: 200 },
             inclusions: ['Deep Vacuum Cleaning', 'Body Wash', 'Tire Black Dressing', 'Glass Cleaning', 'Spray Wax Protection', 'Full Interior Dressing', 'Air Freshener'],
             category: 'premium'
         },
         {
             name: 'Motorcycle Wash',
             description: 'Full bike degrease & wheel/chain wash',
-            ratesDisplay: '125cc: ₱130 | 150cc: ₱140 | 500cc: ₱150 | 1000cc: ₱160',
+            rates: { Motorcycle: 140, S: 140, M: 140, L: 140, XL: 140 },
+            savings: '20 MINS',
             inclusions: ['Full Body Wash & Degrease', 'Chain & Wheel Cleaning', 'Tire Shine Dressing', 'Glass & Mirror Wipe'],
             category: 'premium',
             motorcycleOnly: true
@@ -158,12 +159,12 @@ const WASH_PACKAGES_DATA = {
         {
             name: 'Saver Package',
             savings: 'SAVES ₱600',
-            ratesDisplay: 'S: ₱1,550 | M: ₱1,650 | L: ₱1,750 | XL: ₱1,950',
+            rates: { S: 1550, M: 1650, L: 1750, XL: 1950, Motorcycle: 1550 },
             inclusions: [
-                '1. Premium Carwash (Body Wash, Vacuum, Interior Dressing, Spray Wax, Tire Black)',
-                '2. Fogging Sanitation (Back to Zero)',
-                '3. Acid Rain Removal (Glass)',
-                '4. Engine Wash'
+                'Premium Carwash (Body Wash, Vacuum, Interior Dressing, Spray Wax, Tire Black)',
+                'Fogging Sanitation (Back to Zero)',
+                'Acid Rain Removal (Glass)',
+                'Engine Wash'
             ],
             category: 'restore'
         },
@@ -171,14 +172,14 @@ const WASH_PACKAGES_DATA = {
             name: 'Standard Package',
             badge: 'MOST POPULAR',
             savings: 'SAVES ₱800',
-            ratesDisplay: 'S: ₱2,150 | M: ₱2,250 | L: ₱2,350 | XL: ₱2,550',
+            rates: { S: 2150, M: 2250, L: 2350, XL: 2550, Motorcycle: 2150 },
             inclusions: [
-                '1. Premium Carwash (Body Wash, Vacuum, Interior Dressing, Tire Black)',
-                '2. Hand Wax (Hydrophobic Wax)',
-                '3. Fogging Sanitation (Back to Zero)',
-                '4. Acid Rain Removal (Glass)',
-                '5. Back to Back (Plastic Trim Restore)',
-                '6. Engine Wash'
+                'Premium Carwash (Body Wash, Vacuum, Interior Dressing, Tire Black)',
+                'Hand Wax (Hydrophobic Wax)',
+                'Fogging Sanitation (Back to Zero)',
+                'Acid Rain Removal (Glass)',
+                'Back to Back (Plastic Trim Restore)',
+                'Engine Wash'
             ],
             category: 'restore'
         },
@@ -186,16 +187,16 @@ const WASH_PACKAGES_DATA = {
             name: 'Supreme Package',
             badge: 'BEST VALUE',
             savings: 'SAVES ₱1,350',
-            ratesDisplay: 'S: ₱3,550 | M: ₱3,850 | L: ₱4,150 | XL: ₱4,550',
+            rates: { S: 3550, M: 3850, L: 4150, XL: 4550, Motorcycle: 3550 },
             inclusions: [
-                '1. Premium Carwash (Body Wash, Vacuum, Interior Dressing, Tire Black)',
-                '2. Fogging Sanitation (Back to Zero)',
-                '3. Acid Rain Removal',
-                '4. Engine Wash',
-                '5. Machine Wax (Buffing)',
-                '6. Back to Back',
-                '7. Headlight Restoration w/ Coating',
-                '8. Under Wash'
+                'Premium Carwash (Body Wash, Vacuum, Interior Dressing, Tire Black)',
+                'Fogging Sanitation (Back to Zero)',
+                'Acid Rain Removal',
+                'Engine Wash',
+                'Machine Wax (Buffing)',
+                'Back to Black',
+                'Headlight Restoration w/ Coating',
+                'Under Wash'
             ],
             category: 'restore'
         }
@@ -206,6 +207,24 @@ const WASH_PACKAGES_FLAT = {};
 [...WASH_PACKAGES_DATA.premium, ...WASH_PACKAGES_DATA.restore].forEach(pkg => {
     WASH_PACKAGES_FLAT[pkg.name] = pkg;
 });
+
+// ── Vehicle Size Tier Helper ──────────────────────────────────────────────────
+const getVehicleSizeTier = (vehicleName) => {
+    if (!vehicleName) return 'S';
+    const lower = vehicleName.toLowerCase();
+    if (lower.includes('motorcycle') || lower.includes('bike') || lower.includes('125cc') ||
+        lower.includes('150cc') || lower.includes('500cc') || lower.includes('1000cc') ||
+        lower.includes('100cc') || lower.includes('tricycle')) return 'Motorcycle';
+    if (lower.includes('van') || lower.includes('hiace') || lower.includes('urvan') ||
+        lower.includes('alphard') || lower.includes('xl') || lower.includes('extra large')) return 'XL';
+    if (lower.includes('suv') || lower.includes('pickup') || lower.includes('pick-up') ||
+        lower.includes('pick up') || lower.includes('fortuner') || lower.includes('montero') ||
+        lower.includes('everest') || lower.includes('large')) return 'L';
+    if (lower.includes('innova') || lower.includes('crossover') || lower.includes('cuv') ||
+        lower.includes('mpv') || lower.includes('ertiga') || lower.includes('veloz') ||
+        lower.includes('crosswind') || lower.includes('adventure') || lower.includes('medium')) return 'M';
+    return 'S';
+};
 
 const formatTo12Hour = (hourStr) => {
     const hour = parseInt(hourStr);
@@ -242,6 +261,10 @@ const BookingScreen = ({ navigation }) => {
 
     // ── Package sub-category ──
     const [washSubCategory, setWashSubCategory] = useState('premium'); // 'premium' | 'restore'
+
+    // ── Vehicle Picker Modal ──
+    const [vehiclePickerVisible, setVehiclePickerVisible] = useState(false);
+    const [vehicleSearch, setVehicleSearch] = useState('');
 
     // ── Voucher State ──
     const [appliedPromo, setAppliedPromo] = useState(null);
@@ -756,54 +779,43 @@ const BookingScreen = ({ navigation }) => {
                     </View>
                 )}
 
-                {/* ── STEP 2: Vehicle Type (Grouped by Brand) ── */}
+                {/* ── STEP 2: Vehicle Type (Modal Picker) ── */}
                 {step === 2 && (
                     <View style={styles.stepContent}>
                         <Text style={styles.stepTitle}>Select Your Vehicle</Text>
-                        {isLoadingData ? (
-                            <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-                                <ActivityIndicator color={COLORS.primary} />
+                        <Text style={styles.mutedText}>Choose the vehicle you want to have washed.</Text>
+
+                        {/* Trigger Button */}
+                        <TouchableOpacity
+                            style={[
+                                styles.vehiclePickerTrigger,
+                                selectedVehicle && styles.vehiclePickerTriggerSelected
+                            ]}
+                            onPress={() => { setVehicleSearch(''); setVehiclePickerVisible(true); }}
+                        >
+                            <View style={{ flex: 1 }}>
+                                {selectedVehicle ? (
+                                    <>
+                                        <Text style={styles.vehiclePickerTriggerLabel}>Selected Vehicle</Text>
+                                        <Text style={[styles.vehiclePickerTriggerValue, { color: COLORS.primary }]}>
+                                            {selectedVehicle.displayName || selectedVehicle.name}
+                                        </Text>
+                                    </>
+                                ) : (
+                                    <Text style={styles.vehiclePickerTriggerPlaceholder}>
+                                        🚗  Tap to choose your vehicle...
+                                    </Text>
+                                )}
                             </View>
-                        ) : groupedVehicles.length === 0 ? (
-                            <Text style={styles.mutedText}>No vehicle configurations available.</Text>
-                        ) : (
-                            groupedVehicles.map(group => (
-                                <View key={group.brand} style={styles.vehicleGroup}>
-                                    {/* Brand Header */}
-                                    <View style={styles.vehicleGroupHeader}>
-                                        <View style={styles.vehicleGroupAccent} />
-                                        <Text style={{ fontSize: 14 }}>{BRAND_ICONS[group.brand] || '🚗'}</Text>
-                                        <Text style={styles.vehicleGroupTitle}>{group.brand}</Text>
-                                        <View style={styles.vehicleGroupBadge}>
-                                            <Text style={styles.vehicleGroupBadgeText}>{group.vehicles.length}</Text>
-                                        </View>
-                                    </View>
-                                    {/* Vehicle chips in flex-wrap grid */}
-                                    <View style={styles.vehicleGroupGrid}>
-                                        {group.vehicles.map(vt => {
-                                            const isSelected = selectedVehicle?._id === vt._id;
-                                            return (
-                                                <TouchableOpacity
-                                                    key={vt._id}
-                                                    style={[styles.vehicleChip, isSelected && styles.vehicleChipSelected]}
-                                                    onPress={() => handleVehicleSelect(vt)}
-                                                >
-                                                    {isSelected && (
-                                                        <View style={styles.vehicleChipCheck}>
-                                                            <Text style={{ color: '#fff', fontSize: 9, fontWeight: '900' }}>✓</Text>
-                                                        </View>
-                                                    )}
-                                                    <Text style={[styles.vehicleChipText, isSelected && { color: COLORS.primary, fontWeight: '800' }]}>
-                                                        {vt.displayName || vt.name}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
-                                    </View>
-                                </View>
-                            ))
-                        )}
-                        <TouchableOpacity style={[styles.nextButton, !selectedVehicle && styles.nextButtonDisabled]} onPress={() => selectedVehicle && setStep(3)}>
+                            <Text style={{ fontSize: 18, color: COLORS.primary, marginLeft: 8 }}>▾</Text>
+                        </TouchableOpacity>
+
+
+
+                        <TouchableOpacity
+                            style={[styles.nextButton, { marginTop: 24 }, !selectedVehicle && styles.nextButtonDisabled]}
+                            onPress={() => selectedVehicle && setStep(3)}
+                        >
                             <Text style={styles.nextButtonText}>Continue →</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={[styles.backButton, { marginTop: 10 }]} onPress={() => setStep(1)}>
@@ -811,6 +823,111 @@ const BookingScreen = ({ navigation }) => {
                         </TouchableOpacity>
                     </View>
                 )}
+
+                {/* ── Vehicle Picker Modal ── */}
+                <Modal
+                    visible={vehiclePickerVisible}
+                    animationType="slide"
+                    transparent
+                    onRequestClose={() => setVehiclePickerVisible(false)}
+                >
+                    <Pressable
+                        style={styles.vpOverlay}
+                        onPress={() => setVehiclePickerVisible(false)}
+                    >
+                        <Pressable style={[styles.vpSheet, { backgroundColor: COLORS.cardBackground }]} onPress={() => {}}>
+                            {/* Header */}
+                            <View style={styles.vpHeader}>
+                                <Text style={[styles.vpTitle, { color: COLORS.text }]}>Select Your Vehicle</Text>
+                                <TouchableOpacity onPress={() => setVehiclePickerVisible(false)}>
+                                    <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 14 }}>Done</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Search */}
+                            <View style={[styles.vpSearchBar, { backgroundColor: COLORS.background, borderColor: COLORS.border }]}>
+                                <Text style={{ fontSize: 14, color: COLORS.textMuted, marginRight: 8 }}>🔍</Text>
+                                <TextInput
+                                    style={{ flex: 1, fontSize: 14, color: COLORS.text }}
+                                    placeholder="Search vehicle..."
+                                    placeholderTextColor={COLORS.textMuted}
+                                    value={vehicleSearch}
+                                    onChangeText={setVehicleSearch}
+                                />
+                                {vehicleSearch.length > 0 && (
+                                    <TouchableOpacity onPress={() => setVehicleSearch('')}>
+                                        <Text style={{ color: COLORS.textMuted, fontSize: 16 }}>✕</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+
+                            {/* Grouped List */}
+                            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+                                {isLoadingData ? (
+                                    <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                                        <ActivityIndicator color={COLORS.primary} />
+                                        <Text style={[styles.mutedText, { marginTop: 10 }]}>Loading vehicles...</Text>
+                                    </View>
+                                ) : (
+                                    groupedVehicles
+                                        .map(group => {
+                                            const filtered = vehicleSearch.trim()
+                                                ? group.vehicles.filter(v =>
+                                                    (v.displayName || v.name).toLowerCase().includes(vehicleSearch.toLowerCase())
+                                                )
+                                                : group.vehicles;
+                                            if (filtered.length === 0) return null;
+                                            return (
+                                                <View key={group.brand} style={{ marginBottom: 8 }}>
+                                                    {/* Brand Header */}
+                                                    <View style={styles.vpGroupHeader}>
+                                                        <Text style={{ fontSize: 15 }}>{BRAND_ICONS[group.brand] || '🚗'}</Text>
+                                                        <Text style={[styles.vpGroupTitle, { color: COLORS.primary }]}>{group.brand}</Text>
+                                                        <View style={[styles.vehicleGroupBadge, { marginLeft: 'auto' }]}>
+                                                            <Text style={styles.vehicleGroupBadgeText}>{filtered.length}</Text>
+                                                        </View>
+                                                    </View>
+                                                    {/* Vehicle Rows */}
+                                                    {filtered.map(vt => {
+                                                        const isSelected = selectedVehicle?._id === vt._id;
+                                                        return (
+                                                            <TouchableOpacity
+                                                                key={vt._id}
+                                                                style={[
+                                                                    styles.vpVehicleRow,
+                                                                    { borderColor: COLORS.border },
+                                                                    isSelected && { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10' }
+                                                                ]}
+                                                                onPress={() => {
+                                                                    handleVehicleSelect(vt);
+                                                                    setVehiclePickerVisible(false);
+                                                                }}
+                                                            >
+                                                                <View style={{ flex: 1 }}>
+                                                                    <Text style={[
+                                                                        styles.vpVehicleName,
+                                                                        { color: isSelected ? COLORS.primary : COLORS.text }
+                                                                    ]}>
+                                                                        {vt.displayName || vt.name}
+                                                                    </Text>
+                                                                </View>
+                                                                {isSelected && (
+                                                                    <View style={[styles.vehicleChipCheck, { width: 22, height: 22, borderRadius: 11 }]}>
+                                                                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '900' }}>✓</Text>
+                                                                    </View>
+                                                                )}
+                                                            </TouchableOpacity>
+                                                        );
+                                                    })}
+                                                </View>
+                                            );
+                                        })
+                                )}
+                                <View style={{ height: 24 }} />
+                            </ScrollView>
+                        </Pressable>
+                    </Pressable>
+                </Modal>
 
                 {/* ── STEP 3: Package / Service Selection ── */}
                 {step === 3 && (
@@ -838,6 +955,14 @@ const BookingScreen = ({ navigation }) => {
                         {/* Package Cards */}
                         {packagesForTab.map(pkg => {
                             const isSelected = selectedPackageName === pkg.name;
+                            // ── Dynamic pricing for selected vehicle ──
+                            const tier = getVehicleSizeTier(selectedVehicle?.name);
+                            const pkgPrice = vehicleConfig
+                                ? (vehicleConfig.services?.find(s => s.name === pkg.name)?.price ||
+                                   vehicleConfig.restorePackages?.find(s => s.name === pkg.name)?.price || null)
+                                : (selectedVehicle && pkg.rates
+                                    ? (pkg.rates[tier] ?? pkg.rates.S ?? null)
+                                    : null);
                             return (
                                 <View key={pkg.name} style={[styles.packageCard, isSelected && styles.packageCardSelected]}>
                                     {/* Package Header */}
@@ -850,14 +975,19 @@ const BookingScreen = ({ navigation }) => {
                                                         <Text style={styles.badgeText}>{pkg.badge}</Text>
                                                     </View>
                                                 )}
-                                                {pkg.savings && (
-                                                    <View style={[styles.badgeContainer, { backgroundColor: '#22c55e20', borderColor: '#22c55e40' }]}>
-                                                        <Text style={[styles.badgeText, { color: '#22c55e' }]}>{pkg.savings}</Text>
-                                                    </View>
-                                                )}
                                             </View>
                                             {pkg.description && <Text style={styles.packageDesc}>{pkg.description}</Text>}
-                                            <Text style={styles.packageRates}>{pkg.ratesDisplay}</Text>
+                                        </View>
+                                        {/* Price (top-right) */}
+                                        <View style={{ alignItems: 'flex-end', marginLeft: 12 }}>
+                                            <Text style={styles.pkgPriceText}>
+                                                {pkgPrice != null ? `₱${pkgPrice.toLocaleString()}` : '—'}
+                                            </Text>
+                                            {pkg.savings && (
+                                                <View style={styles.pkgSavingsBadge}>
+                                                    <Text style={styles.pkgSavingsText}>{pkg.savings}</Text>
+                                                </View>
+                                            )}
                                         </View>
                                     </View>
 
@@ -1282,7 +1412,40 @@ const getStyles = (COLORS) => StyleSheet.create({
     vehicleCardSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '08' },
     vehicleName: { fontSize: 13, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
 
-    // Grouped Vehicle Selector
+    // ── Vehicle Picker Trigger ──────────────────────────────────────────────────
+    vehiclePickerTrigger: {
+        flexDirection: 'row', alignItems: 'center',
+        borderWidth: 1.5, borderColor: COLORS.border,
+        borderRadius: 16, paddingHorizontal: 18, paddingVertical: 18,
+        backgroundColor: COLORS.cardBackground, marginTop: 16,
+    },
+    vehiclePickerTriggerSelected: {
+        borderColor: COLORS.primary, backgroundColor: COLORS.primary + '08',
+    },
+    vehiclePickerTriggerLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.6 },
+    vehiclePickerTriggerValue: { fontSize: 16, fontWeight: '800' },
+    vehiclePickerTriggerPlaceholder: { fontSize: 15, color: COLORS.textMuted, fontWeight: '500' },
+    vehiclePickerSelectedInfo: { flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingHorizontal: 4 },
+    vehiclePickerTierBadge: { backgroundColor: COLORS.primary + '20', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1, borderColor: COLORS.primary + '40' },
+    vehiclePickerTierBadgeText: { fontSize: 11, fontWeight: '800', color: COLORS.primary },
+
+    // ── Vehicle Picker Modal Sheet ──────────────────────────────────────────────
+    vpOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+    vpSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 0, maxHeight: '88%', minHeight: '60%' },
+    vpHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+    vpTitle: { fontSize: 18, fontWeight: '800' },
+    vpSearchBar: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 14 },
+    vpGroupHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border + '60', marginBottom: 4 },
+    vpGroupTitle: { fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
+    vpVehicleRow: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 16, paddingVertical: 14,
+        borderRadius: 12, borderWidth: 1,
+        marginBottom: 6,
+    },
+    vpVehicleName: { fontSize: 15, fontWeight: '700' },
+
+    // Grouped Vehicle Selector (legacy)
     vehicleGroup: { marginBottom: 20 },
     vehicleGroupHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
     vehicleGroupAccent: { width: 4, height: 16, borderRadius: 2, backgroundColor: COLORS.primary },
@@ -1320,9 +1483,12 @@ const getStyles = (COLORS) => StyleSheet.create({
     packageHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
     packageName: { fontSize: 16, fontWeight: '800', color: COLORS.text },
     packageDesc: { fontSize: 12, color: COLORS.textMuted, marginTop: 2, marginBottom: 4 },
-    packageRates: { fontSize: 11, color: COLORS.primary, fontWeight: '600', marginTop: 2 },
     badgeContainer: { backgroundColor: '#f59e0b20', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, borderColor: '#f59e0b50' },
     badgeText: { fontSize: 9, fontWeight: '800', color: '#f59e0b', letterSpacing: 0.5 },
+    // Package price (top-right)
+    pkgPriceText: { fontSize: 20, fontWeight: '900', color: COLORS.primary, textAlign: 'right' },
+    pkgSavingsBadge: { backgroundColor: 'rgba(35, 160, 206, 0.15)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: 4, borderWidth: 1, borderColor: 'rgba(35, 160, 206, 0.3)' },
+    pkgSavingsText: { fontSize: 10, fontWeight: '800', color: '#38bdf8', letterSpacing: 0.5 },
     inclusionsList: { marginBottom: 12 },
     inclusionRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6, gap: 8 },
     inclusionCheck: { width: 16, height: 16, borderRadius: 4, backgroundColor: COLORS.border, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
