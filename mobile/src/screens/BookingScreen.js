@@ -19,6 +19,7 @@ import * as FileSystem from 'expo-file-system';
 import BookingDetailModal from '../components/BookingDetailModal';
 import CustomAlertModal from '../components/CustomAlertModal';
 import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
+import { GCASH_QR_FALLBACK_BASE64 } from '../constants/fallbackQr';
 import { useFocusEffect } from '@react-navigation/native';
 
 const inStoreIcon = require('../../assets/icon/store.png');
@@ -27,7 +28,104 @@ const mapPinIcon = require('../../assets/icon/map-pin.png');
 
 const PRICING_URL = `${API_BASE}/pricing`;
 const BOOKING_URL = `${API_BASE}/booking`;
-const allHours = ["08","09","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24"];
+const allHours = ["08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"];
+
+// ── Brand Grouping (mirrors website vehicleGrouping.js) ───────────────────────
+const BRAND_MAP = {
+    'Fortuner': { brand: 'Toyota', fullName: 'Toyota Fortuner' },
+    'Innova': { brand: 'Toyota', fullName: 'Toyota Innova' },
+    'Veloz': { brand: 'Toyota', fullName: 'Toyota Veloz' },
+    'Vios': { brand: 'Toyota', fullName: 'Toyota Vios' },
+    'Wigo': { brand: 'Toyota', fullName: 'Toyota Wigo' },
+    'Avanza': { brand: 'Toyota', fullName: 'Toyota Avanza' },
+    'Montero': { brand: 'Mitsubishi', fullName: 'Mitsubishi Montero Sport' },
+    'Adventure': { brand: 'Mitsubishi', fullName: 'Mitsubishi Adventure' },
+    'L300': { brand: 'Mitsubishi', fullName: 'Mitsubishi L300' },
+    'X-pander Cross': { brand: 'Mitsubishi', fullName: 'Mitsubishi Xpander Cross' },
+    'Mirage C4': { brand: 'Mitsubishi', fullName: 'Mitsubishi Mirage G4' },
+    'Crosswind': { brand: 'Isuzu', fullName: 'Isuzu Crosswind' },
+    'Everest': { brand: 'Ford', fullName: 'Ford Everest' },
+    'Ertiga': { brand: 'Suzuki', fullName: 'Suzuki Ertiga' },
+    'Honda Civic': { brand: 'Honda', fullName: 'Honda Civic' },
+    'Changan': { brand: 'Changan', fullName: 'Changan Cars' },
+    'Travis': { brand: 'Foton / Chevrolet', fullName: 'Travis / Foton Gratour' },
+    'Hatchback': { brand: 'General Categories', fullName: 'Hatchback' },
+    'Sedan': { brand: 'General Categories', fullName: 'Sedan' },
+    'Compact': { brand: 'General Categories', fullName: 'Compact' },
+    'MVP': { brand: 'General Categories', fullName: 'MPV' },
+    'MPV': { brand: 'General Categories', fullName: 'MPV / Multi-Purpose Vehicle' },
+    'SUV': { brand: 'General Categories', fullName: 'SUV' },
+    'Midsize SUV': { brand: 'General Categories', fullName: 'Midsize SUV' },
+    'Pick Up': { brand: 'General Categories', fullName: 'Pick-Up Truck' },
+    'Van': { brand: 'General Categories', fullName: 'Van' },
+    'Jeep': { brand: 'General Categories', fullName: 'Jeep / Utility' },
+    'Big Bike': { brand: 'Motorcycles & Bikes', fullName: 'Big Bike (400cc+)' },
+    '150cc': { brand: 'Motorcycles & Bikes', fullName: 'Motorcycle 150cc' },
+    '125cc': { brand: 'Motorcycles & Bikes', fullName: 'Motorcycle 125cc' },
+    '100cc': { brand: 'Motorcycles & Bikes', fullName: 'Motorcycle 100cc' },
+    '1000cc': { brand: 'Motorcycles & Bikes', fullName: 'Motorcycle 1000cc' },
+    'Tricycle': { brand: 'Motorcycles & Bikes', fullName: 'Tricycle' },
+};
+
+const DEFAULT_BRAND_ORDER = ['Toyota', 'Mitsubishi', 'Isuzu', 'Ford', 'Suzuki', 'Honda', 'Changan', 'Foton / Chevrolet', 'Other Brands', 'General Categories', 'Motorcycles & Bikes'];
+
+const BRAND_ICONS = {
+    'Toyota': '🚗',
+    'Mitsubishi': '🚘',
+    'Isuzu': '🚛',
+    'Ford': '🚙',
+    'Suzuki': '🚗',
+    'Honda': '🚘',
+    'Changan': '🚗',
+    'Foton / Chevrolet': '🚐',
+    'Other Brands': '🏷️',
+    'General Categories': '🚘',
+    'Motorcycles & Bikes': '🏍️',
+};
+
+const groupVehiclesByBrand = (pricingItems) => {
+    if (!pricingItems || !Array.isArray(pricingItems)) return [];
+    const groups = {};
+    pricingItems.forEach(p => {
+        const typeName = p.vehicleType || '';
+        if (!typeName) return;
+        const adminGroup = (p.brandGroup || '').trim();
+        const meta = BRAND_MAP[typeName] || null;
+        let brand = 'General Categories';
+        let displayName = typeName;
+        if (adminGroup) {
+            brand = adminGroup;
+            displayName = meta && meta.fullName && typeName !== meta.fullName ? `${typeName} (${meta.fullName})` : typeName;
+        } else if (meta) {
+            brand = meta.brand;
+            displayName = typeName === meta.fullName ? typeName : `${typeName} (${meta.fullName})`;
+        } else if (/toyota/i.test(typeName)) {
+            brand = 'Toyota';
+        } else if (/mitsubishi/i.test(typeName)) {
+            brand = 'Mitsubishi';
+        } else if (/isuzu/i.test(typeName)) {
+            brand = 'Isuzu';
+        } else if (/ford/i.test(typeName)) {
+            brand = 'Ford';
+        } else if (/suzuki/i.test(typeName)) {
+            brand = 'Suzuki';
+        } else if (/honda/i.test(typeName)) {
+            brand = 'Honda';
+        } else if (/bike|cc|tricycle/i.test(typeName)) {
+            brand = 'Motorcycles & Bikes';
+        } else {
+            brand = 'Other Brands';
+        }
+        if (!groups[brand]) groups[brand] = [];
+        groups[brand].push({ _id: p._id, name: typeName, displayName });
+    });
+    const present = Object.keys(groups);
+    const ordered = [
+        ...DEFAULT_BRAND_ORDER.filter(b => present.includes(b)),
+        ...present.filter(b => !DEFAULT_BRAND_ORDER.includes(b))
+    ];
+    return ordered.map(b => ({ brand: b, vehicles: groups[b] })).filter(g => g.vehicles.length > 0);
+};
 
 // ── Package Data (mirrors Book.jsx) ──────────────────────────────────────────
 const WASH_PACKAGES_DATA = {
@@ -186,7 +284,7 @@ const BookingScreen = ({ navigation }) => {
             setProofImageUri(null);
             setReferenceNumber('');
             setSelectedPaymentMethod(null);
-            return () => {};
+            return () => { };
         }, [mutatePricing, mutateAvail])
     );
 
@@ -230,10 +328,10 @@ const BookingScreen = ({ navigation }) => {
         let slots = allHours.filter(hour => {
             const hourInt = parseInt(hour);
             if (isHome) return hourInt > currentHour;
-            const count = availability[hour.padStart(2,'0')] || 0;
+            const count = availability[hour.padStart(2, '0')] || 0;
             return hourInt > currentHour && count < MAX_CAPACITY;
         }).map(hour => {
-            const bookedCount = availability[hour.padStart(2,'0')] || 0;
+            const bookedCount = availability[hour.padStart(2, '0')] || 0;
             const slotsLeft = MAX_CAPACITY - bookedCount;
             const slotText = (!isHome && slotsLeft <= 3) ? ` (${slotsLeft} slot${slotsLeft === 1 ? '' : 's'} left)` : '';
             return { raw: hour, label: `${formatTo12Hour(hour)}${slotText}` };
@@ -245,6 +343,7 @@ const BookingScreen = ({ navigation }) => {
     // ── Price Calculation ──
     const rawPricing = pricingData?.dynamicPricing || [];
     const vehicleTypes = rawPricing.map(p => ({ _id: p._id, name: p.vehicleType }));
+    const groupedVehicles = useMemo(() => groupVehiclesByBrand(rawPricing), [rawPricing]);
     const isLoadingData = !pricingData;
 
     const vehicleConfig = selectedVehicle ? rawPricing.find(p => p.vehicleType.toLowerCase() === selectedVehicle.name.toLowerCase()) : null;
@@ -321,7 +420,8 @@ const BookingScreen = ({ navigation }) => {
             const res = await axios.get(`${API_BASE}/settings/payment-methods`);
             const methods = res.data || [];
             setPaymentMethods(methods);
-            if (methods.length > 0) setSelectedPaymentMethod(methods[0]);
+            const counterMethod = methods.find(m => m.type === 'counter') || methods[0];
+            if (counterMethod) setSelectedPaymentMethod(counterMethod);
         } catch (err) {
             console.error('Failed to load payment methods', err);
             setPaymentMethods([]);
@@ -356,31 +456,85 @@ const BookingScreen = ({ navigation }) => {
     // ── Download GCash QR to gallery ──
     const handleDownloadQR = async (qrUrl) => {
         try {
-            if (!qrUrl) return;
-            const { status } = await MediaLibrary.requestPermissionsAsync();
-            if (status !== 'granted') {
-                Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Media library access is required to save the QR.' });
+            const targetQr = qrUrl || GCASH_QR_FALLBACK_BASE64;
+
+            // Request permission: try write-only first (Android 10+ standard), then general
+            let granted = false;
+            try {
+                const writePerm = await MediaLibrary.requestPermissionsAsync(true);
+                granted = writePerm.status === 'granted' || writePerm.granted;
+            } catch (_) {}
+
+            if (!granted) {
+                try {
+                    const fullPerm = await MediaLibrary.requestPermissionsAsync(false);
+                    granted = fullPerm.status === 'granted' || fullPerm.granted;
+                } catch (_) {}
+            }
+
+            if (!granted) {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Permission Denied',
+                    text2: 'Gallery permission is required to save the QR code.'
+                });
                 return;
             }
+
             Toast.show({ type: 'info', text1: 'Saving QR...', text2: 'Please wait.' });
             const fileName = `sandigan-qr-${Date.now()}.png`;
-            const fileUri = FileSystem.documentDirectory + fileName;
-            if (qrUrl.startsWith('data:')) {
-                const base64Code = qrUrl.replace(/^data:image\/\w+;base64,/, '');
+            const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+
+            if (typeof targetQr === 'string' && targetQr.startsWith('data:')) {
+                const base64Code = targetQr.replace(/^data:image\/\w+;base64,/, '');
                 await FileSystem.writeAsStringAsync(fileUri, base64Code, { encoding: FileSystem.EncodingType.Base64 });
+            } else if (typeof targetQr === 'string' && targetQr.startsWith('http')) {
+                await FileSystem.downloadAsync(targetQr, fileUri);
             } else {
-                await FileSystem.downloadAsync(qrUrl, fileUri);
+                const base64Code = GCASH_QR_FALLBACK_BASE64.replace(/^data:image\/\w+;base64,/, '');
+                await FileSystem.writeAsStringAsync(fileUri, base64Code, { encoding: FileSystem.EncodingType.Base64 });
             }
+
             await MediaLibrary.saveToLibraryAsync(fileUri);
             Toast.show({ type: 'success', text1: '✅ QR Saved!', text2: 'Payment QR has been saved to your gallery.' });
         } catch (err) {
             console.error('Save QR error:', err);
-            Toast.show({ type: 'error', text1: 'Save Failed', text2: 'Could not save the QR code.' });
+            Toast.show({ type: 'error', text1: 'Save Failed', text2: err.message || 'Could not save the QR code.' });
         }
+    };
+
+    const isPaymentIncomplete = Boolean(selectedPaymentMethod && selectedPaymentMethod.type !== 'counter' && (!referenceNumber.trim() || !proofImage));
+
+    const handleProceedToReview = () => {
+        if (!selectedPaymentMethod) {
+            Toast.show({ type: 'error', text1: 'Payment Method Required', text2: 'Please select a payment method.' });
+            return;
+        }
+        if (selectedPaymentMethod.type !== 'counter') {
+            if (!referenceNumber.trim()) {
+                Toast.show({ type: 'error', text1: 'Reference Number Required', text2: 'Please enter your payment reference number.' });
+                return;
+            }
+            if (!proofImage) {
+                Toast.show({ type: 'error', text1: 'Payment Proof Required', text2: 'Please upload your payment screenshot.' });
+                return;
+            }
+        }
+        setStep(6);
     };
 
     // ── Submit ──
     const handleSubmit = () => {
+        if (selectedPaymentMethod?.type !== 'counter') {
+            if (!referenceNumber.trim()) {
+                Toast.show({ type: 'error', text1: 'Reference Number Required', text2: 'Please enter your payment reference number.' });
+                return;
+            }
+            if (!proofImage) {
+                Toast.show({ type: 'error', text1: 'Payment Proof Required', text2: 'Please upload your payment screenshot.' });
+                return;
+            }
+        }
         if (!privacyChecked) {
             Toast.show({ type: 'error', text1: 'Agreement Required', text2: 'Please accept the Privacy Policy to continue.' });
             return;
@@ -459,7 +613,7 @@ const BookingScreen = ({ navigation }) => {
                 <Skeleton width={180} height={28} isDarkMode={isDarkMode} style={{ marginBottom: 6 }} />
                 <Skeleton width={240} height={14} isDarkMode={isDarkMode} style={{ marginBottom: 30 }} />
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 }}>
-                    {[1,2,3,4,5,6].map(k => (
+                    {[1, 2, 3, 4, 5, 6].map(k => (
                         <View key={k} style={{ alignItems: 'center' }}>
                             <Skeleton width={32} height={32} borderRadius={16} isDarkMode={isDarkMode} style={{ marginBottom: 4 }} />
                             <Skeleton width={40} height={10} isDarkMode={isDarkMode} />
@@ -497,7 +651,7 @@ const BookingScreen = ({ navigation }) => {
 
                 {/* ── Step Indicator ── */}
                 <View style={styles.stepBar}>
-                    {['Location','Vehicle','Services','Schedule','Payment','Confirm'].map((label, idx) => {
+                    {['Location', 'Vehicle', 'Services', 'Schedule', 'Payment', 'Confirm'].map((label, idx) => {
                         const sNum = idx + 1;
                         const isActive = step === sNum;
                         const isDone = step > sNum;
@@ -578,20 +732,52 @@ const BookingScreen = ({ navigation }) => {
                     </View>
                 )}
 
-                {/* ── STEP 2: Vehicle Type ── */}
+                {/* ── STEP 2: Vehicle Type (Grouped by Brand) ── */}
                 {step === 2 && (
                     <View style={styles.stepContent}>
                         <Text style={styles.stepTitle}>Select Your Vehicle</Text>
-                        {vehicleTypes.length === 0 ? (
+                        {isLoadingData ? (
+                            <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                                <ActivityIndicator color={COLORS.primary} />
+                            </View>
+                        ) : groupedVehicles.length === 0 ? (
                             <Text style={styles.mutedText}>No vehicle configurations available.</Text>
                         ) : (
-                            <View style={styles.vehicleGrid}>
-                                {vehicleTypes.map(vt => (
-                                    <TouchableOpacity key={vt._id} style={[styles.vehicleCard, selectedVehicle?._id === vt._id && styles.vehicleCardSelected]} onPress={() => handleVehicleSelect(vt)}>
-                                        <Text style={[styles.vehicleName, selectedVehicle?._id === vt._id && { color: COLORS.primary }]}>{vt.name}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
+                            groupedVehicles.map(group => (
+                                <View key={group.brand} style={styles.vehicleGroup}>
+                                    {/* Brand Header */}
+                                    <View style={styles.vehicleGroupHeader}>
+                                        <View style={styles.vehicleGroupAccent} />
+                                        <Text style={{ fontSize: 14 }}>{BRAND_ICONS[group.brand] || '🚗'}</Text>
+                                        <Text style={styles.vehicleGroupTitle}>{group.brand}</Text>
+                                        <View style={styles.vehicleGroupBadge}>
+                                            <Text style={styles.vehicleGroupBadgeText}>{group.vehicles.length}</Text>
+                                        </View>
+                                    </View>
+                                    {/* Vehicle chips in flex-wrap grid */}
+                                    <View style={styles.vehicleGroupGrid}>
+                                        {group.vehicles.map(vt => {
+                                            const isSelected = selectedVehicle?._id === vt._id;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={vt._id}
+                                                    style={[styles.vehicleChip, isSelected && styles.vehicleChipSelected]}
+                                                    onPress={() => handleVehicleSelect(vt)}
+                                                >
+                                                    {isSelected && (
+                                                        <View style={styles.vehicleChipCheck}>
+                                                            <Text style={{ color: '#fff', fontSize: 9, fontWeight: '900' }}>✓</Text>
+                                                        </View>
+                                                    )}
+                                                    <Text style={[styles.vehicleChipText, isSelected && { color: COLORS.primary, fontWeight: '800' }]}>
+                                                        {vt.displayName || vt.name}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
+                            ))
                         )}
                         <TouchableOpacity style={[styles.nextButton, !selectedVehicle && styles.nextButtonDisabled]} onPress={() => selectedVehicle && setStep(3)}>
                             <Text style={styles.nextButtonText}>Continue →</Text>
@@ -756,10 +942,14 @@ const BookingScreen = ({ navigation }) => {
                             </View>
                         ) : (
                             paymentMethods.map(method => {
-                                const isSelected = selectedPaymentMethod?._id === method._id || selectedPaymentMethod?.label === method.label;
+                                const isSelected = Boolean(selectedPaymentMethod) && (
+                                    (Boolean(method._id) && selectedPaymentMethod._id === method._id) ||
+                                    (Boolean(method.id) && selectedPaymentMethod.id === method.id) ||
+                                    (Boolean(method.label) && selectedPaymentMethod.label === method.label)
+                                );
                                 return (
                                     <TouchableOpacity
-                                        key={method._id || method.label}
+                                        key={method._id || method.id || method.label}
                                         style={[styles.paymentCard, isSelected && styles.paymentCardSelected]}
                                         onPress={() => setSelectedPaymentMethod(method)}
                                     >
@@ -785,8 +975,7 @@ const BookingScreen = ({ navigation }) => {
 
                                 {/* QR Code */}
                                 {(() => {
-                                    const qrSrc = selectedPaymentMethod.qrImageBase64 || selectedPaymentMethod.qrImage;
-                                    if (!qrSrc) return null;
+                                    const qrSrc = selectedPaymentMethod.qrImageBase64 || selectedPaymentMethod.qrImage || GCASH_QR_FALLBACK_BASE64;
                                     return (
                                         <View style={{ alignItems: 'center', marginBottom: 16 }}>
                                             <Image source={{ uri: qrSrc }} style={styles.qrImage} resizeMode="contain" />
@@ -816,7 +1005,9 @@ const BookingScreen = ({ navigation }) => {
                                 </Text>
 
                                 {/* Reference Number */}
-                                <Text style={[styles.inputLabel, { color: COLORS.text, marginBottom: 6 }]}>Reference Number</Text>
+                                <Text style={[styles.inputLabel, { color: COLORS.text, marginBottom: 6 }]}>
+                                    Reference Number <Text style={{ color: '#ef4444' }}>*</Text>
+                                </Text>
                                 <TextInput
                                     style={[styles.modalInput, { backgroundColor: COLORS.cardBackground, color: COLORS.text, marginBottom: 12 }]}
                                     placeholder="e.g. 1234567890"
@@ -827,7 +1018,9 @@ const BookingScreen = ({ navigation }) => {
                                 />
 
                                 {/* Proof Upload */}
-                                <Text style={[styles.inputLabel, { color: COLORS.text, marginBottom: 6 }]}>Upload Payment Screenshot</Text>
+                                <Text style={[styles.inputLabel, { color: COLORS.text, marginBottom: 6 }]}>
+                                    Upload Payment Screenshot <Text style={{ color: '#ef4444' }}>*</Text>
+                                </Text>
                                 <TouchableOpacity style={[styles.uploadBtn, { borderColor: COLORS.primary + '60' }]} onPress={handlePickProofImage}>
                                     <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 13 }}>
                                         {proofImageUri ? '✓ Screenshot Selected — Tap to Change' : '📎 Choose Screenshot from Gallery'}
@@ -843,7 +1036,10 @@ const BookingScreen = ({ navigation }) => {
                             <TouchableOpacity style={styles.backButton} onPress={() => setStep(4)}>
                                 <Text style={styles.backButtonText}>← Back</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.nextButton, { flex: 1 }]} onPress={() => setStep(6)}>
+                            <TouchableOpacity
+                                style={[styles.nextButton, { flex: 1 }, isPaymentIncomplete && styles.nextButtonDisabled]}
+                                onPress={handleProceedToReview}
+                            >
                                 <Text style={styles.nextButtonText}>Review →</Text>
                             </TouchableOpacity>
                         </View>
@@ -893,7 +1089,7 @@ const BookingScreen = ({ navigation }) => {
 
                         {/* ── Agreements ── */}
                         <View style={[styles.agreementCard, { backgroundColor: COLORS.cardBackground, borderColor: COLORS.border }]}>
-                            <Text style={[styles.agreementTitle, { color: COLORS.text }]}>📋 Service Agreements</Text>
+                            <Text style={[styles.agreementTitle, { color: COLORS.text }]}>Service Agreements</Text>
 
                             {/* Privacy Policy */}
                             <TouchableOpacity style={styles.agreementRow} onPress={() => {
@@ -1057,11 +1253,36 @@ const getStyles = (COLORS) => StyleSheet.create({
     locationCard: { backgroundColor: COLORS.cardBackground, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1.5, borderColor: COLORS.border, flexDirection: 'row', alignItems: 'center', gap: 14 },
     locationCardSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '08' },
 
-    // Vehicle Grid
+    // Vehicle Grid (legacy kept for reference)
     vehicleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
     vehicleCard: { paddingVertical: 10, paddingHorizontal: 15, width: '30%', borderRadius: 10, backgroundColor: COLORS.cardBackground, borderWidth: 1.5, borderColor: COLORS.border },
     vehicleCardSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '08' },
     vehicleName: { fontSize: 13, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+
+    // Grouped Vehicle Selector
+    vehicleGroup: { marginBottom: 20 },
+    vehicleGroupHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+    vehicleGroupAccent: { width: 4, height: 16, borderRadius: 2, backgroundColor: COLORS.primary },
+    vehicleGroupTitle: { fontSize: 13, fontWeight: '800', color: COLORS.text, textTransform: 'uppercase', letterSpacing: 0.8 },
+    vehicleGroupBadge: { backgroundColor: COLORS.border, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10 },
+    vehicleGroupBadgeText: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted },
+    vehicleGroupGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    vehicleChip: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        paddingVertical: 10, paddingHorizontal: 14,
+        borderRadius: 24, borderWidth: 1.5, borderColor: COLORS.border,
+        backgroundColor: COLORS.cardBackground,
+    },
+    vehicleChipSelected: {
+        borderColor: COLORS.primary,
+        backgroundColor: COLORS.primary + '12',
+    },
+    vehicleChipCheck: {
+        width: 16, height: 16, borderRadius: 8,
+        backgroundColor: COLORS.primary,
+        justifyContent: 'center', alignItems: 'center',
+    },
+    vehicleChipText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
 
     // Package Tabs
     tabRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },

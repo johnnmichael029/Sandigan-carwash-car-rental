@@ -424,7 +424,7 @@ const DetailerDashboard = ({ navigation }) => {
         const serviceNames = Array.isArray(item.serviceType) ? item.serviceType.join(', ') : item.serviceType;
         const timeFormat = new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const dateStr = new Date(item.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
-        const totalPrice = item.totalPrice.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' });
+        const totalPrice = (item.totalPrice ?? 0).toLocaleString('en-PH', { style: 'currency', currency: 'PHP' });
 
 
         return (
@@ -666,26 +666,28 @@ const DetailerDashboard = ({ navigation }) => {
                                 <MapView
                                     style={StyleSheet.absoluteFillObject}
                                     initialRegion={{
-                                        latitude: getDisplayData().find(t => t.homeServiceDetails?.latitude)?.homeServiceDetails.latitude || 14.5995,
-                                        longitude: getDisplayData().find(t => t.homeServiceDetails?.longitude)?.homeServiceDetails.longitude || 120.9842,
+                                        latitude: parseFloat(getDisplayData().find(t => t.homeServiceDetails?.latitude)?.homeServiceDetails.latitude) || 14.5995,
+                                        longitude: parseFloat(getDisplayData().find(t => t.homeServiceDetails?.longitude)?.homeServiceDetails.longitude) || 120.9842,
                                         latitudeDelta: 0.0922,
                                         longitudeDelta: 0.0421,
                                     }}
                                 >
                                     {getDisplayData().map(t => {
-                                        if (!t.homeServiceDetails?.latitude) return null;
+                                        const lat = parseFloat(t.homeServiceDetails?.latitude);
+                                        const lng = parseFloat(t.homeServiceDetails?.longitude);
+                                        if (!lat || !lng || isNaN(lat) || isNaN(lng)) return null;
                                         return (
                                             <Marker
                                                 key={t._id}
                                                 coordinate={{
-                                                    latitude: t.homeServiceDetails.latitude,
-                                                    longitude: t.homeServiceDetails.longitude
+                                                    latitude: lat,
+                                                    longitude: lng
                                                 }}
                                                 title={t.firstName + " " + t.lastName}
-                                                description={t.serviceType?.join(', ') || t.serviceType}
+                                                description={Array.isArray(t.serviceType) ? t.serviceType.join(', ') : (t.serviceType || '')}
                                                 pinColor="#ef4444"
                                             />
-                                        )
+                                        );
                                     })}
                                 </MapView>
                             </View>

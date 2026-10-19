@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import {
-    Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet
+    Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions
 } from 'react-native';
 import { ThemeContext } from '../context/ThemeContext';
 
@@ -53,7 +53,7 @@ CANCELLATION POLICY
 ACCIDENTS & EMERGENCIES
 • In case of an accident, immediately contact local authorities and notify Sandigan.
 • Do not leave the scene of an accident. Obtain a police report.
-• Emergency contact: +63 XXX XXX XXXX
+• Emergency contact: 0956 691 8854
 
 GOVERNING LAW
 • This agreement is governed by the laws of the Republic of the Philippines.
@@ -67,7 +67,8 @@ const RentalTermsModal = ({ visible, onClose, onAccept }) => {
 
     const handleScroll = ({ nativeEvent }) => {
         const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-        const isNearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 40;
+        const paddingToBottom = 30;
+        const isNearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
         if (isNearBottom) setHasScrolledToBottom(true);
     };
 
@@ -100,9 +101,16 @@ const RentalTermsModal = ({ visible, onClose, onAccept }) => {
                     )}
                     <ScrollView
                         style={styles.scrollArea}
+                        contentContainerStyle={{ paddingBottom: 40 }}
                         showsVerticalScrollIndicator
                         onScroll={handleScroll}
-                        scrollEventThrottle={100}
+                        scrollEventThrottle={50}
+                        onContentSizeChange={(w, contentHeight) => {
+                            const windowHeight = Dimensions.get('window').height;
+                            if (contentHeight <= windowHeight * 0.55) {
+                                setHasScrolledToBottom(true);
+                            }
+                        }}
                     >
                         <Text style={[styles.policyText, { color: COLORS.text }]}>{RENTAL_TERMS_TEXT}</Text>
                         <View style={{ height: 30 }} />
@@ -125,14 +133,16 @@ const RentalTermsModal = ({ visible, onClose, onAccept }) => {
     );
 };
 
+const windowHeight = Dimensions.get('window').height;
+
 const styles = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-    container: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%', paddingBottom: 20 },
+    container: { borderTopLeftRadius: 24, borderTopRightRadius: 24, height: Math.round(windowHeight * 0.82), paddingBottom: 20 },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 18, borderBottomWidth: 1 },
     title: { fontSize: 17, fontWeight: '800' },
     scrollHint: { marginHorizontal: 20, marginTop: 12, padding: 10, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
     scrollArea: { flex: 1, paddingHorizontal: 24, paddingTop: 16 },
-    policyText: { fontSize: 13, lineHeight: 21 },
+    policyText: { fontSize: 14, lineHeight: 22 },
     footer: { paddingHorizontal: 20, paddingTop: 16, borderTopWidth: 1 },
     acceptBtn: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
     acceptBtnText: { fontSize: 15, fontWeight: '700' },

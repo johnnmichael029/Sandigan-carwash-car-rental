@@ -284,6 +284,24 @@ const BookingDetailModal = ({
                                 value={`₱${(item.totalPrice || item.estimatedTotal || 0).toLocaleString()}`}
                                 subValue={item.promoCode ? `Promo applied: ${item.promoCode}` : undefined}
                             />
+
+                            <DetailRow
+                                icon="wallet-outline"
+                                label="PAYMENT"
+                                value={item.payment?.method || item.paymentMethod || 'Pay at counter'}
+                                subValue={
+                                    (() => {
+                                        const status = item.payment?.status || item.paymentStatus;
+                                        const refNo = item.payment?.referenceNumber || item.referenceNumber;
+                                        const dp = item.downPaymentAmount || (isRental ? item.payment?.amountPaid : null);
+                                        const parts = [];
+                                        if (dp) parts.push(`Deposit: ₱${dp.toLocaleString()}`);
+                                        if (status) parts.push(`Status: ${status}`);
+                                        if (refNo) parts.push(`Ref: ${refNo}`);
+                                        return parts.length > 0 ? parts.join(' • ') : undefined;
+                                    })()
+                                }
+                            />
                         </View>
 
                         {/* MAP SECTION (If applicable) */}

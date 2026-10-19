@@ -19,6 +19,7 @@ import * as FileSystem from 'expo-file-system';
 import BookingDetailModal from '../components/BookingDetailModal';
 import CustomAlertModal from '../components/CustomAlertModal';
 import RentalTermsModal from '../components/RentalTermsModal';
+import { GCASH_QR_FALLBACK_BASE64 } from '../constants/fallbackQr';
 import { useFocusEffect } from '@react-navigation/native';
 
 const RENTAL_URL = `${API_BASE}/rental-fleet`;
@@ -85,7 +86,7 @@ const RentalScreen = ({ navigation }) => {
             setProofImageUri(null);
             setReferenceNumber('');
             setSelectedPaymentMethod(null);
-            return () => {};
+            return () => { };
         }, [mutateFleet])
     );
 
@@ -205,27 +206,71 @@ const RentalScreen = ({ navigation }) => {
     // ── Download QR to gallery ──
     const handleDownloadQR = async (qrUrl) => {
         try {
-            if (!qrUrl) return;
-            const { status } = await MediaLibrary.requestPermissionsAsync();
-            if (status !== 'granted') {
-                Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Media library access is required to save the QR.' });
+            const targetQr = qrUrl || GCASH_QR_FALLBACK_BASE64;
+
+            // Request permission: try write-only first (Android 10+ standard), then general
+            let granted = false;
+            try {
+                const writePerm = await MediaLibrary.requestPermissionsAsync(true);
+                granted = writePerm.status === 'granted' || writePerm.granted;
+            } catch (_) { }
+
+            if (!granted) {
+                try {
+                    const fullPerm = await MediaLibrary.requestPermissionsAsync(false);
+                    granted = fullPerm.status === 'granted' || fullPerm.granted;
+                } catch (_) { }
+            }
+
+            if (!granted) {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Permission Denied',
+                    text2: 'Gallery permission is required to save the QR code.'
+                });
                 return;
             }
+
             Toast.show({ type: 'info', text1: 'Saving QR...', text2: 'Please wait.' });
             const fileName = `sandigan-qr-${Date.now()}.png`;
-            const fileUri = FileSystem.documentDirectory + fileName;
-            if (qrUrl.startsWith('data:')) {
-                const base64Code = qrUrl.replace(/^data:image\/\w+;base64,/, '');
+            const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+
+            if (typeof targetQr === 'string' && targetQr.startsWith('data:')) {
+                const base64Code = targetQr.replace(/^data:image\/\w+;base64,/, '');
                 await FileSystem.writeAsStringAsync(fileUri, base64Code, { encoding: FileSystem.EncodingType.Base64 });
+            } else if (typeof targetQr === 'string' && targetQr.startsWith('http')) {
+                await FileSystem.downloadAsync(targetQr, fileUri);
             } else {
-                await FileSystem.downloadAsync(qrUrl, fileUri);
+                const base64Code = GCASH_QR_FALLBACK_BASE64.replace(/^data:image\/\w+;base64,/, '');
+                await FileSystem.writeAsStringAsync(fileUri, base64Code, { encoding: FileSystem.EncodingType.Base64 });
             }
+
             await MediaLibrary.saveToLibraryAsync(fileUri);
             Toast.show({ type: 'success', text1: '✅ QR Saved!', text2: 'Payment QR has been saved to your gallery.' });
         } catch (err) {
             console.error('Save QR error:', err);
-            Toast.show({ type: 'error', text1: 'Save Failed', text2: 'Could not save the QR code.' });
+            Toast.show({ type: 'error', text1: 'Save Failed', text2: err.message || 'Could not save the QR code.' });
         }
+    };
+
+    const isPaymentIncomplete = Boolean(selectedPaymentMethod && selectedPaymentMethod.type !== 'counter' && (!referenceNumber.trim() || !proofImage));
+
+    const handleProceedToReview = () => {
+        if (!selectedPaymentMethod) {
+            Toast.show({ type: 'error', text1: 'Payment Method Required', text2: 'Please select a payment method.' });
+            return;
+        }
+        if (selectedPaymentMethod.type !== 'counter') {
+            if (!referenceNumber.trim()) {
+                Toast.show({ type: 'error', text1: 'Reference Number Required', text2: 'Please enter your payment reference number.' });
+                return;
+            }
+            if (!proofImage) {
+                Toast.show({ type: 'error', text1: 'Payment Proof Required', text2: 'Please upload your payment screenshot.' });
+                return;
+            }
+        }
+        setStep(4);
     };
 
     // ── Submit ──
@@ -233,6 +278,16 @@ const RentalScreen = ({ navigation }) => {
         if (!selectedRentalVehicle || !rentalStartDate || !rentalDurationDays || !destination || !address) {
             Toast.show({ type: 'error', text1: 'Incomplete', text2: 'Please fill in all fields including your address.' });
             return;
+        }
+        if (selectedPaymentMethod?.type !== 'counter') {
+            if (!referenceNumber.trim()) {
+                Toast.show({ type: 'error', text1: 'Reference Number Required', text2: 'Please enter your payment reference number.' });
+                return;
+            }
+            if (!proofImage) {
+                Toast.show({ type: 'error', text1: 'Payment Proof Required', text2: 'Please upload your payment screenshot.' });
+                return;
+            }
         }
         setAlertData({
             visible: true,
@@ -307,7 +362,7 @@ const RentalScreen = ({ navigation }) => {
                 <Skeleton width={180} height={28} isDarkMode={isDarkMode} style={{ marginBottom: 6 }} />
                 <Skeleton width={240} height={14} isDarkMode={isDarkMode} style={{ marginBottom: 30 }} />
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30, paddingHorizontal: 4 }}>
-                    {[1,2,3,4].map(k => (
+                    {[1, 2, 3, 4].map(k => (
                         <View key={k} style={{ alignItems: 'center', flex: 1 }}>
                             <Skeleton width={32} height={32} borderRadius={16} isDarkMode={isDarkMode} style={{ marginBottom: 4 }} />
                             <Skeleton width={60} height={10} isDarkMode={isDarkMode} />
@@ -523,7 +578,7 @@ const RentalScreen = ({ navigation }) => {
                         <Text style={styles.stepTitle}>Select Payment Method</Text>
                         <View style={[styles.infoCard, { backgroundColor: COLORS.primary + '10', borderColor: COLORS.primary + '30' }]}>
                             <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 13 }}>
-                                💡 Down Payment Required: {downPaymentPct}% (₱{downPaymentAmount.toLocaleString()})
+                                Down Payment Required: {downPaymentPct}% (₱{downPaymentAmount.toLocaleString()})
                             </Text>
                             <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 4 }}>
                                 A {downPaymentPct}% down payment is required to confirm your reservation. The remaining balance is due upon pick-up.
@@ -541,10 +596,14 @@ const RentalScreen = ({ navigation }) => {
                             </View>
                         ) : (
                             paymentMethods.map(method => {
-                                const isSelected = selectedPaymentMethod?._id === method._id || selectedPaymentMethod?.label === method.label;
+                                const isSelected = Boolean(selectedPaymentMethod) && (
+                                    (Boolean(method._id) && selectedPaymentMethod._id === method._id) ||
+                                    (Boolean(method.id) && selectedPaymentMethod.id === method.id) ||
+                                    (Boolean(method.label) && selectedPaymentMethod.label === method.label)
+                                );
                                 return (
                                     <TouchableOpacity
-                                        key={method._id || method.label}
+                                        key={method._id || method.id || method.label}
                                         style={[styles.paymentCard, isSelected && styles.paymentCardSelected]}
                                         onPress={() => setSelectedPaymentMethod(method)}
                                     >
@@ -555,7 +614,6 @@ const RentalScreen = ({ navigation }) => {
                                             <Text style={[styles.paymentLabel, isSelected && { color: COLORS.primary }]}>{method.label}</Text>
                                             <Text style={styles.paymentNote}>Send ₱{downPaymentAmount.toLocaleString()} as down payment</Text>
                                         </View>
-                                        <Text style={{ fontSize: 20 }}>📱</Text>
                                     </TouchableOpacity>
                                 );
                             })
@@ -568,8 +626,7 @@ const RentalScreen = ({ navigation }) => {
 
                                 {/* QR Code */}
                                 {(() => {
-                                    const qrSrc = selectedPaymentMethod.qrImageBase64 || selectedPaymentMethod.qrImage;
-                                    if (!qrSrc) return null;
+                                    const qrSrc = selectedPaymentMethod.qrImageBase64 || selectedPaymentMethod.qrImage || GCASH_QR_FALLBACK_BASE64;
                                     return (
                                         <View style={{ alignItems: 'center', marginBottom: 16 }}>
                                             <Image source={{ uri: qrSrc }} style={styles.qrImage} resizeMode="contain" />
@@ -597,7 +654,10 @@ const RentalScreen = ({ navigation }) => {
                                     Send exactly ₱{downPaymentAmount.toLocaleString()} and screenshot the transaction. Enter the reference number and upload the screenshot below.
                                 </Text>
 
-                                <Text style={[styles.inputLabel, { color: COLORS.text, marginBottom: 6 }]}>Reference Number</Text>
+                                {/* Reference Number */}
+                                <Text style={[styles.inputLabel, { color: COLORS.text, marginBottom: 6 }]}>
+                                    Reference Number <Text style={{ color: '#ef4444' }}>*</Text>
+                                </Text>
                                 <TextInput
                                     style={[styles.modalInput, { backgroundColor: COLORS.cardBackground, color: COLORS.text, marginBottom: 12 }]}
                                     placeholder="e.g. 1234567890"
@@ -607,7 +667,10 @@ const RentalScreen = ({ navigation }) => {
                                     keyboardType="numeric"
                                 />
 
-                                <Text style={[styles.inputLabel, { color: COLORS.text, marginBottom: 6 }]}>Upload Payment Screenshot</Text>
+                                {/* Proof Upload */}
+                                <Text style={[styles.inputLabel, { color: COLORS.text, marginBottom: 6 }]}>
+                                    Upload Payment Screenshot <Text style={{ color: '#ef4444' }}>*</Text>
+                                </Text>
                                 <TouchableOpacity style={[styles.uploadBtn, { borderColor: COLORS.primary + '60' }]} onPress={handlePickProofImage}>
                                     <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 13 }}>
                                         {proofImageUri ? '✓ Screenshot Selected — Tap to Change' : '📎 Choose Screenshot from Gallery'}
@@ -623,7 +686,10 @@ const RentalScreen = ({ navigation }) => {
                             <TouchableOpacity style={styles.backButton} onPress={() => setStep(2)}>
                                 <Text style={styles.backButtonText}>← Back</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.nextButton, { flex: 1 }]} onPress={() => setStep(4)}>
+                            <TouchableOpacity
+                                style={[styles.nextButton, { flex: 1 }, isPaymentIncomplete && styles.nextButtonDisabled]}
+                                onPress={handleProceedToReview}
+                            >
                                 <Text style={styles.nextButtonText}>Review →</Text>
                             </TouchableOpacity>
                         </View>
