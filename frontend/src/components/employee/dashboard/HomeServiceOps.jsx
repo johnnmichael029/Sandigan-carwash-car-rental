@@ -373,6 +373,11 @@ const HomeServiceOps = ({ isDark }) => {
                         <div style={{ color: '#f87171', fontSize: '0.68rem' }}>🔴 Detailer (Live)</div>
                     </div>
 
+                    <style>{`
+                        .dark-map-tiles img.leaflet-tile {
+                            filter: invert(100%) hue-rotate(180deg) brightness(92%) contrast(88%);
+                        }
+                    `}</style>
                     <MapContainer
                         center={
                             bookingsWithCoords[0]
@@ -384,9 +389,9 @@ const HomeServiceOps = ({ isDark }) => {
                         zoomControl={true}
                     >
                         <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                            subdomains="abcd"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            className="dark-map-tiles"
                             maxZoom={19}
                         />
 
