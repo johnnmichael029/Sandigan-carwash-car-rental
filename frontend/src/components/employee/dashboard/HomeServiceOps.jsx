@@ -411,9 +411,7 @@ const HomeServiceOps = ({ isDark }) => {
                             height: 100% !important;
                             min-height: 520px !important;
                             border-radius: 16px;
-                        }
-                        .dark-map-tiles img.leaflet-tile {
-                            filter: invert(100%) hue-rotate(180deg) brightness(92%) contrast(88%);
+                            background: #111827;
                         }
                     `}</style>
                     <MapContainer
@@ -437,10 +435,13 @@ const HomeServiceOps = ({ isDark }) => {
                                 .filter(([lat, lng]) => !isNaN(lat) && !isNaN(lng))}
                         />
                         <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            className={isDark ? "dark-map-tiles" : ""}
-                            maxZoom={19}
+                            attribution='&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+                            url={
+                                isDark
+                                    ? "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png?api_key=5a1674f8-6d0c-4b1e-9e34-65a1ed6cfbc7"
+                                    : "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=5a1674f8-6d0c-4b1e-9e34-65a1ed6cfbc7"
+                            }
+                            maxZoom={20}
                         />
 
                         {/* Customer house markers */}
