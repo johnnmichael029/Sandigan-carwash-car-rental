@@ -23,6 +23,8 @@ function App() {
         <Route path="/about" element={<Home />} />
         <Route path="/services" element={<Home />} />
         <Route path="/contact" element={<Home />} />
+        <Route path="/faq" element={<Home />} />
+        <Route path="/roadmap" element={<Home />} />
 
         {/* Login Page */}
         <Route path="/login" element={<Login />} />

@@ -458,12 +458,21 @@ const BookingScreen = ({ navigation }) => {
         try {
             const targetQr = qrUrl || GCASH_QR_FALLBACK_BASE64;
 
-            // Request permission: try write-only first (Android 10+ standard), then general
+            // Check if permission is already granted, otherwise request it
             let granted = false;
             try {
-                const writePerm = await MediaLibrary.requestPermissionsAsync(true);
-                granted = writePerm.status === 'granted' || writePerm.granted;
+                const curPerm = await MediaLibrary.getPermissionsAsync();
+                if (curPerm.status === 'granted' || curPerm.granted) {
+                    granted = true;
+                }
             } catch (_) { }
+
+            if (!granted) {
+                try {
+                    const writePerm = await MediaLibrary.requestPermissionsAsync(true);
+                    granted = writePerm.status === 'granted' || writePerm.granted;
+                } catch (_) { }
+            }
 
             if (!granted) {
                 try {
@@ -487,15 +496,30 @@ const BookingScreen = ({ navigation }) => {
 
             if (typeof targetQr === 'string' && targetQr.startsWith('data:')) {
                 const base64Code = targetQr.replace(/^data:image\/\w+;base64,/, '');
-                await FileSystem.writeAsStringAsync(fileUri, base64Code, { encoding: FileSystem.EncodingType.Base64 });
+                if (!base64Code) throw new Error('QR image data is empty.');
+                await FileSystem.writeAsStringAsync(fileUri, base64Code, { encoding: 'base64' });
             } else if (typeof targetQr === 'string' && targetQr.startsWith('http')) {
                 await FileSystem.downloadAsync(targetQr, fileUri);
             } else {
                 const base64Code = GCASH_QR_FALLBACK_BASE64.replace(/^data:image\/\w+;base64,/, '');
-                await FileSystem.writeAsStringAsync(fileUri, base64Code, { encoding: FileSystem.EncodingType.Base64 });
+                await FileSystem.writeAsStringAsync(fileUri, base64Code, { encoding: 'base64' });
             }
 
-            await MediaLibrary.saveToLibraryAsync(fileUri);
+            // Save to device library (with fallback to createAssetAsync)
+            try {
+                if (typeof MediaLibrary.saveToLibraryAsync === 'function') {
+                    await MediaLibrary.saveToLibraryAsync(fileUri);
+                } else {
+                    await MediaLibrary.createAssetAsync(fileUri);
+                }
+            } catch (saveErr) {
+                if (typeof MediaLibrary.createAssetAsync === 'function') {
+                    await MediaLibrary.createAssetAsync(fileUri);
+                } else {
+                    throw saveErr;
+                }
+            }
+
             Toast.show({ type: 'success', text1: '✅ QR Saved!', text2: 'Payment QR has been saved to your gallery.' });
         } catch (err) {
             console.error('Save QR error:', err);

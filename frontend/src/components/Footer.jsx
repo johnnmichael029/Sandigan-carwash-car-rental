@@ -63,6 +63,12 @@ const Footer = () => {
                                 <Link to="/about" className="footer-link">About us</Link>
                             </li>
                             <li className="mb-2">
+                                <Link to="/faq" className="footer-link">FAQ</Link>
+                            </li>
+                            <li className="mb-2">
+                                <Link to="/roadmap" className="footer-link">Roadmap</Link>
+                            </li>
+                            <li className="mb-2">
                                 <Link to="/contact" className="footer-link">Contact Us</Link>
                             </li>
                             <li className="mb-2">
@@ -70,6 +76,7 @@ const Footer = () => {
                             </li>
                         </ul>
                     </div>
+
 
                     {/* ── COL 4: Find Us ── */}
                     <div className="col-lg-5 col-md-12 col-12">

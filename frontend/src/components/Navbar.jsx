@@ -24,13 +24,13 @@ const Navbar = () => {
 
   // IntersectionObserver for active section tracking
   useEffect(() => {
-    const publicPaths = ['/', '/home', '/about', '/services', '/contact'];
+    const publicPaths = ['/', '/home', '/about', '/services', '/contact', '/faq', '/roadmap'];
     if (!publicPaths.includes(location.pathname)) {
       setActiveSection(null);
       return;
     }
 
-    const sectionIds = ['home', 'about', 'services', 'contact'];
+    const sectionIds = ['home', 'about', 'services', 'testimonials', 'faq', 'roadmap', 'contact'];
     const observerOptions = {
       root: null,
       rootMargin: '-40% 0px -40% 0px',
@@ -57,6 +57,8 @@ const Navbar = () => {
     { id: 'home', label: 'Home', to: '/home' },
     { id: 'about', label: 'About', to: '/about' },
     { id: 'services', label: 'Services', to: '/services' },
+    { id: 'faq', label: 'FAQ', to: '/faq' },
+    { id: 'roadmap', label: 'Roadmap', to: '/roadmap' },
     { id: 'contact', label: 'Contact', to: '/contact' },
   ];
 

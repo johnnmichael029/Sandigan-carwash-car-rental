@@ -416,7 +416,7 @@ const ServiceCard = ({ image, title, duration, price, savings, rates, descriptio
         {/* Card image - Edge to Edge */}
         <div className="service-img-wrapper w-100 overflow-hidden flex-shrink-0" style={{ height: '190px', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', position: 'relative' }}>
             <img src={image} className="img-fluid w-100 h-100" style={{ objectFit: 'cover', filter: type === 'rental' && !isAvailable ? 'grayscale(60%)' : 'none' }} alt={title} />
-            
+
             {/* Badge Floating Pill */}
             {badge && (
                 <span
@@ -1141,6 +1141,320 @@ const ServiceSection = () => {
 
 
 /* ═══════════════════════════════════════════
+   SECTION: FAQ
+═══════════════════════════════════════════ */
+const faqData = [
+    {
+        id: 'faq-1',
+        question: 'What car wash packages do you offer?',
+        answer: 'We offer a wide range of packages from our basic Exterior Wash (₱250–₱450) to premium Restore & Shine packages. Our most popular services include the Armor Wash, Saver Package, Standard Package, and the Ultimate Detail Package for full interior and exterior restoration.'
+    },
+    {
+        id: 'faq-2',
+        question: 'How do I book a car wash or detailing service?',
+        answer: 'You can book online through our website or mobile app by clicking "Book Now." Select your preferred service, choose in-store or home service, pick a date and time slot, and confirm. You will receive a booking confirmation via your registered account.'
+    },
+    {
+        id: 'faq-3',
+        question: 'Do you offer home service (mobile detailing)?',
+        answer: 'Yes! We offer home service where our professional detailers come to your location. Simply select "Home Service in Mobile App" during booking, pin your address on the map, and we will dispatch a detailer to you. Home service is available within our service coverage area.'
+    },
+    {
+        id: 'faq-4',
+        question: 'How does car rental work?',
+        answer: 'Browse our available vehicles on the Book page, select your rental dates using the interactive calendar, and submit your reservation. Our team will confirm availability and contact you for final arrangements. A valid ID and deposit may be required at pickup.'
+    },
+    {
+        id: 'faq-5',
+        question: 'Can I track my car wash status in real time?',
+        answer: 'Absolutely! Our Live Bay Status feature on the homepage shows real-time occupancy and availability of our wash bays. Registered customers can also track their booking status through the mobile app.'
+    },
+    {
+        id: 'faq-6',
+        question: 'What payment methods do you accept?',
+        answer: 'We accept cash payments on-site. Online and cashless payment integrations (GCash, credit/debit cards) are on our roadmap and coming soon. Stay tuned for updates!'
+    },
+    {
+        id: 'faq-7',
+        question: 'Is my vehicle safe during the wash or detailing process?',
+        answer: 'Your vehicle safety is our top priority. Our trained detailers follow strict protocols, and our facility uses premium, paint-safe cleaning products. We are fully insured and accountable for any accidental damages during service.'
+    },
+    {
+        id: 'faq-8',
+        question: 'How can I download the mobile app?',
+        answer: 'For now you can download the app via this link: https://drive.google.com/file/d/1hcKBHWWmAHM2G4AWSERiVWBQO0mrzt3-/view?usp=sharing our mobile app is comming soon on playstore'
+    }
+];
+
+const FAQSection = () => {
+    const [openId, setOpenId] = useState(null);
+    const toggle = (id) => setOpenId(prev => prev === id ? null : id);
+
+    return (
+        <section id="faq" className="faq-section py-5">
+            <div className="container py-4">
+                <div className="text-center mb-5">
+                    <div className="section-badge d-flex justify-content-center align-items-center gap-2 mb-3">
+                        <img src={fluentbubblewhite} alt="" style={{ width: '18px' }} />
+                        <h6 className="text-uppercase fst-italic fw-light mb-0" style={{ letterSpacing: '2px' }}>FAQ</h6>
+                    </div>
+                    <h1 className="fw-bold hero-title display-5">
+                        Frequently Asked <span className="brand-accent">Questions</span>
+                    </h1>
+                    <p className="mt-3 mx-auto" style={{ maxWidth: '540px', color: 'var(--text-light-gray300)', lineHeight: 1.7 }}>
+                        Everything you need to know about our services, bookings, and more.
+                    </p>
+                </div>
+                <div className="row justify-content-center">
+                    <div className="col-lg-9">
+                        <div className="faq-accordion">
+                            {faqData.map((item, idx) => {
+                                const isOpen = openId === item.id;
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className={`faq-item ${isOpen ? 'faq-item--open' : ''}`}
+                                    >
+                                        <button
+                                            id={item.id}
+                                            className="faq-question"
+                                            onClick={() => toggle(item.id)}
+                                            aria-expanded={isOpen}
+                                        >
+                                            <span className="faq-num">{String(idx + 1).padStart(2, '0')}</span>
+                                            <span className="faq-question-text">{item.question}</span>
+                                            <span className={`faq-chevron ${isOpen ? 'faq-chevron--open' : ''}`}>
+                                                <i className="bi bi-chevron-down"></i>
+                                            </span>
+                                        </button>
+                                        <div className={`faq-answer ${isOpen ? 'faq-answer--open' : ''}`}>
+                                            <p>{item.answer}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="text-center mt-5">
+                            <p style={{ color: 'var(--text-light-gray300)' }}>Still have questions?</p>
+                            <Link
+                                to="/contact"
+                                className="btn btn-primary text-white px-4 py-2"
+                                style={{ borderRadius: '12px', border: 'none', fontWeight: 600 }}
+                            >
+                                Contact Us
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+};
+
+
+/* ═══════════════════════════════════════════
+   SECTION: ROADMAP
+═══════════════════════════════════════════ */
+const roadmapCompleted = [
+    {
+        id: 'rm-done-1',
+        label: 'Phase 1 Complete',
+        title: 'Core Platform Launch',
+        items: [
+            'Customer booking system (online & in-store)',
+            'Live Bay Status monitoring dashboard',
+            'Employee detailer portal & RBAC',
+            'Service catalog with pricing tiers',
+            'Customer-facing landing page & gallery',
+            'Real-time booking queue management',
+        ]
+    },
+    {
+        id: 'rm-done-2',
+        label: 'Phase 2 Complete',
+        title: 'Advanced Operations',
+        items: [
+            'Mobile app customer & staff experience architecture',
+            'Mobile app for detailers & employee operations',
+            'Home service with live GPS tracking',
+            'Car rental booking with date availability calendar',
+            'SandiBot AI chat assistant',
+            'Multi-role authentication (Customer, Employee, Admin)',
+        ]
+    },
+];
+
+const roadmapUpcoming = [
+    {
+        id: 'rm-next-app',
+        icon: 'bi-google-play',
+        label: 'Coming Soon',
+        title: 'Mobile App on Play Store',
+        color: '#10b981',
+        playstoreBadge: true,
+        items: [
+            'Official Sandigan Mobile App release on Google Play Store',
+            'Seamless carwash & car rental bookings on Android',
+            'Push notifications for queue status updates',
+            'Loyalty points accumulation & redemption',
+        ]
+    },
+    {
+        id: 'rm-next-1',
+        icon: 'bi-credit-card-2-front-fill',
+        label: 'Coming Soon',
+        title: 'Sandigan Membership Card',
+        color: '#23A0CE',
+        items: [
+            'Apply for membership directly via the mobile app',
+            'Exclusive member discounts on all services',
+            'Loyalty points accumulation & redemption',
+            'Priority booking lanes for card holders',
+        ]
+    },
+    {
+        id: 'rm-next-2',
+        icon: 'bi-cash-coin',
+        label: 'Coming Soon',
+        title: 'Online Payment Integration',
+        color: '#00e8e9',
+        items: [
+            'GCash & Maya digital wallet support',
+            'Credit & debit card payments (Visa / Mastercard)',
+            'Automated billing & invoice generation',
+            'Secure PCI-DSS compliant payment gateway',
+        ]
+    },
+    {
+        id: 'rm-next-3',
+        icon: 'bi-bar-chart-line-fill',
+        label: 'Planned',
+        title: 'Admin ERP & Analytics',
+        color: '#a855f7',
+        items: [
+            'Full Finance & Accounting module',
+            'HR Information System (HRIS) with payroll',
+            'Inventory & Supply Chain management',
+            'Sales CRM & customer data analytics',
+            'Revenue, occupancy & KPI dashboards',
+        ]
+    },
+    {
+        id: 'rm-next-4',
+        icon: 'bi-bell-fill',
+        label: 'Planned',
+        title: 'Push Notifications & Reminders',
+        color: '#f59e0b',
+        items: [
+            'Booking confirmation & reminder alerts',
+            'Detailer en-route & arrival notifications',
+            'Membership renewal & offer alerts',
+            'Service completion & feedback requests',
+        ]
+    },
+    {
+        id: 'rm-next-5',
+        icon: 'bi-stars',
+        label: 'Future',
+        title: 'AI-Powered Smart Recommendations',
+        color: '#ec4899',
+        items: [
+            'Personalized service suggestions based on history',
+            'Smart scheduling for optimal bay utilization',
+            'Vehicle condition analysis via photo upload',
+            'Automated upsell & package recommendations',
+        ]
+    },
+];
+
+const RoadmapSection = () => (
+    <section id="roadmap" className="roadmap-section py-5">
+        <div className="container py-4">
+            <div className="text-center mb-5">
+                <div className="section-badge d-flex justify-content-center align-items-center gap-2 mb-3">
+                    <img src={fluentbubblewhite} alt="" style={{ width: '18px' }} />
+                    <h6 className="text-uppercase fst-italic fw-light mb-0" style={{ letterSpacing: '2px' }}>Roadmap</h6>
+                </div>
+                <h1 className="fw-bold hero-title display-5">
+                    Our <span className="brand-accent">Journey</span> & Vision
+                </h1>
+                <p className="mt-3 mx-auto" style={{ maxWidth: '580px', color: 'var(--text-light-gray300)', lineHeight: 1.7 }}>
+                    From a local carwash to a fully digital, AI-powered auto-service platform — here is where we have been and where we are going.
+                </p>
+            </div>
+
+            <div className="mb-5">
+                <div className="roadmap-phase-label d-flex align-items-center gap-3 mb-4">
+                    <span className="roadmap-badge roadmap-badge--done"><i className="bi bi-check-lg"></i> Completed</span>
+                    <div className="roadmap-phase-line flex-grow-1"></div>
+                </div>
+                <div className="row g-4">
+                    {roadmapCompleted.map(phase => (
+                        <div key={phase.id} className="col-md-6">
+                            <div className="roadmap-card roadmap-card--done">
+                                <div className="roadmap-card-header">
+                                    <span className="roadmap-card-label">{phase.label}</span>
+                                    <div className="roadmap-done-icon"><i className="bi bi-patch-check-fill"></i></div>
+                                </div>
+                                <h5 className="roadmap-card-title mt-2 mb-3">{phase.title}</h5>
+                                <ul className="roadmap-list">
+                                    {phase.items.map((item, i) => (
+                                        <li key={i} className="roadmap-list-item roadmap-list-item--done">
+                                            <i className="bi bi-check2 roadmap-check"></i>
+                                            <span>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div>
+                <div className="roadmap-phase-label d-flex align-items-center gap-3 mb-4">
+                    <span className="roadmap-badge roadmap-badge--upcoming"><i className="bi bi-rocket-takeoff"></i> Upcoming</span>
+                    <div className="roadmap-phase-line flex-grow-1"></div>
+                </div>
+                <div className="row g-4">
+                    {roadmapUpcoming.map(item => (
+                        <div key={item.id} className="col-md-6 col-lg-4">
+                            <div className="roadmap-card roadmap-card--upcoming" style={{ '--rm-accent': item.color }}>
+                                <div className="roadmap-card-header">
+                                    <span className="roadmap-card-label" style={{ color: item.color, borderColor: item.color, background: `${item.color}18` }}>{item.label}</span>
+                                    <div className="roadmap-upcoming-icon" style={{ color: item.color }}>
+                                        <i className={`bi ${item.icon}`}></i>
+                                    </div>
+                                </div>
+                                <h5 className="roadmap-card-title mt-2 mb-3">{item.title}</h5>
+                                <ul className="roadmap-list">
+                                    {item.items.map((li, i) => (
+                                        <li key={i} className="roadmap-list-item">
+                                            <i className="bi bi-arrow-right-short roadmap-check" style={{ color: item.color }}></i>
+                                            <span>{li}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                {item.playstoreBadge && (
+                                    <div className="mt-3 pt-3 border-top border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+                                        <span className="badge d-inline-flex align-items-center gap-2 px-2.5 py-1.5" style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', color: '#10b981', fontSize: '0.75rem', fontWeight: 600 }}>
+                                            <i className="bi bi-google-play"></i>
+                                            <span>Google Play Store</span>
+                                        </span>
+                                        <span className="text-secondary small fst-italic" style={{ fontSize: '0.75rem' }}>Coming Soon</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    </section>
+);
+
+
+/* ═══════════════════════════════════════════
    SECTION 4: CONTACT
 ═══════════════════════════════════════════ */
 const ContactSection = () => (
@@ -1223,6 +1537,8 @@ const Home = () => {
             '/about': 'about',
             '/services': 'services',
             '/contact': 'contact',
+            '/faq': 'faq',
+            '/roadmap': 'roadmap',
         };
         const targetId = scrollMap[pathname];
         if (targetId) {
@@ -1243,6 +1559,8 @@ const Home = () => {
                 <ServiceSection />
                 <GallerySection />
                 <TestimonialSection />
+                <FAQSection />
+                <RoadmapSection />
                 <ContactSection />
             </main>
             <Footer />
