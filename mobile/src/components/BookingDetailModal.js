@@ -311,7 +311,8 @@ const BookingDetailModal = ({
                                 <View style={styles.mapContainer}>
                                     <MapView
                                         ref={mapRef}
-                                        style={StyleSheet.absoluteFillObject}
+                                        style={{ width: '100%', height: 180 }}
+                                        provider={MapView.PROVIDER_GOOGLE}
                                         initialRegion={{
                                             latitude: item.homeServiceDetails?.latitude || 14.5995,
                                             longitude: item.homeServiceDetails?.longitude || 120.9842,

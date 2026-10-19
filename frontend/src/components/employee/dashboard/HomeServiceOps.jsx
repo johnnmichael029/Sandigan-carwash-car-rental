@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { API_BASE, authHeaders } from '../../../api/config';
@@ -22,13 +22,45 @@ const houseIcon = new L.divIcon({
     iconAnchor: [15, 15]
 });
 
+// Map Controller for dynamic re-centering, invalidating size, and flying to selection
+function MapController({ selectedCoords, allCoords }) {
+    const map = useMap();
+
+    useEffect(() => {
+        // Fix Leaflet gray tiles when mounting inside flex containers
+        const timer = setTimeout(() => {
+            map.invalidateSize();
+        }, 200);
+        return () => clearTimeout(timer);
+    }, [map]);
+
+    useEffect(() => {
+        if (selectedCoords && !isNaN(selectedCoords[0]) && !isNaN(selectedCoords[1])) {
+            map.flyTo(selectedCoords, 15, { duration: 1.2 });
+        } else if (allCoords && allCoords.length > 0) {
+            try {
+                if (allCoords.length === 1) {
+                    map.setView(allCoords[0], 13);
+                } else {
+                    const bounds = L.latLngBounds(allCoords);
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+                }
+            } catch (err) {
+                // Ignore bounds error
+            }
+        }
+    }, [selectedCoords, allCoords, map]);
+
+    return null;
+}
+
 /* ─────────────────────────────────────────────
    HOME SERVICE OPS Panel
    Real-time dispatch map for Home Service bookings.
    Shows: Customer pins (green house) + Detailer pins (red car)
    ───────────────────────────────────────────── */
 
-const MAP_CONTAINER_STYLE = { width: '100%', height: '100%', zIndex: 1 };
+const MAP_CONTAINER_STYLE = { width: '100%', height: '100%', minHeight: '520px', zIndex: 1 };
 const DEFAULT_CENTER = [14.5995, 120.9842]; // Metro Manila (Leaflet uses arrays [lat, lng])
 
 const STATUS_COLORS = {
@@ -374,6 +406,12 @@ const HomeServiceOps = ({ isDark }) => {
                     </div>
 
                     <style>{`
+                        .leaflet-container {
+                            width: 100% !important;
+                            height: 100% !important;
+                            min-height: 520px !important;
+                            border-radius: 16px;
+                        }
                         .dark-map-tiles img.leaflet-tile {
                             filter: invert(100%) hue-rotate(180deg) brightness(92%) contrast(88%);
                         }
@@ -381,51 +419,69 @@ const HomeServiceOps = ({ isDark }) => {
                     <MapContainer
                         center={
                             bookingsWithCoords[0]
-                                ? [bookingsWithCoords[0].homeServiceDetails.latitude, bookingsWithCoords[0].homeServiceDetails.longitude]
+                                ? [parseFloat(bookingsWithCoords[0].homeServiceDetails.latitude), parseFloat(bookingsWithCoords[0].homeServiceDetails.longitude)]
                                 : DEFAULT_CENTER
                         }
                         zoom={bookingsWithCoords.length > 0 ? 13 : 11}
                         style={MAP_CONTAINER_STYLE}
                         zoomControl={true}
                     >
+                        <MapController
+                            selectedCoords={
+                                selectedBooking?.homeServiceDetails?.latitude
+                                    ? [parseFloat(selectedBooking.homeServiceDetails.latitude), parseFloat(selectedBooking.homeServiceDetails.longitude)]
+                                    : null
+                            }
+                            allCoords={bookingsWithCoords
+                                .map(b => [parseFloat(b.homeServiceDetails?.latitude), parseFloat(b.homeServiceDetails?.longitude)])
+                                .filter(([lat, lng]) => !isNaN(lat) && !isNaN(lng))}
+                        />
                         <TileLayer
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            className="dark-map-tiles"
+                            className={isDark ? "dark-map-tiles" : ""}
                             maxZoom={19}
                         />
 
                         {/* Customer house markers */}
-                        {bookingsWithCoords.map(b => (
-                            <Marker
-                                key={`cust-${b._id}`}
-                                position={[b.homeServiceDetails.latitude, b.homeServiceDetails.longitude]}
-                                icon={houseIcon}
-                            >
-                                <Popup>
-                                    <div style={{ minWidth: 160 }}>
-                                        <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                                            {b.firstName} {b.lastName}
+                        {bookingsWithCoords.map(b => {
+                            const lat = parseFloat(b.homeServiceDetails?.latitude);
+                            const lng = parseFloat(b.homeServiceDetails?.longitude);
+                            if (isNaN(lat) || isNaN(lng)) return null;
+                            return (
+                                <Marker
+                                    key={`cust-${b._id}`}
+                                    position={[lat, lng]}
+                                    icon={houseIcon}
+                                >
+                                    <Popup>
+                                        <div style={{ minWidth: 160 }}>
+                                            <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
+                                                {b.firstName} {b.lastName}
+                                            </div>
+                                            <div style={{ fontSize: '0.72rem', color: '#555', marginTop: 3 }}>
+                                                📍 {b.homeServiceDetails.address}
+                                            </div>
+                                            <div style={{ marginTop: 4 }}>{statusBadge(b.status)}</div>
+                                            <div style={{ fontSize: '0.7rem', marginTop: 4, color: '#777' }}>
+                                                {Array.isArray(b.serviceType) ? b.serviceType.join(', ') : b.serviceType}
+                                            </div>
                                         </div>
-                                        <div style={{ fontSize: '0.72rem', color: '#555', marginTop: 3 }}>
-                                            📍 {b.homeServiceDetails.address}
-                                        </div>
-                                        <div style={{ marginTop: 4 }}>{statusBadge(b.status)}</div>
-                                        <div style={{ fontSize: '0.7rem', marginTop: 4, color: '#777' }}>
-                                            {Array.isArray(b.serviceType) ? b.serviceType.join(', ') : b.serviceType}
-                                        </div>
-                                    </div>
-                                </Popup>
-                            </Marker>
-                        ))}
+                                    </Popup>
+                                </Marker>
+                            );
+                        })}
 
                         {/* Detailer moving markers */}
                         {Object.entries(detailerLocations).map(([bookingId, coords]) => {
+                            const lat = parseFloat(coords.lat);
+                            const lng = parseFloat(coords.lng);
+                            if (isNaN(lat) || isNaN(lng)) return null;
                             const booking = homeBookings.find(b => b._id === bookingId);
                             return (
                                 <Marker
                                     key={`det-${bookingId}`}
-                                    position={[coords.lat, coords.lng]}
+                                    position={[lat, lng]}
                                     icon={carIcon}
                                 >
                                     <Popup>

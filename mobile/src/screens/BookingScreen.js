@@ -463,13 +463,13 @@ const BookingScreen = ({ navigation }) => {
             try {
                 const writePerm = await MediaLibrary.requestPermissionsAsync(true);
                 granted = writePerm.status === 'granted' || writePerm.granted;
-            } catch (_) {}
+            } catch (_) { }
 
             if (!granted) {
                 try {
                     const fullPerm = await MediaLibrary.requestPermissionsAsync(false);
                     granted = fullPerm.status === 'granted' || fullPerm.granted;
-                } catch (_) {}
+                } catch (_) { }
             }
 
             if (!granted) {
@@ -961,8 +961,7 @@ const BookingScreen = ({ navigation }) => {
                                             {method.type === 'counter' && <Text style={styles.paymentNote}>Pay at the counter upon arrival</Text>}
                                             {method.type !== 'counter' && <Text style={styles.paymentNote}>Online payment — upload proof after paying</Text>}
                                         </View>
-                                        {method.type !== 'counter' && <Text style={{ fontSize: 20 }}>📱</Text>}
-                                        {method.type === 'counter' && <Text style={{ fontSize: 20 }}>🏪</Text>}
+
                                     </TouchableOpacity>
                                 );
                             })

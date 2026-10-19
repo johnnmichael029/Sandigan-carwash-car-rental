@@ -304,53 +304,75 @@ const DetailerDashboard = ({ navigation }) => {
         });
     };
 
-    // Stop GPS when job is marked Completed
-    const handleUpdateStatus = async (bookingId, newStatus) => {
-        const actionText = newStatus === 'In-progress' ? 'Arrived' : 'Complete';
-        const msg = newStatus === 'In-progress'
-            ? 'Mark yourself as arrived and start the service?'
-            : 'Mark this job as completed?';
+    // Stop GPS when job is marked Completed or In-progress
+    const handleUpdateStatus = async (bookingId, newStatus, skipConfirm = false) => {
+        const task = activeTasks.find(t => t._id === bookingId);
+        const isHome = task?.serviceLocationType === 'Home Service';
+
+        const doUpdate = async () => {
+            try {
+                // If completing/arriving, stop GPS broadcast
+                if (activeGpsBookingId === bookingId) await stopGpsBroadcast();
+
+                // Optimistic update locally
+                const taskToMove = activeTasks.find(t => t._id === bookingId);
+                if (taskToMove) {
+                    const updatedTask = { ...taskToMove, status: newStatus };
+                    if (newStatus === 'Completed') {
+                        setActiveTasks(prev => prev.filter(t => t._id !== bookingId));
+                        setCompletedTasks(prev => [updatedTask, ...prev]);
+                    } else {
+                        setActiveTasks(prev => prev.map(t => t._id === bookingId ? updatedTask : t));
+                    }
+                }
+
+                // Network request
+                await axios.patch(`${API_BASE}/booking/${bookingId}`, { status: newStatus }, {
+                    headers: { Authorization: `Bearer ${userToken}` }
+                });
+
+                if (newStatus === 'Completed') {
+                    fetchEarnings();
+                }
+            } catch (err) {
+                console.error('[STATUS_UPDATE_ERR]', err?.response?.data || err.message);
+                setAlertData({
+                    visible: true,
+                    title: 'Error',
+                    message: err?.response?.data?.error || 'Failed to update status. Reverting changes.',
+                    type: 'error'
+                });
+                fetchAllData(true);
+            }
+        };
+
+        if (skipConfirm) {
+            await doUpdate();
+            return;
+        }
+
+        let actionTitle = 'Start Service';
+        let actionMsg = 'Start working on this in-store service?';
+
+        if (newStatus === 'Completed') {
+            actionTitle = 'Complete Job';
+            actionMsg = 'Mark this job as completed?';
+        } else if (newStatus === 'In-progress') {
+            if (isHome) {
+                actionTitle = 'Arrived Job';
+                actionMsg = 'Mark yourself as arrived and start the service?';
+            } else {
+                actionTitle = 'Start Working';
+                actionMsg = 'Ready to start working on this in-store service?';
+            }
+        }
 
         setAlertData({
             visible: true,
-            title: `${actionText} Job`,
-            message: msg,
+            title: actionTitle,
+            message: actionMsg,
             type: 'confirm',
-            onConfirm: async () => {
-                try {
-                    // If completing/arriving, stop GPS broadcast
-                    if (activeGpsBookingId === bookingId) await stopGpsBroadcast();
-
-                    // Optimistic update locally
-                    const taskToMove = activeTasks.find(t => t._id === bookingId);
-                    if (taskToMove) {
-                        const updatedTask = { ...taskToMove, status: newStatus };
-                        if (newStatus === 'Completed') {
-                            setActiveTasks(prev => prev.filter(t => t._id !== bookingId));
-                            setCompletedTasks(prev => [updatedTask, ...prev]);
-                        } else {
-                            setActiveTasks(prev => prev.map(t => t._id === bookingId ? updatedTask : t));
-                        }
-                    }
-
-                    // Network request
-                    await axios.patch(`${API_BASE}/booking/${bookingId}`, { status: newStatus }, {
-                        headers: { Authorization: `Bearer ${userToken}` }
-                    });
-
-                    if (newStatus === 'Completed') {
-                        fetchEarnings();
-                    }
-                } catch (err) {
-                    setAlertData({
-                        visible: true,
-                        title: 'Error',
-                        message: 'Failed to update status. Reverting changes.',
-                        type: 'error'
-                    });
-                    fetchAllData(true);
-                }
-            }
+            onConfirm: doUpdate
         });
     };
 
@@ -528,7 +550,7 @@ const DetailerDashboard = ({ navigation }) => {
                                                 title: "Force Arrived?",
                                                 message: "Are you sure you have arrived at the customer's location?",
                                                 type: 'confirm',
-                                                onConfirm: () => handleUpdateStatus(item._id, 'In-progress')
+                                                onConfirm: () => handleUpdateStatus(item._id, 'In-progress', true)
                                             });
                                         }
                                     }}
@@ -664,13 +686,15 @@ const DetailerDashboard = ({ navigation }) => {
                         (activeTab === 'Home Ops' && getDisplayData().some(t => t.homeServiceDetails?.latitude)) ? (
                             <View style={styles.mapContainer}>
                                 <MapView
-                                    style={StyleSheet.absoluteFillObject}
+                                    style={{ width: '100%', height: 200 }}
+                                    provider={MapView.PROVIDER_GOOGLE}
                                     initialRegion={{
                                         latitude: parseFloat(getDisplayData().find(t => t.homeServiceDetails?.latitude)?.homeServiceDetails.latitude) || 14.5995,
                                         longitude: parseFloat(getDisplayData().find(t => t.homeServiceDetails?.longitude)?.homeServiceDetails.longitude) || 120.9842,
                                         latitudeDelta: 0.0922,
                                         longitudeDelta: 0.0421,
                                     }}
+                                    liteMode
                                 >
                                     {getDisplayData().map(t => {
                                         const lat = parseFloat(t.homeServiceDetails?.latitude);
@@ -683,7 +707,7 @@ const DetailerDashboard = ({ navigation }) => {
                                                     latitude: lat,
                                                     longitude: lng
                                                 }}
-                                                title={t.firstName + " " + t.lastName}
+                                                title={t.firstName + ' ' + t.lastName}
                                                 description={Array.isArray(t.serviceType) ? t.serviceType.join(', ') : (t.serviceType || '')}
                                                 pinColor="#ef4444"
                                             />
