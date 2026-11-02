@@ -6,7 +6,7 @@ import ellipse from '../../assets/img/ellipse.png';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import sandiganLogo from '../../assets/logo/sandigan-logo.png';
-import { API_BASE, authHeaders } from '../../api/config';
+import { API_BASE, authHeaders, initCsrf } from '../../api/config';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -59,6 +59,10 @@ const Login = () => {
         e.preventDefault();
         setIsLoading(true);
         setError(null);
+
+        // Re-fetch a fresh CSRF token right before submitting -- ensures the cookie
+        // and in-memory token are always in sync, even on mobile or after long idle sessions.
+        await initCsrf();
 
         const cleanData = {
             email: sanitizeInput(email),
