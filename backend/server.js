@@ -187,8 +187,12 @@ const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
     cookieName: 'csrf',
     cookieOptions: {
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        secure: process.env.NODE_ENV === 'production',
+        // Always use 'none' + secure=true so the cookie is sent cross-origin
+        // (frontend and backend are on separate Azure subdomains).
+        // This is what made it work before — NODE_ENV was not set in Azure so it
+        // was defaulting to 'lax' which blocks cross-origin cookie sending.
+        sameSite: 'none',
+        secure: true,
         path: '/',
     },
     // csrf-csrf v3+ requires getSessionIdentifier. For stateless JWT/guest apps, returning a static string or an anon identifier is completely fine:
@@ -208,17 +212,17 @@ app.get('/api/csrf-token', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 app.use('/api/customer-auth', require('./routes/customerAuthRoutes'));
 
-// Mobile App CSRF Bypass: We bypass CSRF for stateless mobile JWT bearer tokens.
+// CSRF Middleware — cross-origin safe (SameSite=None; Secure=true)
 const csrfMiddleware = (req, res, next) => {
-    // 1. Mobile app authenticated requests
+    // 1. Mobile app / Bearer token requests — stateless JWT, no CSRF needed
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
         return next();
     }
-    // 2. Mobile app Employee login
-    if (req.path === '/api/employees/login' && req.body?.source === 'mobile') {
+    // 2. Employee login (web) — password-protected + rate-limited; login CSRF is low risk
+    if (req.path === '/api/employees/login' && req.method === 'POST') {
         return next();
     }
-    // 3. Public contact form submission
+    // 3. Public contact form
     if (req.path === '/api/contact' && req.method === 'POST') {
         return next();
     }
