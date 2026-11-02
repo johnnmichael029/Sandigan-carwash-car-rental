@@ -84,8 +84,11 @@ const Login = () => {
                 return;
             }
 
-            // Store only non-sensitive employee info; the JWT is held in an httpOnly cookie
+            // Store employee info and JWT token for fallback cross-origin Authorization header
             localStorage.setItem('employee', JSON.stringify(data.employee));
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+            }
 
             Swal.fire({
                 icon: 'success',

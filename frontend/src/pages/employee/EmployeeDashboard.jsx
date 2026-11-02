@@ -99,7 +99,7 @@ const EmployeeDashboard = () => {
         const stored = localStorage.getItem('employee');
 
         if (!stored) {
-            localStorage.removeItem('employee');
+            localStorage.removeItem('employee'); localStorage.removeItem('token');
             navigate('/login', { replace: true });
             return;
         }
@@ -107,13 +107,13 @@ const EmployeeDashboard = () => {
         try {
             const parsed = JSON.parse(stored);
             if (!parsed.role) {
-                localStorage.removeItem('employee');
+                localStorage.removeItem('employee'); localStorage.removeItem('token');
                 navigate('/login', { replace: true });
                 return;
             }
             setEmployee(parsed);
         } catch {
-            localStorage.removeItem('employee');
+            localStorage.removeItem('employee'); localStorage.removeItem('token');
             navigate('/login', { replace: true });
         }
 
@@ -144,7 +144,7 @@ const EmployeeDashboard = () => {
                     headers: authHeaders(),
                     credentials: 'include',
                 }).catch(() => { });
-                localStorage.removeItem('employee');
+                localStorage.removeItem('employee'); localStorage.removeItem('token');
                 navigate('/login');
             });
             return;
@@ -167,7 +167,7 @@ const EmployeeDashboard = () => {
                     headers: authHeaders(),
                     credentials: 'include',
                 }).catch(() => { });
-                localStorage.removeItem('employee');
+                localStorage.removeItem('employee'); localStorage.removeItem('token');
                 navigate('/login');
             }
         });

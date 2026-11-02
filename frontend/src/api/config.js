@@ -37,9 +37,13 @@ const initCsrf = async () => {
  * The JWT is stored in an httpOnly cookie (automatically sent by the browser).
  * Use withCredentials: true (axios) or credentials: 'include' (fetch) to send cookies.
  */
-const authHeaders = () => ({
-    'Content-Type': 'application/json',
-    ...(_csrfToken ? { 'X-CSRF-Token': _csrfToken } : {}),
-});
+const authHeaders = () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    return {
+        'Content-Type': 'application/json',
+        ...(_csrfToken ? { 'X-CSRF-Token': _csrfToken } : {}),
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+};
 
 export { API_BASE, SOCKET_URL, authHeaders, initCsrf };

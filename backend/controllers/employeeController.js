@@ -306,11 +306,11 @@ const loginEmployee = async (req, res) => {
             { expiresIn: '8h' }
         );
 
-        // Set token as httpOnly cookie to prevent XSS-based token theft
+        // Set token as httpOnly cookie (always sameSite: 'none' and secure: true for cross-origin Azure deployments)
         res.cookie('token', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            secure: true,
+            sameSite: 'none',
             maxAge: 8 * 60 * 60 * 1000, // 8 hours in milliseconds
         });
 
@@ -366,8 +366,8 @@ const logoutEmployee = async (req, res) => {
 
     res.clearCookie('token', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: true,
+        sameSite: 'none',
     });
 
     res.status(200).json({ message: 'Logged out successfully' });

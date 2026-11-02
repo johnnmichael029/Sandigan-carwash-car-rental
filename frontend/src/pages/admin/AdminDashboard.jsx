@@ -133,7 +133,7 @@ const AdminDashboard = () => {
                 await fetch(`${API_BASE}/employees/logout`, {
                     method: 'POST', headers: authHeaders(), credentials: 'include',
                 }).catch(() => { });
-                localStorage.removeItem('employee');
+                localStorage.removeItem('employee'); localStorage.removeItem('token');
                 navigate('/login');
             });
             return;
@@ -154,7 +154,7 @@ const AdminDashboard = () => {
                 await fetch(`${API_BASE}/employees/logout`, {
                     method: 'POST', headers: authHeaders(), credentials: 'include',
                 }).catch(() => { });
-                localStorage.removeItem('employee');
+                localStorage.removeItem('employee'); localStorage.removeItem('token');
                 navigate('/login');
             }
         });

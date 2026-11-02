@@ -7,7 +7,12 @@ const Employee = require('../models/employeeModel');
  * Usage: router.patch('/:id', requireAuth, updateHandler)
  */
 const requireAuth = async (req, res, next) => {
-    const token = req.cookies?.token;
+    let token = req.cookies?.token;
+
+    // Also support Bearer token for cross-origin deployments where third-party cookies may be blocked
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        token = req.headers.authorization.split(' ')[1];
+    }
 
     if (!token) {
         return res.status(401).json({ error: 'Authorization token required.' });
