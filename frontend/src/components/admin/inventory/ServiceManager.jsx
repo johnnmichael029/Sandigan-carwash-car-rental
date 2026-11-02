@@ -34,6 +34,9 @@ const ServiceSettingsPage = ({ user, isDark }) => {
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [editingDoc, setEditingDoc] = useState(null);
 
+    // Unsaved edits cache: keyed by vehicle _id, stores editingDoc while switching tabs
+    const [pendingEdits, setPendingEdits] = useState({});
+
     // Rental Fleet State
     const [selectedFleet, setSelectedFleet] = useState(null);
     const [editingFleet, setEditingFleet] = useState(null);
@@ -47,9 +50,14 @@ const ServiceSettingsPage = ({ user, isDark }) => {
     const [selectedVehicleIds, setSelectedVehicleIds] = useState([]);
 
     const handleSelectVehicle = (v) => {
+        // Save current edits into pendingEdits before switching
+        if (editingDoc && editingDoc._id) {
+            setPendingEdits(prev => ({ ...prev, [editingDoc._id]: editingDoc }));
+        }
         setSelectedVehicle(v);
-        // Deep copy so we can edit without affecting the list until saved
-        const doc = JSON.parse(JSON.stringify(v));
+        // Restore from pendingEdits if we've edited this vehicle before, else deep copy from server
+        const cached = pendingEdits[v._id];
+        const doc = cached ? JSON.parse(JSON.stringify(cached)) : JSON.parse(JSON.stringify(v));
         if (!doc.services) doc.services = [];
         if (!doc.restorePackages) doc.restorePackages = [];
         if (!doc.addons) doc.addons = [];
@@ -156,6 +164,8 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                 const doc = JSON.parse(JSON.stringify(res.data));
                 if (!doc.restorePackages) doc.restorePackages = [];
                 setEditingDoc(doc);
+                // Clear pending edits for this vehicle since it's now saved
+                setPendingEdits(prev => { const next = { ...prev }; delete next[res.data._id]; return next; });
                 Swal.fire({
                     title: 'Saved Successfully!',
                     icon: 'success',
