@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -34,8 +34,13 @@ const ServiceSettingsPage = ({ user, isDark }) => {
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [editingDoc, setEditingDoc] = useState(null);
 
-    // Unsaved edits cache: keyed by vehicle _id — using ref so reads are always current (no stale closure)
-    const pendingEditsRef = useRef({});
+    // Persistent local edits store — updated via useEffect so it's always in sync with editingDoc
+    const localDocsRef = useRef({});
+    useEffect(() => {
+        if (editingDoc && editingDoc._id) {
+            localDocsRef.current[editingDoc._id] = JSON.parse(JSON.stringify(editingDoc));
+        }
+    }, [editingDoc]);
 
     // Rental Fleet State
     const [selectedFleet, setSelectedFleet] = useState(null);
@@ -49,14 +54,11 @@ const ServiceSettingsPage = ({ user, isDark }) => {
     const [syncTargetScope, setSyncTargetScope] = useState('ALL');
     const [selectedVehicleIds, setSelectedVehicleIds] = useState([]);
 
+
     const handleSelectVehicle = (v) => {
-        // Save current edits into the ref cache immediately (synchronous, no stale closure)
-        if (editingDoc && editingDoc._id) {
-            pendingEditsRef.current[editingDoc._id] = JSON.parse(JSON.stringify(editingDoc));
-        }
         setSelectedVehicle(v);
-        // Restore from cache if we've edited this vehicle before, else deep copy from server
-        const cached = pendingEditsRef.current[v._id];
+        // Restore from local cache if previously edited, else deep-copy from server
+        const cached = localDocsRef.current[v._id];
         const doc = cached ? JSON.parse(JSON.stringify(cached)) : JSON.parse(JSON.stringify(v));
         if (!doc.services) doc.services = [];
         if (!doc.restorePackages) doc.restorePackages = [];
@@ -165,7 +167,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                 if (!doc.restorePackages) doc.restorePackages = [];
                 setEditingDoc(doc);
                 // Clear pending edits for this vehicle since it's now saved
-                delete pendingEditsRef.current[res.data._id];
+                delete localDocsRef.current[res.data._id];
                 Swal.fire({
                     title: 'Saved Successfully!',
                     icon: 'success',
@@ -1084,6 +1086,5 @@ const ServiceSettingsPage = ({ user, isDark }) => {
         </div>
     );
 };
-
 
 export default ServiceSettingsPage;

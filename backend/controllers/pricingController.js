@@ -200,7 +200,7 @@ const seedPricingIfNotExists = async () => {
                     modified = true;
                 }
 
-                if (!doc.addons || doc.addons.length === 0) {
+                if (doc.addons === undefined || doc.addons === null) {
                     doc.addons = [...NEW_ADDONS];
                     modified = true;
                 }
@@ -315,14 +315,29 @@ const updateVehiclePricing = async (req, res) => {
             return res.status(400).json({ error: `Vehicle type "${vehicleType}" already exists.` });
         }
 
-        const updated = await Pricing.findByIdAndUpdate(req.params.id,
-            { vehicleType, brandGroup: brandGroup !== undefined ? brandGroup : '', services: services || [], restorePackages: restorePackages || [], addons: addons || [] },
-            { new: true }
-        );
-
-        if (!updated) {
+        // Use findById + save so Mongoose properly processes all subdocument fields
+        // (findByIdAndUpdate strips unknown/nested fields like 'disabled' in strict mode)
+        const doc = await Pricing.findById(req.params.id);
+        if (!doc) {
             return res.status(404).json({ error: 'Vehicle pricing record not found' });
         }
+
+        doc.vehicleType = vehicleType;
+        doc.brandGroup = brandGroup !== undefined ? brandGroup : '';
+        doc.services = services || [];
+        doc.restorePackages = restorePackages || [];
+        doc.addons = (addons || []).map(a => ({
+            name: a.name,
+            price: Number(a.price) || 0,
+            description: a.description || '',
+            inclusions: a.inclusions || [],
+            badge: a.badge || '',
+            savings: a.savings || '',
+            category: a.category || '',
+            disabled: !!a.disabled
+        }));
+
+        const updated = await doc.save();
 
         // Emit real-time update
         const io = req.app.get('io');

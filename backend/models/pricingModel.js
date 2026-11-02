@@ -7,7 +7,8 @@ const serviceItemSchema = new mongoose.Schema({
     inclusions: { type: [String], default: [] },
     badge: { type: String, default: '' },
     savings: { type: String, default: '' },
-    category: { type: String, default: '' }
+    category: { type: String, default: '' },
+    disabled: { type: Boolean, default: false }
 }, { _id: false });
 
 const pricingSchema = new mongoose.Schema({
