@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import useSWR from 'swr';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -34,8 +34,8 @@ const ServiceSettingsPage = ({ user, isDark }) => {
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [editingDoc, setEditingDoc] = useState(null);
 
-    // Unsaved edits cache: keyed by vehicle _id, stores editingDoc while switching tabs
-    const [pendingEdits, setPendingEdits] = useState({});
+    // Unsaved edits cache: keyed by vehicle _id — using ref so reads are always current (no stale closure)
+    const pendingEditsRef = useRef({});
 
     // Rental Fleet State
     const [selectedFleet, setSelectedFleet] = useState(null);
@@ -50,13 +50,13 @@ const ServiceSettingsPage = ({ user, isDark }) => {
     const [selectedVehicleIds, setSelectedVehicleIds] = useState([]);
 
     const handleSelectVehicle = (v) => {
-        // Save current edits into pendingEdits before switching
+        // Save current edits into the ref cache immediately (synchronous, no stale closure)
         if (editingDoc && editingDoc._id) {
-            setPendingEdits(prev => ({ ...prev, [editingDoc._id]: editingDoc }));
+            pendingEditsRef.current[editingDoc._id] = JSON.parse(JSON.stringify(editingDoc));
         }
         setSelectedVehicle(v);
-        // Restore from pendingEdits if we've edited this vehicle before, else deep copy from server
-        const cached = pendingEdits[v._id];
+        // Restore from cache if we've edited this vehicle before, else deep copy from server
+        const cached = pendingEditsRef.current[v._id];
         const doc = cached ? JSON.parse(JSON.stringify(cached)) : JSON.parse(JSON.stringify(v));
         if (!doc.services) doc.services = [];
         if (!doc.restorePackages) doc.restorePackages = [];
@@ -165,7 +165,7 @@ const ServiceSettingsPage = ({ user, isDark }) => {
                 if (!doc.restorePackages) doc.restorePackages = [];
                 setEditingDoc(doc);
                 // Clear pending edits for this vehicle since it's now saved
-                setPendingEdits(prev => { const next = { ...prev }; delete next[res.data._id]; return next; });
+                delete pendingEditsRef.current[res.data._id];
                 Swal.fire({
                     title: 'Saved Successfully!',
                     icon: 'success',
