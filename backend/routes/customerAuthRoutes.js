@@ -7,7 +7,7 @@ const requireCustomerAuth = require('../middleware/requireCustomerAuth');
 
 // Generate JWT for Customer
 const createToken = (_id) => {
-    return jwt.sign({ _id, role: 'customer' }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    return jwt.sign({ _id, role: 'customer' }, process.env.JWT_SECRET || 'fallback-secret-until-azure-env-set', { expiresIn: '30d' });
 };
 
 // @route   POST /api/customer-auth/register

@@ -110,7 +110,7 @@ const createBooking = async (req, res) => {
         const token = req.cookies?.token;
         if (token) {
             try {
-                jwt.verify(token, process.env.JWT_SECRET);
+                jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-until-azure-env-set');
                 skipCaptcha = true;
             } catch (err) { /* Invalid token — force captcha check */ }
         }
@@ -119,7 +119,7 @@ const createBooking = async (req, res) => {
         if (req.body.source === 'Mobile App' && req.headers.authorization) {
             const custToken = req.headers.authorization.split(' ')[1];
             try {
-                jwt.verify(custToken, process.env.JWT_SECRET); // Assuming same secret is used
+                jwt.verify(custToken, process.env.JWT_SECRET || 'fallback-secret-until-azure-env-set'); // Assuming same secret is used
                 skipCaptcha = true;
             } catch (err) { /* Invalid token */ }
         }
@@ -253,7 +253,7 @@ const createBooking = async (req, res) => {
                 let customerId = null;
                 if (authHeader && authHeader.startsWith('Bearer ')) {
                     const token = authHeader.split(' ')[1];
-                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-until-azure-env-set');
                     customerId = decoded._id;
                 }
 
@@ -323,7 +323,7 @@ const deleteBooking = async (req, res) => {
         const token = req.cookies?.token;
         if (token) {
             try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-until-azure-env-set');
                 actorId = decoded.id;
                 actorRole = decoded.role;
                 const emp = await Employee.findById(decoded.id).lean();
@@ -639,7 +639,7 @@ const updateBooking = async (req, res) => {
 
         if (token) {
             try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-until-azure-env-set');
                 actorId = decoded.id || decoded._id;
                 actorRole = decoded.role || 'employee';
                 const Employee = require('../models/employeeModel');
@@ -863,7 +863,7 @@ const cancelBooking = async (req, res) => {
         const authHeader = req.headers.authorization;
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const token = authHeader.split(' ')[1];
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-until-azure-env-set');
             const customer = await Customer.findById(decoded._id);
             if (customer && customer.email !== booking.emailAddress) {
                 return res.status(403).json({ error: 'Unauthorized to cancel this booking.' });

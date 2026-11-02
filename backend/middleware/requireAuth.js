@@ -19,7 +19,7 @@ const requireAuth = async (req, res, next) => {
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-until-azure-env-set');
         
         // Fetch the active employee to ensure they still exist and have access
         const user = await Employee.findById(decoded.id).select('-password');
